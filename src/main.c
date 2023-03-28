@@ -75,6 +75,12 @@ bool aux_ok = false;
 bool main_data = false;
 bool aux_data = false;
 
+#define INT16_TO_UINT16(x) ((uint16_t)32768 + (uint16_t)(x))
+#define TO_FIXED_14(x) ((int16_t)((x) * (1 << 14)))
+#define TO_FIXED_10(x) ((int16_t)((x) * (1 << 10)))
+#define FIXED_14_TO_DOUBLE(x) (((double)(x)) / (1 << 14))
+#define FIXED_10_TO_DOUBLE(x) (((double)(x)) / (1 << 10))
+
 #include "ICM42688.h"
 #include "MMC5983MA.h"
 
@@ -457,7 +463,7 @@ void main(void)
 			mmc_reset(main_mag);
 			// icm_reset(aux_imu);
 			// mmc_reset(aux_mag);
-			//  Configure chgstat interrupt
+			// Configure chgstat interrupt
 			nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_PULLUP);
 			nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_SENSE_LOW);
 			// Set system off
@@ -466,14 +472,14 @@ void main(void)
 		}
 		bool charging = gpio_pin_get_dt(&chgstat);
 		bool docked = gpio_pin_get_dt(&dock);
-		if (docked && !charging)
-		{ // TODO: move to interrupts?
+		if (docked && !charging) // TODO: change charging detect to use the usbd power detection instead?
+		{ // TODO: move to interrupts? (Then you do not need to do the above)
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
 			mmc_reset(main_mag);
 			// icm_reset(aux_imu);
 			// mmc_reset(aux_mag);
-			//  Configure dock interrupt
+			// Configure dock interrupt
 			nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP);
 			nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
 			// Set system off
@@ -485,7 +491,7 @@ void main(void)
 		{
 			// TODO: add calibration steps and store calibration
 			// TODO: on any errors set main_ok false and skip
-			//  Read main FIFO
+			// Read main FIFO
 			uint8_t rawCount[2];
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
@@ -510,7 +516,7 @@ void main(void)
 				rawMeas[4] = (((int16_t)rawData[index + 9]) << 8) | rawData[index + 10];  // gy
 				rawMeas[5] = (((int16_t)rawData[index + 11]) << 8) | rawData[index + 12]; // gz
 				rawMeas[6] = (((int16_t)rawData[index + 14]) << 8) | rawData[index + 15]; // timestamp
-																						  // transform and convert to float values
+				// transform and convert to float values
 				ax[i] = (float)rawMeas[0] * aRes - accelBias[0];
 				ay[i] = (float)rawMeas[1] * aRes - accelBias[1];
 				az[i] = (float)rawMeas[2] * aRes - accelBias[2];
@@ -532,8 +538,31 @@ void main(void)
 				MadgwickQuaternionUpdate(ax[i], ay[i], az[i], gx[i], gy[i], gz[i], mx, my, mz, (double)ts[i] * 32.0 / 30.0 / 1000.0);
 			}
 			// TODO: on significant change set main_data true
-			tx_payload.data[2] = batt_pptt / 100;
-			esb_write_payload(&tx_payload); // need to actually send imu data (target dongle, self id, battery, quats, accel)
+			uint16_t buf[7];
+			buf[0] = INT16_TO_UINT16(TO_FIXED_14(q[0]));
+			buf[1] = INT16_TO_UINT16(TO_FIXED_14(q[1]));
+			buf[2] = INT16_TO_UINT16(TO_FIXED_14(q[2]));
+			buf[3] = INT16_TO_UINT16(TO_FIXED_14(q[3]));
+			buf[4] = INT16_TO_UINT16(TO_FIXED_10(ax[packets]));
+			buf[5] = INT16_TO_UINT16(TO_FIXED_10(ay[packets]));
+			buf[6] = INT16_TO_UINT16(TO_FIXED_10(az[packets]));
+			tx_payload.data[0] = 0; // TODO: imu id here
+			tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
+			tx_payload.data[2] = buf[0] & 255;
+			tx_payload.data[3] = (buf[0] >> 8) & 255;
+			tx_payload.data[4] = buf[1] & 255;
+			tx_payload.data[5] = (buf[1] >> 8) & 255;
+			tx_payload.data[6] = buf[2] & 255;
+			tx_payload.data[7] = (buf[2] >> 8) & 255;
+			tx_payload.data[8] = buf[3] & 255;
+			tx_payload.data[9] = (buf[3] >> 8) & 255;
+			tx_payload.data[10] = buf[4] & 255;
+			tx_payload.data[11] = (buf[4] >> 8) & 255;
+			tx_payload.data[12] = buf[5] & 255;
+			tx_payload.data[13] = (buf[5] >> 8) & 255;
+			tx_payload.data[14] = buf[6] & 255;
+			tx_payload.data[15] = (buf[6] >> 8) & 255;
+			esb_write_payload(&tx_payload); // Add transmission to queue
 		}
 		else
 		{
