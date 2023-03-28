@@ -8,14 +8,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <soc.h>
 
-// #include <zephyr/bluetooth/bluetooth.h>
-// #include <zephyr/bluetooth/hci.h>
-// #include <zephyr/bluetooth/conn.h>
-// #include <zephyr/bluetooth/uuid.h>
-// #include <zephyr/bluetooth/gatt.h>
-
-// #include <bluetooth/services/nsms.h>
-
 #include <zephyr/settings/settings.h>
 
 #include <math.h>
@@ -90,20 +82,14 @@ bool aux_data = false;
 #define GyroMeasDrift pi * (0.0f / 180.0f)		// gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
 #define beta sqrtf(3.0f / 4.0f) * GyroMeasError // compute beta
 #define zeta sqrtf(3.0f / 4.0f) * GyroMeasDrift // compute zeta, the other free parameter in the Madgwick scheme usually set to a small or zero value
-uint32_t delt_t = 0;							// used to control display output rate
-uint32_t sumCount = 0;							// used to control display output rate
-float pitch, yaw, roll;							// absolute orientation
-float a12, a22, a31, a32, a33;					// rotation matrix coefficients for Euler angles and gravity components
-float deltat = 0.0f, sum = 0.0f;				// integration interval for both filter schemes
-uint32_t lastUpdate = 0, firstUpdate = 0;		// used to calculate integration interval
-uint32_t Now = 0;								// used to calculate integration interval
 float lin_ax, lin_ay, lin_az;					// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
-float eInt[3] = {0.0f, 0.0f, 0.0f};				// vector to hold integral error for Mahony method
+
+// storing temporary values
+float mx, my, mz; // variables to hold latest mag data values
+uint16_t tx_buf[7];
 
 // ICM42688 definitions
-#define ICM42688_intPin1 8 // interrupt1 pin definitions, data ready
-#define ICM42688_intPin2 9 // interrupt2 pin definitions, clock in
 
 /* Specify sensor parameters (sample rate is twice the bandwidth)
  * choices are:
@@ -116,16 +102,10 @@ float eInt[3] = {0.0f, 0.0f, 0.0f};				// vector to hold integral error for Maho
 uint8_t Ascale = AFS_16G, Gscale = GFS_250DPS, AODR = AODR_500Hz, GODR = GODR_500Hz, aMode = aMode_LN, gMode = gMode_LN;
 
 float aRes, gRes;														   // scale resolutions per LSB for the accel and gyro sensor2
+// TODO: make sure these are separate for main vs. aux (and also store/read them!)
 float accelBias[3] = {0.0f, 0.0f, 0.0f}, gyroBias[3] = {0.0f, 0.0f, 0.0f}; // offset biases for the accel and gyro
-int16_t accelDiff[3] = {0, 0, 0}, gyroDiff[3] = {0, 0, 0};				   // difference betwee ST and normal values
-float STratio[7] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};			   // self-test results for the accel and gyro
-int16_t ICM42688Data[7];												   // Stores the 16-bit signed sensor output
-float Gtemperature;														   // Stores the real internal gyro temperature in degrees Celsius
-
-bool newICM42688Data = false;
 
 // MMC5983MA definitions
-#define MMC5983MA_intPin 5 // interrupt for magnetometer data ready
 
 /* Specify sensor parameters (continuous mode sample rate is dependent on bandwidth)
  * choices are: MODR_ONESHOT, MODR_1Hz, MODR_10Hz, MODR_20Hz, MODR_50 Hz, MODR_100Hz, MODR_200Hz (BW = 0x01), MODR_1000Hz (BW = 0x03)
@@ -135,14 +115,11 @@ bool newICM42688Data = false;
 uint8_t MODR = MODR_200Hz, MBW = MBW_200Hz, MSET = MSET_2000;
 
 float mRes = 1.0f / 16384.0f;											   // mag sensitivity if using 18 bit data
+// TODO: make sure these are separate for main vs. aux (and also store/read them!)
 float magBias[3] = {0, 0, 0}, magScale[3] = {1, 1, 1}, magOffset[3] = {0}; // Bias corrections for magnetometer
 uint32_t MMC5983MAData[3];												   // Stores the 18-bit unsigned magnetometer sensor output
-uint8_t MMC5983MAtemperature;											   // Stores the magnetometer temperature register data
-float Mtemperature;														   // Stores the real internal chip temperature in degrees Celsius
-uint8_t MMC5983MAstatus;
-float MMC5983MA_offset = 131072.0f;
-
-bool newMMC5983MAData = false;
+//float MMC5983MA_offset = 131072.0f; // what the fuck is this
+float MMC5983MA_offset = 0.0f;
 
 // Implementation of Sebastian Madgwick's "...efficient orientation filter for... inertial/magnetic sensor arrays"
 // (see http://www.x-io.co.uk/category/open-source/ for examples and more details)
@@ -404,7 +381,7 @@ int esb_initialize(void)
 void main(void)
 {
 	// get sensor resolutions for user settings, only need to do this once
-	// surely these can be defines lol
+	// TODO: surely these can be defines lol
 	aRes = icm_getAres(Ascale);
 	gRes = icm_getGres(Gscale);
 
@@ -490,78 +467,82 @@ void main(void)
 		if (main_ok)
 		{
 			// TODO: add calibration steps and store calibration
-			// TODO: on any errors set main_ok false and skip
+			// TODO: on any errors set main_ok false and skip (make functions return nonzero)
 			// Read main FIFO
 			uint8_t rawCount[2];
+			// TODO: make sure these are writing to separate buffers for main vs. aux
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
 			uint16_t packets = count / 16;								 // Packet size 16 bytes
 			uint8_t rawData[2080];
 			// TODO: include read buffer (+2*packetsize)
+			// TODO: make sure these are writing to separate buffers for main vs. aux
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_DATA, &rawData[0], count); // Read buffer
+			// TODO: make sure these are writing to separate buffers for main vs. aux
 			mmc_readData(main_mag, MMC5983MAData);
-			float ax[258], ay[258], az[258], gx[258], gy[258], gz[258]; // variables to hold latest accel/gyro data values
-			uint16_t ts[258];
-			float mx, my, mz; // variables to hold latest mag data values
-			for (uint16_t i = 0; i < packets; i++)
-			{
-				uint16_t index = i * 16; // Packet size 16 bytes
-				// combine into 16 bit values
-				int16_t rawMeas[7];
-				// TODO: check header that it contains data
-				rawMeas[0] = (((int16_t)rawData[index + 1]) << 8) | rawData[index + 2];	  // ax
-				rawMeas[1] = (((int16_t)rawData[index + 3]) << 8) | rawData[index + 4];	  // ay
-				rawMeas[2] = (((int16_t)rawData[index + 5]) << 8) | rawData[index + 6];	  // az
-				rawMeas[3] = (((int16_t)rawData[index + 7]) << 8) | rawData[index + 8];	  // gx
-				rawMeas[4] = (((int16_t)rawData[index + 9]) << 8) | rawData[index + 10];  // gy
-				rawMeas[5] = (((int16_t)rawData[index + 11]) << 8) | rawData[index + 12]; // gz
-				rawMeas[6] = (((int16_t)rawData[index + 14]) << 8) | rawData[index + 15]; // timestamp
-				// transform and convert to float values
-				ax[i] = (float)rawMeas[0] * aRes - accelBias[0];
-				ay[i] = (float)rawMeas[1] * aRes - accelBias[1];
-				az[i] = (float)rawMeas[2] * aRes - accelBias[2];
-				gx[i] = (float)rawMeas[3] * gRes - gyroBias[0];
-				gy[i] = (float)rawMeas[4] * gRes - gyroBias[1];
-				gz[i] = (float)rawMeas[5] * gRes - gyroBias[2];
-				ts[i] = rawMeas[6];
-			}
 			// transform and convert to float values
+			// TODO: make sure these are reading to separate buffers for main vs. aux
 			mx = ((float)MMC5983MAData[0] - MMC5983MA_offset) * mRes - magBias[0];
 			my = ((float)MMC5983MAData[1] - MMC5983MA_offset) * mRes - magBias[1];
 			mz = ((float)MMC5983MAData[2] - MMC5983MA_offset) * mRes - magBias[2];
 			mx *= magScale[0];
 			my *= magScale[1];
 			mz *= magScale[2];
-			// TODO: swap out fusion?
 			for (uint16_t i = 0; i < packets; i++)
 			{
-				MadgwickQuaternionUpdate(ax[i], ay[i], az[i], gx[i], gy[i], gz[i], mx, my, mz, (double)ts[i] * 32.0 / 30.0 / 1000.0);
+				uint16_t index = i * 16; // Packet size 16 bytes
+				// combine into 16 bit values
+				// TODO: check header that it contains data
+				// TODO: make sure these are reading to separate buffers for main vs. aux
+				float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]);   // ax
+				float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]);   // ay
+				float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]);   // az
+				float raw3 = (int16_t)((((int16_t)rawData[index + 7]) << 8) | rawData[index + 8]);   // gx
+				float raw4 = (int16_t)((((int16_t)rawData[index + 9]) << 8) | rawData[index + 10]);  // gy
+				float raw5 = (int16_t)((((int16_t)rawData[index + 11]) << 8) | rawData[index + 12]); // gz
+				float raw6 = (int16_t)((((int16_t)rawData[index + 14]) << 8) | rawData[index + 15]); // timestamp
+				// transform and convert to float values
+				// TODO: make sure these are reading to separate buffers for main vs. aux
+				float ax = raw0 * aRes - accelBias[0];
+				float ay = raw1 * aRes - accelBias[1];
+				float az = raw2 * aRes - accelBias[2];
+				float gx = raw3 * gRes - gyroBias[0];
+				float gy = raw4 * gRes - gyroBias[1];
+				float gz = raw5 * gRes - gyroBias[2];
+				double ts = raw6;
+				// TODO: swap out fusion?
+				MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, ts * 32.0 / 30.0 / 1000.0);
+				if (i == packets - 1) {
+					// Calculate linear acceleration (no gravity)
+					lin_ax = ax + 2.0f * (q[0] * q[1] + q[2] * q[3]);
+					lin_ay = ay + 2.0f * (q[1] * q[3] - q[0] * q[2]);
+					lin_az = az - q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3];
+				}
 			}
 			// TODO: on significant change set main_data true
-			uint16_t buf[7];
-			buf[0] = INT16_TO_UINT16(TO_FIXED_14(q[0]));
-			buf[1] = INT16_TO_UINT16(TO_FIXED_14(q[1]));
-			buf[2] = INT16_TO_UINT16(TO_FIXED_14(q[2]));
-			buf[3] = INT16_TO_UINT16(TO_FIXED_14(q[3]));
-			buf[4] = INT16_TO_UINT16(TO_FIXED_10(ax[packets]));
-			buf[5] = INT16_TO_UINT16(TO_FIXED_10(ay[packets]));
-			buf[6] = INT16_TO_UINT16(TO_FIXED_10(az[packets]));
+			tx_buf[0] = INT16_TO_UINT16(TO_FIXED_14(q[0]));
+			tx_buf[1] = INT16_TO_UINT16(TO_FIXED_14(q[1]));
+			tx_buf[2] = INT16_TO_UINT16(TO_FIXED_14(q[2]));
+			tx_buf[3] = INT16_TO_UINT16(TO_FIXED_14(q[3]));
+			tx_buf[4] = INT16_TO_UINT16(TO_FIXED_10(lin_ax));
+			tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay));
+			tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az));
 			tx_payload.data[0] = 0; // TODO: imu id here
 			tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
-			tx_payload.data[2] = buf[0] & 255;
-			tx_payload.data[3] = (buf[0] >> 8) & 255;
-			tx_payload.data[4] = buf[1] & 255;
-			tx_payload.data[5] = (buf[1] >> 8) & 255;
-			tx_payload.data[6] = buf[2] & 255;
-			tx_payload.data[7] = (buf[2] >> 8) & 255;
-			tx_payload.data[8] = buf[3] & 255;
-			tx_payload.data[9] = (buf[3] >> 8) & 255;
-			tx_payload.data[10] = buf[4] & 255;
-			tx_payload.data[11] = (buf[4] >> 8) & 255;
-			tx_payload.data[12] = buf[5] & 255;
-			tx_payload.data[13] = (buf[5] >> 8) & 255;
-			tx_payload.data[14] = buf[6] & 255;
-			tx_payload.data[15] = (buf[6] >> 8) & 255;
+			tx_payload.data[2] = (tx_buf[0] >> 8) & 255;
+			tx_payload.data[3] = tx_buf[0] & 255;
+			tx_payload.data[4] = (tx_buf[1] >> 8) & 255;
+			tx_payload.data[5] = tx_buf[1] & 255;
+			tx_payload.data[6] = (tx_buf[2] >> 8) & 255;
+			tx_payload.data[7] = tx_buf[2] & 255;
+			tx_payload.data[8] = (tx_buf[3] >> 8) & 255;
+			tx_payload.data[9] = tx_buf[3] & 255;
+			tx_payload.data[10] = (tx_buf[4] >> 8) & 255;
+			tx_payload.data[11] = tx_buf[4] & 255;
+			tx_payload.data[12] = (tx_buf[5] >> 8) & 255;
+			tx_payload.data[13] = tx_buf[5] & 255;
+			tx_payload.data[14] = (tx_buf[6] >> 8) & 255;
+			tx_payload.data[15] = tx_buf[6] & 255;
 			esb_write_payload(&tx_payload); // Add transmission to queue
 		}
 		else
