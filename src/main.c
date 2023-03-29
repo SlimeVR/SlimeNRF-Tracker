@@ -406,6 +406,16 @@ void main(void)
 	pwm_set_pulse_dt(&led0, PWM_MSEC(10)); // 10/20 = 50%
 	// i dunno when to be using the led lol
 
+	// Check for a reset condition
+	// Unset any paired dongle
+	bool charging = gpio_pin_get_dt(&chgstat);
+	bool docked = gpio_pin_get_dt(&dock);
+	if (docked && !charging) // TODO: change charging detect to use the usbd power detection instead?
+	{
+		// Unset any paired dongle
+		// Flash the LED
+	}
+
 	int err;
 
 	// LOG_INF("Enhanced ShockBurst ptx sample");
