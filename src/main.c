@@ -380,6 +380,10 @@ int esb_initialize(void)
 
 void main(void)
 {
+	// TODO: Count the number of reset events to switch between normal mode, calibration mode, and pairing reset 
+	int32_t reset_reason = NRF_POWER->RESETREAS;
+	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS;
+
 	// get sensor resolutions for user settings, only need to do this once
 	// TODO: surely these can be defines lol
 	aRes = icm_getAres(Ascale);
