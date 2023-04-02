@@ -42,6 +42,9 @@ static struct esb_payload rx_payload;
 static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
+static struct esb_payload tx_payload_status = ESB_CREATE_PAYLOAD(0,
+														  0,0,0,0);
+
 #define _RADIO_SHORTS_COMMON                                       \
 	(RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | \
 	 RADIO_SHORTS_ADDRESS_RSSISTART_Msk |                          \
@@ -66,6 +69,9 @@ bool aux_ok = false;
 
 bool main_data = false;
 bool aux_data = false;
+
+int64_t driftymax;
+int64_t driftypacks=0;
 
 #define INT16_TO_UINT16(x) ((uint16_t)32768 + (uint16_t)(x))
 #define TO_FIXED_14(x) ((int16_t)((x) * (1 << 14)))
@@ -99,7 +105,7 @@ uint16_t tx_buf[7];
 	  AODR_1kHz, AODR_2kHz, AODR_4kHz, AODR_8kHz, AODR_16kHz, AODR_32kHz
 	  GODR_12_5Hz, GODR_25Hz, GODR_50Hz, GODR_100Hz, GODR_200Hz, GODR_500Hz, GODR_1kHz, GODR_2kHz, GODR_4kHz, GODR_8kHz, GODR_16kHz, GODR_32kHz
 */
-uint8_t Ascale = AFS_16G, Gscale = GFS_250DPS, AODR = AODR_500Hz, GODR = GODR_500Hz, aMode = aMode_LN, gMode = gMode_LN;
+uint8_t Ascale = AFS_16G, Gscale = GFS_250DPS, AODR = AODR_200Hz, GODR = GODR_1kHz, aMode = aMode_LN, gMode = gMode_LN;
 
 float aRes, gRes;														   // scale resolutions per LSB for the accel and gyro sensor2
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
@@ -112,7 +118,7 @@ float accelBias[3] = {0.0f, 0.0f, 0.0f}, gyroBias[3] = {0.0f, 0.0f, 0.0f}; // of
  * Bandwidth choices are: MBW_100Hz, MBW_200Hz, MBW_400Hz, MBW_800Hz
  * Set/Reset choices are: MSET_1, MSET_25, MSET_75, MSET_100, MSET_250, MSET_500, MSET_1000, MSET_2000, so MSET_100 set/reset occurs every 100th measurement, etc.
  */
-uint8_t MODR = MODR_200Hz, MBW = MBW_200Hz, MSET = MSET_2000;
+uint8_t MODR = MODR_200Hz, MBW = MBW_400Hz, MSET = MSET_2000;
 
 float mRes = 1.0f / 16384.0f;											   // mag sensitivity if using 18 bit data
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
@@ -378,6 +384,51 @@ int esb_initialize(void)
 	return 0;
 }
 
+void configure_standby(const struct i2c_dt_spec imu)
+{
+	icm_DRStatus(imu); // clear reset done int flag
+	i2c_reg_write_byte_dt(&imu, ICM42688_INT_SOURCE0, 0x00); // temporary disable interrupts
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR_50Hz); // set accel ODR and FS
+	i2c_reg_write_byte_dt(&imu, ICM42688_PWR_MGMT0, aMode_LP); // set accel and gyro modes
+	i2c_reg_write_byte_dt(&imu, ICM42688_INTF_CONFIG1, 0x00); // set low power clock
+	k_busy_wait(1000);
+	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x04); // select register bank 4
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_X_THR, 0x62); // set wake thresholds
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Y_THR, 0x62); // set wake thresholds
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Z_THR, 0x62); // set wake thresholds
+	k_busy_wait(1000);
+	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
+	i2c_reg_write_byte_dt(&imu, ICM42688_INT_SOURCE1, 0x07); // enable WOM interrupt
+	k_busy_wait(50000);
+	i2c_reg_write_byte_dt(&imu, ICM42688_SMD_CONFIG, 0x05); // enable WOM feature
+	// Configure WOM interrupt
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	// Set system off
+	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
+	k_sleep(K_SECONDS(1));
+}
+
+void configure_system_off_chgstat(void){
+	// Configure chgstat interrupt
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	// Set system off
+	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
+	k_sleep(K_SECONDS(1));
+}
+
+void configure_system_off_dock(void){
+	// Configure dock interrupt
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
+	// Set system off
+	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
+	k_sleep(K_SECONDS(1));
+}
+
 void main(void)
 {
 	// TODO: Count the number of reset events to switch between normal mode, calibration mode, and pairing reset 
@@ -441,26 +492,23 @@ void main(void)
 	// LOG_INF("Sending test packet");
 	tx_payload.noack = false;
 
+k_msleep(2500); //temporary, waiting for the nrf dk to start up first
+
 	for (;;)
 	{
 		// Get start time
 		int64_t time_begin = k_uptime_get();
 
 		unsigned int batt_pptt = read_batt();
-		if (batt_pptt == 0)
-		{
-			// Communicate all imus to shut down
-			icm_reset(main_imu);
-			mmc_reset(main_mag);
-			// icm_reset(aux_imu);
-			// mmc_reset(aux_mag);
-			// Configure chgstat interrupt
-			nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_PULLUP);
-			nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_SENSE_LOW);
-			// Set system off
-			pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
-			k_sleep(K_SECONDS(1));
-		}
+	//	if (batt_pptt == 0)
+	//	{
+	//		// Communicate all imus to shut down
+	//		icm_reset(main_imu);
+	//		mmc_reset(main_mag);
+	//		// icm_reset(aux_imu);
+	//		// mmc_reset(aux_mag);
+	//		configure_system_off_chgstat();
+	//	}
 		bool charging = gpio_pin_get_dt(&chgstat);
 		bool docked = gpio_pin_get_dt(&dock);
 		if (docked && !charging) // TODO: change charging detect to use the usbd power detection instead?
@@ -470,12 +518,7 @@ void main(void)
 			mmc_reset(main_mag);
 			// icm_reset(aux_imu);
 			// mmc_reset(aux_mag);
-			// Configure dock interrupt
-			nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP);
-			nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
-			// Set system off
-			pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
-			k_sleep(K_SECONDS(1));
+			configure_system_off_dock();
 		}
 
 		if (main_ok)
@@ -487,11 +530,21 @@ void main(void)
 			// TODO: make sure these are writing to separate buffers for main vs. aux
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
-			uint16_t packets = count / 16;								 // Packet size 16 bytes
+			uint16_t packets = count / 8;								 // Packet size 16 bytes //8 bytes
+driftypacks+=packets;
 			uint8_t rawData[2080];
 			// TODO: include read buffer (+2*packetsize)
 			// TODO: make sure these are writing to separate buffers for main vs. aux
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_DATA, &rawData[0], count); // Read buffer
+    		uint8_t rawAccel[14];
+    		i2c_burst_read_dt(&main_imu, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6); // Read accel only
+			float raw0 = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
+			float raw1 = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
+			float raw2 = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
+			// transform and convert to float values
+			float ax = raw0 * aRes - accelBias[0];
+			float ay = raw1 * aRes - accelBias[1];
+			float az = raw2 * aRes - accelBias[2];
 			// TODO: make sure these are writing to separate buffers for main vs. aux
 			mmc_readData(main_mag, MMC5983MAData);
 			// transform and convert to float values
@@ -502,30 +555,55 @@ void main(void)
 			mx *= magScale[0];
 			my *= magScale[1];
 			mz *= magScale[2];
+for(uint16_t i=0;i<16;i++){
+tx_payload.data[i]=0;
+}
+//tx_payload.data[0]=rawData[1];
+//tx_payload.data[1]=rawData[2];
+//tx_payload.data[2]=rawData[3];
+//tx_payload.data[3]=rawData[4];
+//tx_payload.data[4]=rawData[5];
+//tx_payload.data[5]=rawData[6];
+//tx_payload.data[0]=rawAccel[0];
+//tx_payload.data[1]=rawAccel[1];
+//tx_payload.data[2]=rawAccel[2];
+//tx_payload.data[3]=rawAccel[3];
+//tx_payload.data[4]=rawAccel[4];
+//tx_payload.data[5]=rawAccel[5];
+//tx_payload.data[0]=(MMC5983MAData[0]<<8)*255;
+//tx_payload.data[1]=MMC5983MAData[0]&255;
+//tx_payload.data[2]=(MMC5983MAData[1]<<8)*255;
+//tx_payload.data[3]=MMC5983MAData[1]&255;
+//tx_payload.data[4]=(MMC5983MAData[2]<<8)*255;
+//tx_payload.data[5]=MMC5983MAData[2]&255;
 			for (uint16_t i = 0; i < packets; i++)
 			{
-				uint16_t index = i * 16; // Packet size 16 bytes
+				uint16_t index = i * 8; // Packet size 16 bytes //8 bytes
 				// combine into 16 bit values
 				// TODO: check header that it contains data
 				// TODO: make sure these are reading to separate buffers for main vs. aux
-				float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]);   // ax
-				float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]);   // ay
-				float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]);   // az
-				float raw3 = (int16_t)((((int16_t)rawData[index + 7]) << 8) | rawData[index + 8]);   // gx
-				float raw4 = (int16_t)((((int16_t)rawData[index + 9]) << 8) | rawData[index + 10]);  // gy
-				float raw5 = (int16_t)((((int16_t)rawData[index + 11]) << 8) | rawData[index + 12]); // gz
-				float raw6 = (int16_t)((((int16_t)rawData[index + 14]) << 8) | rawData[index + 15]); // timestamp
+				float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]);   // ax //gx
+				float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]);   // ay //gy
+				float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]);   // az //gz
+				//float raw3 = (int16_t)((((int16_t)rawData[index + 7]) << 8) | rawData[index + 8]);   // gx
+				//float raw4 = (int16_t)((((int16_t)rawData[index + 9]) << 8) | rawData[index + 10]);  // gy
+				//float raw5 = (int16_t)((((int16_t)rawData[index + 11]) << 8) | rawData[index + 12]); // gz
+				//float raw6 = (int16_t)((((int16_t)rawData[index + 14]) << 8) | rawData[index + 15]); // timestamp
 				// transform and convert to float values
 				// TODO: make sure these are reading to separate buffers for main vs. aux
-				float ax = raw0 * aRes - accelBias[0];
-				float ay = raw1 * aRes - accelBias[1];
-				float az = raw2 * aRes - accelBias[2];
-				float gx = raw3 * gRes - gyroBias[0];
-				float gy = raw4 * gRes - gyroBias[1];
-				float gz = raw5 * gRes - gyroBias[2];
-				double ts = raw6;
+				//float ax = raw0 * aRes - accelBias[0];
+				//float ay = raw1 * aRes - accelBias[1];
+				//float az = raw2 * aRes - accelBias[2];
+				//float gx = raw3 * gRes - gyroBias[0];
+				//float gy = raw4 * gRes - gyroBias[1];
+				//float gz = raw5 * gRes - gyroBias[2];
+				float gx = raw0 * gRes - gyroBias[0];
+				float gy = raw1 * gRes - gyroBias[1];
+				float gz = raw2 * gRes - gyroBias[2];
+				//double ts = raw6;
 				// TODO: swap out fusion?
-				MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, ts * 32.0 / 30.0 / 1000.0);
+				//MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, ts * 32.0 / 30.0 / 1000.0);
+				MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, 0.002); // 500Hz (1/500)
 				if (i == packets - 1) {
 					// Calculate linear acceleration (no gravity)
 					lin_ax = ax + 2.0f * (q[0] * q[1] + q[2] * q[3]);
@@ -557,6 +635,9 @@ void main(void)
 			tx_payload.data[13] = tx_buf[5] & 255;
 			tx_payload.data[14] = (tx_buf[6] >> 8) & 255;
 			tx_payload.data[15] = tx_buf[6] & 255;
+			esb_flush_tx();
+			tx_payload.data[0] = (((driftymax+driftypacks)-k_uptime_get())>>8)*255; // TODO:
+			tx_payload.data[1] = (driftymax+driftypacks)-k_uptime_get(); // TODO:
 			esb_write_payload(&tx_payload); // Add transmission to queue
 		}
 		else
@@ -564,7 +645,8 @@ void main(void)
 			k_msleep(11);														 // Wait for start up
 			uint8_t ICM42688ID = icm_getChipID(main_imu);						 // Read CHIP_ID register for ICM42688
 			uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
-			if ((ICM42688ID == 0x47 || ICM42688ID == 0xD8) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
+//tx_payload_status.data[0]=ICM42688ID;tx_payload_status.data[1]=MMC5983ID;esb_write_payload(&tx_payload_status);
+			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
 			{
 				icm_reset(main_imu);												 // software reset ICM42688 to default registers
 				icm_DRStatus(main_imu);												 // clear reset done int flag
@@ -573,6 +655,7 @@ void main(void)
 				mmc_SET(main_mag);													 // "deGauss" magnetometer
 				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
 				main_ok = true;
+				driftymax=k_uptime_get();
 			}
 		}
 		/*
@@ -614,6 +697,7 @@ void main(void)
 
 		// Get time elapsed and sleep/yield until next tick
 		int64_t time_delta = k_uptime_get() - time_begin;
+//tx_payload_status.data[0]=time_delta;tx_payload_status.data[1]=TICKRATE_MS-time_delta;esb_write_payload(&tx_payload_status);
 		if (time_delta > TICKRATE_MS)
 		{
 			k_yield();
