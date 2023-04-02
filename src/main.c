@@ -532,8 +532,7 @@ void main(void)
 			mmc_reset(main_mag);
 			// icm_reset(aux_imu);
 			// mmc_reset(aux_mag);
-			//configure_system_off_dock();
-			configure_system_off_WOM(main_imu);
+			configure_system_off_dock();
 		}
 
 		if (docked)
@@ -670,6 +669,15 @@ tx_payload.data[i]=0;
 			if aux calibration mode
 				calibrate and clear reset
 		*/
+
+		if (false) { // TODO: Idle state on no movement
+			// Communicate all imus to shut down
+			icm_reset(main_imu);
+			mmc_reset(main_mag);
+			// icm_reset(aux_imu);
+			// mmc_reset(aux_mag);
+			configure_system_off_WOM(main_imu);
+		}
 
 		// Get time elapsed and sleep/yield until next tick
 		int64_t time_delta = k_uptime_get() - time_begin;
