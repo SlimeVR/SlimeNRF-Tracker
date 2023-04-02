@@ -49,9 +49,6 @@ static struct esb_payload tx_payload_status = ESB_CREATE_PAYLOAD(0,
 	 RADIO_SHORTS_ADDRESS_RSSISTART_Msk |                          \
 	 RADIO_SHORTS_DISABLED_RSSISTOP_Msk)
 
-// #define DEVICE_NAME             CONFIG_BT_DEVICE_NAME
-// #define DEVICE_NAME_LEN         (sizeof(DEVICE_NAME) - 1)
-
 #define ZEPHYR_USER_NODE DT_PATH(zephyr_user)
 
 #define LED0_NODE DT_NODELABEL(pwm_led0)
@@ -493,12 +490,12 @@ k_msleep(2500); //temporary, waiting for the nrf dk to start up first
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
 			uint16_t packets = count / 8;								 // Packet size 8 bytes
-driftypacks+=packets;
+driftypacks+=packets; // TODO: calculate offset of imu clock
 			uint8_t rawData[2080];
 			// TODO: include read buffer (+2*packetsize)
 			// TODO: make sure these are writing to separate buffers for main vs. aux
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_DATA, &rawData[0], count); // Read buffer
-    		uint8_t rawAccel[14];
+    		uint8_t rawAccel[6];
     		i2c_burst_read_dt(&main_imu, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6); // Read accel only
 			float raw0 = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
 			float raw1 = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
@@ -535,7 +532,7 @@ tx_payload.data[i]=0;
 				float gy = raw1 * gRes - gyroBias[1];
 				float gz = raw2 * gRes - gyroBias[2];
 				// TODO: swap out fusion?
-				MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, 0.002); // 500Hz (1/500)
+				MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, 0.002); // 500Hz (1/500) TODO: use adjusted rate
 				if (i == packets - 1) {
 					// Calculate linear acceleration (no gravity)
 					lin_ax = ax + 2.0f * (q[0] * q[1] + q[2] * q[3]);
@@ -567,7 +564,7 @@ tx_payload.data[i]=0;
 			tx_payload.data[13] = tx_buf[5] & 255;
 			tx_payload.data[14] = (tx_buf[6] >> 8) & 255;
 			tx_payload.data[15] = tx_buf[6] & 255;
-			esb_flush_tx();
+			esb_flush_tx(); // TODO: this clears everything so it'll suck for the other imu
 			tx_payload.data[0] = (((driftymax+driftypacks)-k_uptime_get())>>8)*255; // TODO:
 			tx_payload.data[1] = (driftymax+driftypacks)-k_uptime_get(); // TODO:
 			esb_write_payload(&tx_payload); // Add transmission to queue
@@ -601,31 +598,9 @@ tx_payload.data[i]=0;
 
 		if (docked)
 		{
-			// TODO: Don't really care about USB anymore, ignore this
-			// TODO: read usb cdc
-			// TODO: this is for really basic configuring
-			// TODO: resetting target dongle
-			//		} else {
-			//			//TODO: dongle can communicate back to the tracker? ie toggle mag or disable/enable tracking to save power
-			// 			//if (true) { //if connected (does this really need to be checked?)
-			//				//if (ready) {
-			//					//ready = false;
-			//					//esb_flush_tx();
-			//
-			//					//tx_payload = ESB_CREATE_PAYLOAD(0, 0x01, 0x00, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08);
-			//					err = esb_write_payload(&tx_payload); //need to actually send imu data (target dongle, self id, battery, quats, accel)
-			//					if (err) {
-			//						//LOG_ERR("Payload write failed, err %d", err);
-			//					}
-			//					//tx_payload.data[1]++;
-			//					main_data = false;
-			//					aux_data = false;
-			//				//}
-			//			//} else {
-			//				//TODO: retry connection
-			//				//TODO: if no dongle paired, search for dongles and connect to the first one (set target dongle, write to memory)
-			//			//}
 		}
+		//TODO: dongle can communicate back to the tracker? ie toggle mag or disable/enable tracking to save power
+		//TODO: if no dongle paired, search for dongles and connect to the first one (set target dongle, write to memory)
 
 		// Get time elapsed and sleep/yield until next tick
 		int64_t time_delta = k_uptime_get() - time_begin;
