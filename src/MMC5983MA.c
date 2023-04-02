@@ -99,7 +99,7 @@ void mmc_getOffset(struct i2c_dt_spec dev_i2c, float * destination)
  
     mmc_SET(dev_i2c); // enable set current
     i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x01); //enable one-time mag measurement
-    k_busy_wait(1000 * 10);
+    k_msleep(10);
 
     i2c_burst_read_dt(&dev_i2c, MMC5983MA_XOUT_0, &rawData[0], 6); // Read the 6 raw data registers into data array
     data_set[0] = (uint16_t) (((uint16_t) rawData[0] << 8) | rawData[1]); // x-axis
@@ -108,7 +108,7 @@ void mmc_getOffset(struct i2c_dt_spec dev_i2c, float * destination)
 
     mmc_RESET(dev_i2c); // enable reset current
     i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x01); //enable one-time mag measurement
-    k_busy_wait(1000 * 10);
+    k_msleep(10);
 
     i2c_burst_read_dt(&dev_i2c, MMC5983MA_XOUT_0, &rawData[0], 6); // Read the 6 raw data registers into data array
     data_reset[0] = (uint16_t) (((uint16_t) rawData[0] << 8) | rawData[1]); // x-axis
@@ -174,16 +174,16 @@ void mmc_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
     float _mRes = 1.0f/16384.0f; // mag sensitivity if using 18 bit data
 
     //Serial.println("Calculate mag offset bias: move all around to sample the complete response surface!");
-    k_busy_wait(1000 * 4000);
+    //k_busy_wait(1000 * 4000);
 
-    for (int ii = 0; ii < 4000; ii++)
+    for (int ii = 0; ii < 2000; ii++) // About 10 seconds
     {
         mmc_readData(dev_i2c, mag_temp);
         for (int jj = 0; jj < 3; jj++) {
             if((int32_t)(mag_temp[jj] - magOffset) > mag_max[jj]) mag_max[jj] = (int32_t)(mag_temp[jj] - magOffset);
             if((int32_t)(mag_temp[jj] - magOffset) < mag_min[jj]) mag_min[jj] = (int32_t)(mag_temp[jj] - magOffset);
         }
-        k_busy_wait(1000 * 12);
+        k_msleep(5);
     }
 
     // Get hard iron correction

@@ -233,7 +233,7 @@ void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
         sum[4] += temp[4];
         sum[5] += temp[5];
         sum[6] += temp[6];
-        k_busy_wait(1000 * 50);
+        k_msleep(5);
     }
 
     dest1[0] = sum[1]*_aRes/128.0f;

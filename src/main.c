@@ -37,6 +37,30 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/pwm.h>
 
+#include <zephyr/sys/reboot.h>
+#include <zephyr/drivers/flash.h>
+#include <zephyr/storage/flash_map.h>
+#include <zephyr/fs/nvs.h>
+
+#include "retained.h"
+
+static struct nvs_fs fs;
+
+#define NVS_PARTITION		storage_partition
+#define NVS_PARTITION_DEVICE	FIXED_PARTITION_DEVICE(NVS_PARTITION)
+#define NVS_PARTITION_OFFSET	FIXED_PARTITION_OFFSET(NVS_PARTITION)
+
+#define RBT_CNT_ID 1
+#define PAIRED_ID 2
+#define MAIN_ACCEL_BIAS_ID 3
+#define MAIN_GYRO_BIAS_ID 4
+#define MAIN_MAG_BIAS_ID 5
+#define MAIN_MAG_SCALE_ID 6
+#define AUX_ACCEL_BIAS_ID 7
+#define AUX_GYRO_BIAS_ID 8
+#define AUX_MAG_BIAS_ID 9
+#define AUX_MAG_SCALE_ID 10
+
 static struct esb_payload rx_payload;
 static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -83,6 +107,7 @@ bool aux_data = false;
 #define zeta sqrtf(3.0f / 4.0f) * GyroMeasDrift // compute zeta, the other free parameter in the Madgwick scheme usually set to a small or zero value
 float lin_ax, lin_ay, lin_az;					// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
+float q2[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 
 // storing temporary values
 float mx, my, mz; // variables to hold latest mag data values
@@ -117,8 +142,7 @@ float mRes = 1.0f / 16384.0f;											   // mag sensitivity if using 18 bit da
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
 float magBias[3] = {0, 0, 0}, magScale[3] = {1, 1, 1}, magOffset[3] = {0}; // Bias corrections for magnetometer
 uint32_t MMC5983MAData[3];												   // Stores the 18-bit unsigned magnetometer sensor output
-//float MMC5983MA_offset = 131072.0f; // what the fuck is this
-float MMC5983MA_offset = 0.0f;
+float MMC5983MA_offset = 131072.0f; // mag range unsigned to signed
 
 // Implementation of Sebastian Madgwick's "...efficient orientation filter for... inertial/magnetic sensor arrays"
 // (see http://www.x-io.co.uk/category/open-source/ for examples and more details)
@@ -338,7 +362,7 @@ int esb_initialize(void)
 	return 0;
 }
 
-void configure_standby(const struct i2c_dt_spec imu)
+void configure_system_off_WOM(const struct i2c_dt_spec imu)
 {
 	icm_DRStatus(imu); // clear reset done int flag
 	i2c_reg_write_byte_dt(&imu, ICM42688_INT_SOURCE0, 0x00); // temporary disable interrupts
@@ -359,7 +383,13 @@ void configure_standby(const struct i2c_dt_spec imu)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	// TODO: Don't shut down system? Maybe you want to store the last quats
+	// Store the last quats
+	for (uint8_t i = 0; i < 4; i++){
+		retained.q[i] = q[i];
+		retained.q2[i] = q2[i];
+	}
+	retained.stored_quats = true;
+	retained_update();
 	// Set system off
 	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
 	k_sleep(K_SECONDS(1));
@@ -386,9 +416,44 @@ void configure_system_off_dock(void){
 
 void main(void)
 {
-	// TODO: Count the number of reset events to switch between normal mode, calibration mode, and pairing reset 
+	// TODO: Need to skip all this junk and check the battery and dock first
+
 	int32_t reset_reason = NRF_POWER->RESETREAS;
-	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS;
+	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
+	uint8_t reboot_counter = 0, reset_mode = 0;
+	struct flash_pages_info info;
+
+	fs.flash_device = NVS_PARTITION_DEVICE;
+	fs.offset = NVS_PARTITION_OFFSET; // Start NVS FS here
+	flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
+	fs.sector_size = info.size; // Sector size equal to page size
+	fs.sector_count = 4U; // 4 sectors
+	nvs_mount(&fs);
+
+	if (reset_reason & 0x01) { // Count pin resets
+		nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+		reset_mode = reboot_counter;
+		reboot_counter++;
+		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+		k_msleep(1000); // Wait before clearing counter and continuing
+		reboot_counter = 0;
+		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+	}
+
+	if (reset_mode == 3) { // Reset mode pairing reset
+		// TODO: Unset any paired dongle, Flash the LED
+		reset_mode = 0; // Clear reset mode
+	}
+
+	// Read calibration from NVS
+	nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
+	nvs_read(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
+	nvs_read(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
+	nvs_read(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
+	//nvs_read(&fs, AUX_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
+	//nvs_read(&fs, AUX_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
+	//nvs_read(&fs, AUX_MAG_BIAS_ID, &magBias, sizeof(magBias));
+	//nvs_read(&fs, AUX_MAG_SCALE_ID, &magScale, sizeof(magScale));
 
 	// get sensor resolutions for user settings, only need to do this once
 	// TODO: surely these can be defines lol
@@ -416,20 +481,18 @@ void main(void)
 	pwm_set_pulse_dt(&led0, PWM_MSEC(10)); // 10/20 = 50%
 	// i dunno when to be using the led lol
 
-	// TODO: Changing to reset counting
-	// Check for a reset condition
-	// Unset any paired dongle
-	bool charging = gpio_pin_get_dt(&chgstat);
-	bool docked = gpio_pin_get_dt(&dock);
-	if (docked && !charging) // TODO: change charging detect to use the usbd power detection instead?
-	{
-		// Unset any paired dongle
-		// Flash the LED
+	// Recover quats if present
+	retained_validate();
+	if (retained.stored_quats) {
+		for (uint8_t i = 0; i < 4; i++){
+			q[i] = retained.q[i];
+			q2[i] = retained.q2[i];
+		}
+		retained.stored_quats = false; // Invalidate the retained quaternions
+		retained_update();
 	}
 
 	int err;
-
-	// LOG_INF("Enhanced ShockBurst ptx sample");
 
 	err = clocks_start();
 	if (err)
@@ -440,12 +503,9 @@ void main(void)
 	err = esb_initialize();
 	if (err)
 	{
-		// LOG_ERR("ESB initialization failed, err %d", err);
 		return;
 	}
 
-	// LOG_INF("Initialization complete");
-	// LOG_INF("Sending test packet");
 	tx_payload.noack = false;
 
 	for (;;)
@@ -472,7 +532,8 @@ void main(void)
 			mmc_reset(main_mag);
 			// icm_reset(aux_imu);
 			// mmc_reset(aux_mag);
-			configure_system_off_dock();
+			//configure_system_off_dock();
+			configure_system_off_WOM(main_imu);
 		}
 
 		if (docked)
@@ -579,10 +640,23 @@ tx_payload.data[i]=0;
 				icm_reset(main_imu);												 // software reset ICM42688 to default registers
 				icm_DRStatus(main_imu);												 // clear reset done int flag
 				icm_init(main_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
+				mmc_getOffset(main_mag, magOffset);									 // get SET/RESET difference
 				mmc_reset(main_mag);												 // software reset MMC5983MA to default registers
 				mmc_SET(main_mag);													 // "deGauss" magnetometer
 				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
 				main_ok = true;
+				if (reset_mode == 1) { // Reset mode main calibration
+					// TODO: Add LED flashies
+					// TODO: Wait for accelerometer to settle, then calibrate (5 sec timeout to skip)
+					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 750ms
+					nvs_write(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
+					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
+					// TODO: Wait for accelerometer movement, then calibrate (5 sec timeout to skip)
+					mmc_offsetBias(main_imu, magBias, magScale); // This takes about 10s
+					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
+					nvs_write(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
+					reset_mode = 0; // Clear reset mode
+				}
 			}
 		}
 		/*
@@ -593,6 +667,8 @@ tx_payload.data[i]=0;
 			fusion
 		if aux not setup
 			setup aux
+			if aux calibration mode
+				calibrate and clear reset
 		*/
 
 		// Get time elapsed and sleep/yield until next tick
