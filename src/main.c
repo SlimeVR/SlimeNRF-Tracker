@@ -459,15 +459,15 @@ k_msleep(2500); //temporary, waiting for the nrf dk to start up first
 		int64_t time_begin = k_uptime_get();
 
 		unsigned int batt_pptt = read_batt();
-	//	if (batt_pptt == 0)
-	//	{
+		if (batt_pptt == 0)
+		{
 	//		// Communicate all imus to shut down
 	//		icm_reset(main_imu);
 	//		mmc_reset(main_mag);
 	//		// icm_reset(aux_imu);
 	//		// mmc_reset(aux_mag);
 	//		configure_system_off_chgstat();
-	//	}
+		}
 		bool charging = gpio_pin_get_dt(&chgstat);
 		bool docked = gpio_pin_get_dt(&dock);
 		if (docked && !charging) // TODO: change charging detect to use the usbd power detection instead?
@@ -479,6 +479,12 @@ k_msleep(2500); //temporary, waiting for the nrf dk to start up first
 			// mmc_reset(aux_mag);
 			configure_system_off_dock();
 		}
+
+		if (docked)
+		{
+		}
+		//TODO: dongle can communicate back to the tracker? ie toggle mag or disable/enable tracking to save power
+		//TODO: if no dongle paired, search for dongles and connect to the first one (set target dongle, write to memory)
 
 		if (main_ok)
 		{
@@ -595,12 +601,6 @@ tx_payload.data[i]=0;
 		if aux not setup
 			setup aux
 		*/
-
-		if (docked)
-		{
-		}
-		//TODO: dongle can communicate back to the tracker? ie toggle mag or disable/enable tracking to save power
-		//TODO: if no dongle paired, search for dongles and connect to the first one (set target dongle, write to memory)
 
 		// Get time elapsed and sleep/yield until next tick
 		int64_t time_delta = k_uptime_get() - time_begin;
