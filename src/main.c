@@ -66,9 +66,6 @@ bool aux_ok = false;
 bool main_data = false;
 bool aux_data = false;
 
-int64_t driftymax;
-int64_t driftypacks=0;
-
 #define INT16_TO_UINT16(x) ((uint16_t)32768 + (uint16_t)(x))
 #define TO_FIXED_14(x) ((int16_t)((x) * (1 << 14)))
 #define TO_FIXED_10(x) ((int16_t)((x) * (1 << 10)))
@@ -451,8 +448,6 @@ void main(void)
 	// LOG_INF("Sending test packet");
 	tx_payload.noack = false;
 
-k_msleep(2500); //temporary, waiting for the nrf dk to start up first
-
 	for (;;)
 	{
 		// Get start time
@@ -495,10 +490,9 @@ k_msleep(2500); //temporary, waiting for the nrf dk to start up first
 			// TODO: make sure these are writing to separate buffers for main vs. aux
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
+			count += 16; // Add two read buffer packets
 			uint16_t packets = count / 8;								 // Packet size 8 bytes
-driftypacks+=packets; // TODO: calculate offset of imu clock
 			uint8_t rawData[2080];
-			// TODO: include read buffer (+2*packetsize)
 			// TODO: make sure these are writing to separate buffers for main vs. aux
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_DATA, &rawData[0], count); // Read buffer
     		uint8_t rawAccel[6];
@@ -526,12 +520,14 @@ tx_payload.data[i]=0;
 			for (uint16_t i = 0; i < packets; i++)
 			{
 				uint16_t index = i * 8; // Packet size 8 bytes
+				if (rawData[index] & 0x80 == 0x80) {
+					continue; // Skip empty packets
+				}
 				// combine into 16 bit values
-				// TODO: check header that it contains data
 				// TODO: make sure these are reading to separate buffers for main vs. aux
-				float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]);   // gx
-				float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]);   // gy
-				float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]);   // gz
+				float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]); // gx
+				float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]); // gy
+				float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]); // gz
 				// transform and convert to float values
 				// TODO: make sure these are reading to separate buffers for main vs. aux
 				float gx = raw0 * gRes - gyroBias[0];
@@ -571,8 +567,6 @@ tx_payload.data[i]=0;
 			tx_payload.data[14] = (tx_buf[6] >> 8) & 255;
 			tx_payload.data[15] = tx_buf[6] & 255;
 			esb_flush_tx(); // TODO: this clears everything so it'll suck for the other imu
-			tx_payload.data[0] = (((driftymax+driftypacks)-k_uptime_get())>>8)*255; // TODO:
-			tx_payload.data[1] = (driftymax+driftypacks)-k_uptime_get(); // TODO:
 			esb_write_payload(&tx_payload); // Add transmission to queue
 		}
 		else
@@ -589,7 +583,6 @@ tx_payload.data[i]=0;
 				mmc_SET(main_mag);													 // "deGauss" magnetometer
 				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
 				main_ok = true;
-				driftymax=k_uptime_get();
 			}
 		}
 		/*
