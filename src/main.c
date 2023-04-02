@@ -37,7 +37,6 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/pwm.h>
 
-// static bool ready = true;
 static struct esb_payload rx_payload;
 static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -226,47 +225,8 @@ __attribute__((optimize("O3"))) void MadgwickQuaternionUpdate(float ax, float ay
 	q[3] = q4 * norm;
 }
 
-/*
-connection is a thread
-
-main-ish thread timer on <10ms
-
-check batt
-if batt low
-	shut off?
-check charging
-check dock
-if docked and not charging
-	shut off?
-check main
-if main setup
-	read main fifo
-	read main mag
-	fusion
-if main not setup
-	setup main
-check aux
-if aux setup
-	read aux fifo
-	read aux mag
-	fusion
-if aux not setup
-	setup aux
-if docked
-	read usb cdc
-else
-	check connection
-	if disconnected
-		retry connection
-	else
-		send data
-relinquish thread to rtos (send data)
-*/
-
 void event_handler(struct esb_evt const *event)
 {
-	// ready = true;
-
 	switch (event->evt_id)
 	{
 	case ESB_EVENT_TX_SUCCESS:
@@ -405,6 +365,7 @@ void configure_standby(const struct i2c_dt_spec imu)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	// TODO: Don't shut down system? Maybe you want to store the last quats
 	// Set system off
 	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
 	k_sleep(K_SECONDS(1));
@@ -461,6 +422,7 @@ void main(void)
 	pwm_set_pulse_dt(&led0, PWM_MSEC(10)); // 10/20 = 50%
 	// i dunno when to be using the led lol
 
+	// TODO: Changing to reset counting
 	// Check for a reset condition
 	// Unset any paired dongle
 	bool charging = gpio_pin_get_dt(&chgstat);
@@ -530,7 +492,7 @@ k_msleep(2500); //temporary, waiting for the nrf dk to start up first
 			// TODO: make sure these are writing to separate buffers for main vs. aux
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
-			uint16_t packets = count / 8;								 // Packet size 16 bytes //8 bytes
+			uint16_t packets = count / 8;								 // Packet size 8 bytes
 driftypacks+=packets;
 			uint8_t rawData[2080];
 			// TODO: include read buffer (+2*packetsize)
@@ -558,51 +520,21 @@ driftypacks+=packets;
 for(uint16_t i=0;i<16;i++){
 tx_payload.data[i]=0;
 }
-//tx_payload.data[0]=rawData[1];
-//tx_payload.data[1]=rawData[2];
-//tx_payload.data[2]=rawData[3];
-//tx_payload.data[3]=rawData[4];
-//tx_payload.data[4]=rawData[5];
-//tx_payload.data[5]=rawData[6];
-//tx_payload.data[0]=rawAccel[0];
-//tx_payload.data[1]=rawAccel[1];
-//tx_payload.data[2]=rawAccel[2];
-//tx_payload.data[3]=rawAccel[3];
-//tx_payload.data[4]=rawAccel[4];
-//tx_payload.data[5]=rawAccel[5];
-//tx_payload.data[0]=(MMC5983MAData[0]<<8)*255;
-//tx_payload.data[1]=MMC5983MAData[0]&255;
-//tx_payload.data[2]=(MMC5983MAData[1]<<8)*255;
-//tx_payload.data[3]=MMC5983MAData[1]&255;
-//tx_payload.data[4]=(MMC5983MAData[2]<<8)*255;
-//tx_payload.data[5]=MMC5983MAData[2]&255;
 			for (uint16_t i = 0; i < packets; i++)
 			{
-				uint16_t index = i * 8; // Packet size 16 bytes //8 bytes
+				uint16_t index = i * 8; // Packet size 8 bytes
 				// combine into 16 bit values
 				// TODO: check header that it contains data
 				// TODO: make sure these are reading to separate buffers for main vs. aux
-				float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]);   // ax //gx
-				float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]);   // ay //gy
-				float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]);   // az //gz
-				//float raw3 = (int16_t)((((int16_t)rawData[index + 7]) << 8) | rawData[index + 8]);   // gx
-				//float raw4 = (int16_t)((((int16_t)rawData[index + 9]) << 8) | rawData[index + 10]);  // gy
-				//float raw5 = (int16_t)((((int16_t)rawData[index + 11]) << 8) | rawData[index + 12]); // gz
-				//float raw6 = (int16_t)((((int16_t)rawData[index + 14]) << 8) | rawData[index + 15]); // timestamp
+				float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]);   // gx
+				float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]);   // gy
+				float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]);   // gz
 				// transform and convert to float values
 				// TODO: make sure these are reading to separate buffers for main vs. aux
-				//float ax = raw0 * aRes - accelBias[0];
-				//float ay = raw1 * aRes - accelBias[1];
-				//float az = raw2 * aRes - accelBias[2];
-				//float gx = raw3 * gRes - gyroBias[0];
-				//float gy = raw4 * gRes - gyroBias[1];
-				//float gz = raw5 * gRes - gyroBias[2];
 				float gx = raw0 * gRes - gyroBias[0];
 				float gy = raw1 * gRes - gyroBias[1];
 				float gz = raw2 * gRes - gyroBias[2];
-				//double ts = raw6;
 				// TODO: swap out fusion?
-				//MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, ts * 32.0 / 30.0 / 1000.0);
 				MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, 0.002); // 500Hz (1/500)
 				if (i == packets - 1) {
 					// Calculate linear acceleration (no gravity)
@@ -645,7 +577,6 @@ tx_payload.data[i]=0;
 			k_msleep(11);														 // Wait for start up
 			uint8_t ICM42688ID = icm_getChipID(main_imu);						 // Read CHIP_ID register for ICM42688
 			uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
-//tx_payload_status.data[0]=ICM42688ID;tx_payload_status.data[1]=MMC5983ID;esb_write_payload(&tx_payload_status);
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
 			{
 				icm_reset(main_imu);												 // software reset ICM42688 to default registers
@@ -670,6 +601,7 @@ tx_payload.data[i]=0;
 
 		if (docked)
 		{
+			// TODO: Don't really care about USB anymore, ignore this
 			// TODO: read usb cdc
 			// TODO: this is for really basic configuring
 			// TODO: resetting target dongle
