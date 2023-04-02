@@ -465,20 +465,24 @@ void main(void)
 	// const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
 	// const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
 
-	const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
+	gpio_pin_configure_dt(&dock, GPIO_INPUT);
+	gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
+	// gpio_pin_configure_dt(&int0, GPIO_INPUT);
+	// gpio_pin_configure_dt(&int1, GPIO_INPUT);
 
 	const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
 	const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
 	// const struct i2c_dt_spec aux_imu = I2C_DT_SPEC_GET(AUX_IMU_NODE);
 	// const struct i2c_dt_spec aux_mag = I2C_DT_SPEC_GET(AUX_MAG_NODE);
 
-	gpio_pin_configure_dt(&dock, GPIO_INPUT);
-	gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
-	// gpio_pin_configure_dt(&int0, GPIO_INPUT);
-	// gpio_pin_configure_dt(&int1, GPIO_INPUT);
+	// const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
+	const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
+
+	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 
 	// maybey test pwm?
-	pwm_set_pulse_dt(&led0, PWM_MSEC(10)); // 10/20 = 50%
+	//pwm_set_pulse_dt(&led0, PWM_MSEC(20)); // 10/20 = 50%
+	gpio_pin_set_dt(&led, 1);
 	// i dunno when to be using the led lol
 
 	// Recover quats if present
@@ -523,9 +527,9 @@ void main(void)
 	//		// mmc_reset(aux_mag);
 	//		configure_system_off_chgstat();
 		}
-		bool charging = gpio_pin_get_dt(&chgstat);
+		bool charging = gpio_pin_get_dt(&chgstat); // TODO: Charging detect doesn't work (hardware issue)
 		bool docked = gpio_pin_get_dt(&dock);
-		if (docked && !charging) // TODO: change charging detect to use the usbd power detection instead?
+		if (docked)
 		{ // TODO: move to interrupts? (Then you do not need to do the above)
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
@@ -533,10 +537,6 @@ void main(void)
 			// icm_reset(aux_imu);
 			// mmc_reset(aux_mag);
 			configure_system_off_dock();
-		}
-
-		if (docked)
-		{
 		}
 		//TODO: dongle can communicate back to the tracker? ie toggle mag or disable/enable tracking to save power
 		//TODO: if no dongle paired, search for dongles and connect to the first one (set target dongle, write to memory)
@@ -594,7 +594,8 @@ tx_payload.data[i]=0;
 				float gy = raw1 * gRes - gyroBias[1];
 				float gz = raw2 * gRes - gyroBias[2];
 				// TODO: swap out fusion?
-				MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, 0.002); // 500Hz (1/500) TODO: use adjusted rate
+				MadgwickQuaternionUpdate(ay, ax, -az, gy * pi / 180.0f, gx * pi / 180.0f, -gz * pi / 180.0f, mx, -my, -mz, 0.002);
+				//MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, 0.002); // 500Hz (1/500) TODO: use adjusted rate
 				if (i == packets - 1) {
 					// Calculate linear acceleration (no gravity)
 					lin_ax = ax + 2.0f * (q[0] * q[1] + q[2] * q[3]);
@@ -611,7 +612,8 @@ tx_payload.data[i]=0;
 			tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay));
 			tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az));
 			tx_payload.data[0] = 0; // TODO: imu id here
-			tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
+			//tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
+			tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
 			tx_payload.data[2] = (tx_buf[0] >> 8) & 255;
 			tx_payload.data[3] = tx_buf[0] & 255;
 			tx_payload.data[4] = (tx_buf[1] >> 8) & 255;
@@ -651,7 +653,7 @@ tx_payload.data[i]=0;
 					nvs_write(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
 					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
 					// TODO: Wait for accelerometer movement, then calibrate (5 sec timeout to skip)
-					mmc_offsetBias(main_imu, magBias, magScale); // This takes about 10s
+					mmc_offsetBias(main_mag, magBias, magScale); // This takes about 10s
 					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
 					nvs_write(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
 					reset_mode = 0; // Clear reset mode
