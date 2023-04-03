@@ -674,11 +674,13 @@ tx_payload.data[i]=0;
 // 0-1ms delta to setup mmc
 				main_ok = true;
 				if (reset_mode == 1) { // Reset mode main calibration
+gpio_pin_set_dt(&led, 0); // scuffed led
 					// TODO: Add LED flashies
 					// TODO: Wait for accelerometer to settle, then calibrate (5 sec timeout to skip)
 					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 750ms
 					nvs_write(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
 					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
+gpio_pin_set_dt(&led, 1); // scuffed led
 					// TODO: Wait for accelerometer movement, then calibrate (5 sec timeout to skip)
 					mmc_offsetBias(main_mag, magBias, magScale); // This takes about 10s
 					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
