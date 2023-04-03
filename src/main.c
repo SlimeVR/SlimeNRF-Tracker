@@ -56,10 +56,12 @@ static struct nvs_fs fs;
 #define MAIN_GYRO_BIAS_ID 4
 #define MAIN_MAG_BIAS_ID 5
 #define MAIN_MAG_SCALE_ID 6
-#define AUX_ACCEL_BIAS_ID 7
-#define AUX_GYRO_BIAS_ID 8
-#define AUX_MAG_BIAS_ID 9
-#define AUX_MAG_SCALE_ID 10
+#define MAIN_MAG_OFFSET_ID 7
+#define AUX_ACCEL_BIAS_ID 8
+#define AUX_GYRO_BIAS_ID 9
+#define AUX_MAG_BIAS_ID 10
+#define AUX_MAG_SCALE_ID 11
+#define AUX_MAG_OFFSET_ID 12
 
 static struct esb_payload rx_payload;
 static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
@@ -112,6 +114,8 @@ float q2[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 // storing temporary values
 float mx, my, mz; // variables to hold latest mag data values
 uint16_t tx_buf[7];
+int64_t start_time;
+int64_t init_time=0;
 
 // ICM42688 definitions
 
@@ -416,8 +420,8 @@ void configure_system_off_dock(void){
 
 void main(void)
 {
+	start_time = k_uptime_get(); // ~75ms from start_time to first data sent with main imus only
 	// TODO: Need to skip all this junk and check the battery and dock first
-
 	int32_t reset_reason = NRF_POWER->RESETREAS;
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 	uint8_t reboot_counter = 0, reset_mode = 0;
@@ -429,7 +433,7 @@ void main(void)
 	fs.sector_size = info.size; // Sector size equal to page size
 	fs.sector_count = 4U; // 4 sectors
 	nvs_mount(&fs);
-
+// 5-6ms delta to initialize NVS
 	if (reset_reason & 0x01) { // Count pin resets
 		nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
 		reset_mode = reboot_counter;
@@ -439,7 +443,7 @@ void main(void)
 		reboot_counter = 0;
 		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
 	}
-
+// 0ms or 1000ms delta for reboot counter
 	if (reset_mode == 3) { // Reset mode pairing reset
 		// TODO: Unset any paired dongle, Flash the LED
 		reset_mode = 0; // Clear reset mode
@@ -455,10 +459,12 @@ void main(void)
 	nvs_read(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
 	nvs_read(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
 	nvs_read(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
+	nvs_read(&fs, MAIN_MAG_OFFSET_ID, &magOffset, sizeof(magOffset));
 	//nvs_read(&fs, AUX_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
 	//nvs_read(&fs, AUX_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
 	//nvs_read(&fs, AUX_MAG_BIAS_ID, &magBias, sizeof(magBias));
 	//nvs_read(&fs, AUX_MAG_SCALE_ID, &magScale, sizeof(magScale));
+	//nvs_read(&fs, MAIN_MAG_OFFSET_ID, &magOffset, sizeof(magOffset));
 
 	// get sensor resolutions for user settings, only need to do this once
 	// TODO: surely these can be defines lol
@@ -500,7 +506,7 @@ void main(void)
 		retained.stored_quats = false; // Invalidate the retained quaternions
 		retained_update();
 	}
-
+// 0ms delta to read calibration and configure pins (unknown time to read retained data but probably negligible)
 	int err;
 
 	err = clocks_start();
@@ -516,7 +522,7 @@ void main(void)
 	}
 
 	tx_payload.noack = false;
-
+// 1ms delta to start ESB
 	for (;;)
 	{
 		// Get start time
@@ -603,8 +609,8 @@ tx_payload.data[i]=0;
 				float gy = raw1 * gRes - gyroBias[1];
 				float gz = raw2 * gRes - gyroBias[2];
 				// TODO: swap out fusion?
-				MadgwickQuaternionUpdate(ay, ax, -az, gy * pi / 180.0f, gx * pi / 180.0f, -gz * pi / 180.0f, mx, -my, -mz, 0.002);
-				//MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, 0.002); // 500Hz (1/500) TODO: use adjusted rate
+				MadgwickQuaternionUpdate(ay, ax, -az, gy * pi / 180.0f, gx * pi / 180.0f, -gz * pi / 180.0f, -mx, my, mz, 0.002);
+				//MadgwickQuaternionUpdate(ax, ay, az, gx * pi / 180.0f, gy * pi / 180.0f, gz * pi / 180.0f, my, -mx, -mz, 0.002); // 500Hz (1/500) TODO: use adjusted rate
 				if (i == packets - 1) {
 					// Calculate linear acceleration (no gravity)
 					lin_ax = ax + 2.0f * (q[0] * q[1] + q[2] * q[3]);
@@ -642,18 +648,30 @@ tx_payload.data[i]=0;
 		}
 		else
 		{
-			k_msleep(11);														 // Wait for start up
+// 5ms delta (???) from entering loop
+			int64_t time_delta = k_uptime_get() - start_time;
+			if (time_delta < 11)
+			{
+				k_msleep(11 - time_delta);
+			}
+			//k_msleep(11);														 // Wait for start up (1ms for ICM, 10ms for MMC -> 10ms)
 			uint8_t ICM42688ID = icm_getChipID(main_imu);						 // Read CHIP_ID register for ICM42688
 			uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
 			{
+    			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
 				icm_reset(main_imu);												 // software reset ICM42688 to default registers
 				icm_DRStatus(main_imu);												 // clear reset done int flag
 				icm_init(main_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
-				mmc_getOffset(main_mag, magOffset);									 // get SET/RESET difference
-				mmc_reset(main_mag);												 // software reset MMC5983MA to default registers
+// 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
+				if (reset_mode == 1) { // Reset mode main calibration
+					mmc_getOffset(main_mag, magOffset);								 // get SET/RESET difference
+					nvs_write(&fs, MAIN_MAG_OFFSET_ID, &magOffset, sizeof(magOffset));
+					mmc_reset(main_mag);											 // software reset MMC5983MA to default registers
+				}
 				mmc_SET(main_mag);													 // "deGauss" magnetometer
 				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
+// 0-1ms delta to setup mmc
 				main_ok = true;
 				if (reset_mode == 1) { // Reset mode main calibration
 					// TODO: Add LED flashies
