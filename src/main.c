@@ -600,9 +600,6 @@ void main(void)
 			mx *= magScale[0];
 			my *= magScale[1];
 			mz *= magScale[2];
-for(uint16_t i=0;i<16;i++){
-tx_payload.data[i]=0;
-}
 
 			for (uint16_t i = 0; i < packets; i++)
 			{
@@ -637,37 +634,39 @@ tx_payload.data[i]=0;
 				}
 			} else {
 				last_data_time = k_uptime_get();
-				for (uint8_t i = 0; i < 4; i++){
+				for (uint8_t i = 0; i < 4; i++) {
 					last_q[i] = q[i];
 				}
+				for (uint16_t i = 0; i < 16; i++) {
+					tx_payload.data[i] = 0;
+				}
+				tx_buf[0] = INT16_TO_UINT16(TO_FIXED_14(q[0]));
+				tx_buf[1] = INT16_TO_UINT16(TO_FIXED_14(q[1]));
+				tx_buf[2] = INT16_TO_UINT16(TO_FIXED_14(q[2]));
+				tx_buf[3] = INT16_TO_UINT16(TO_FIXED_14(q[3]));
+				tx_buf[4] = INT16_TO_UINT16(TO_FIXED_10(lin_ax));
+				tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay));
+				tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az));
+				tx_payload.data[0] = 0; // TODO: imu id here
+				//tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
+				tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
+				tx_payload.data[2] = (tx_buf[0] >> 8) & 255;
+				tx_payload.data[3] = tx_buf[0] & 255;
+				tx_payload.data[4] = (tx_buf[1] >> 8) & 255;
+				tx_payload.data[5] = tx_buf[1] & 255;
+				tx_payload.data[6] = (tx_buf[2] >> 8) & 255;
+				tx_payload.data[7] = tx_buf[2] & 255;
+				tx_payload.data[8] = (tx_buf[3] >> 8) & 255;
+				tx_payload.data[9] = tx_buf[3] & 255;
+				tx_payload.data[10] = (tx_buf[4] >> 8) & 255;
+				tx_payload.data[11] = tx_buf[4] & 255;
+				tx_payload.data[12] = (tx_buf[5] >> 8) & 255;
+				tx_payload.data[13] = tx_buf[5] & 255;
+				tx_payload.data[14] = (tx_buf[6] >> 8) & 255;
+				tx_payload.data[15] = tx_buf[6] & 255;
+				esb_flush_tx(); // TODO: this clears everything so it'll suck for the other imu
+				esb_write_payload(&tx_payload); // Add transmission to queue
 			}
-
-			tx_buf[0] = INT16_TO_UINT16(TO_FIXED_14(q[0]));
-			tx_buf[1] = INT16_TO_UINT16(TO_FIXED_14(q[1]));
-			tx_buf[2] = INT16_TO_UINT16(TO_FIXED_14(q[2]));
-			tx_buf[3] = INT16_TO_UINT16(TO_FIXED_14(q[3]));
-			tx_buf[4] = INT16_TO_UINT16(TO_FIXED_10(lin_ax));
-			tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay));
-			tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az));
-			tx_payload.data[0] = 0; // TODO: imu id here
-			//tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
-			tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
-			tx_payload.data[2] = (tx_buf[0] >> 8) & 255;
-			tx_payload.data[3] = tx_buf[0] & 255;
-			tx_payload.data[4] = (tx_buf[1] >> 8) & 255;
-			tx_payload.data[5] = tx_buf[1] & 255;
-			tx_payload.data[6] = (tx_buf[2] >> 8) & 255;
-			tx_payload.data[7] = tx_buf[2] & 255;
-			tx_payload.data[8] = (tx_buf[3] >> 8) & 255;
-			tx_payload.data[9] = tx_buf[3] & 255;
-			tx_payload.data[10] = (tx_buf[4] >> 8) & 255;
-			tx_payload.data[11] = tx_buf[4] & 255;
-			tx_payload.data[12] = (tx_buf[5] >> 8) & 255;
-			tx_payload.data[13] = tx_buf[5] & 255;
-			tx_payload.data[14] = (tx_buf[6] >> 8) & 255;
-			tx_payload.data[15] = tx_buf[6] & 255;
-			esb_flush_tx(); // TODO: this clears everything so it'll suck for the other imu
-			esb_write_payload(&tx_payload); // Add transmission to queue
 		}
 		else
 		{
