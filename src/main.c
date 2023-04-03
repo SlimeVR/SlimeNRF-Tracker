@@ -445,6 +445,11 @@ void main(void)
 		reset_mode = 0; // Clear reset mode
 	}
 
+	if (reset_mode > 3) { // Reset mode DFU
+		// TODO: DFU
+		reset_mode = 0; // Clear reset mode
+	}
+
 	// Read calibration from NVS
 	nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
 	nvs_read(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
