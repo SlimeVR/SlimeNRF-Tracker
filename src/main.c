@@ -429,6 +429,10 @@ bool quat_epsilon(float *q, float *q2) {
 	return fabs(q[0] - q2[0]) < 0.0001f && fabs(q[1] - q2[1]) < 0.0001f && fabs(q[2] - q2[2]) < 0.0001f && fabs(q[3] - q2[3]) < 0.0001f;
 }
 
+bool quat_epsilon_coarse(float *q, float *q2) {
+	return fabs(q[0] - q2[0]) < 0.0005f && fabs(q[1] - q2[1]) < 0.0005f && fabs(q[2] - q2[2]) < 0.0005f && fabs(q[3] - q2[3]) < 0.0005f;
+}
+
 void main(void)
 {
 	start_time = k_uptime_get(); // ~75ms from start_time to first data sent with main imus only
@@ -628,19 +632,22 @@ void main(void)
 				}
 			}
 
-			if (quat_epsilon(q, last_q)) {
-				if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
+			if (quat_epsilon_coarse(q, last_q)) { // Probably okay to use the constantly updating last_q
+				if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms // TODO: Use system off from main loop
 					// Communicate all imus to shut down
 					icm_reset(main_imu);
     				i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 					//icm_reset(aux_imu);
 					//mmc_reset(aux_mag);
 					// Turn off LED
-					gpio_pin_set_dt(&led, 0);
+					//gpio_pin_set_dt(&led, 0);
 					configure_system_off_WOM(main_imu);
 				}
 			} else {
 				last_data_time = k_uptime_get();
+			}
+
+			if (!(quat_epsilon(q, last_q))) {
 				for (uint8_t i = 0; i < 4; i++) {
 					last_q[i] = q[i];
 				}
