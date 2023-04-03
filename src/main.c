@@ -377,9 +377,9 @@ void configure_system_off_WOM(const struct i2c_dt_spec imu)
 	i2c_reg_write_byte_dt(&imu, ICM42688_INTF_CONFIG1, 0x00); // set low power clock
 	k_busy_wait(1000);
 	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x04); // select register bank 4
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_X_THR, 0x62); // set wake thresholds
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Y_THR, 0x62); // set wake thresholds
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Z_THR, 0x62); // set wake thresholds
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_X_THR, 0x30); // set wake thresholds // 80 x 3.9 mg is ~312 mg
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Y_THR, 0x30); // set wake thresholds
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Z_THR, 0x30); // set wake thresholds
 	k_busy_wait(1000);
 	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
 	i2c_reg_write_byte_dt(&imu, ICM42688_INT_SOURCE1, 0x07); // enable WOM interrupt
@@ -544,7 +544,7 @@ void main(void)
 		{
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
-			mmc_reset(main_mag);
+			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 			//icm_reset(aux_imu);
 			//mmc_reset(aux_mag);
 			// Turn off LED
@@ -557,7 +557,7 @@ void main(void)
 		{ // TODO: move to interrupts? (Then you do not need to do the above)
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
-			mmc_reset(main_mag);
+			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 			//icm_reset(aux_imu);
 			//mmc_reset(aux_mag);
 			// Turn off LED
@@ -630,6 +630,13 @@ void main(void)
 
 			if (quat_epsilon(q, last_q)) {
 				if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
+					// Communicate all imus to shut down
+					icm_reset(main_imu);
+    				i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+					//icm_reset(aux_imu);
+					//mmc_reset(aux_mag);
+					// Turn off LED
+					gpio_pin_set_dt(&led, 0);
 					configure_system_off_WOM(main_imu);
 				}
 			} else {
