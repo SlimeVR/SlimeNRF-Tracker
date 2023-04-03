@@ -118,6 +118,10 @@ float mx, my, mz; // variables to hold latest mag data values
 uint16_t tx_buf[7];
 int64_t start_time;
 int64_t last_data_time;
+unsigned int last_batt_pptt[16] = {10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001};
+int8_t last_batt_pptt_i = 0;
+int64_t led_time = 0;
+int64_t led_time_off = 0;
 
 // ICM42688 definitions
 
@@ -377,9 +381,9 @@ void configure_system_off_WOM(const struct i2c_dt_spec imu)
 	i2c_reg_write_byte_dt(&imu, ICM42688_INTF_CONFIG1, 0x00); // set low power clock
 	k_busy_wait(1000);
 	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x04); // select register bank 4
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_X_THR, 0x10); // set wake thresholds // 80 x 3.9 mg is ~312 mg
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Y_THR, 0x10); // set wake thresholds
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Z_THR, 0x10); // set wake thresholds
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_X_THR, 0x0C); // set wake thresholds // 80 x 3.9 mg is ~312 mg
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Y_THR, 0x0C); // set wake thresholds
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Z_THR, 0x0C); // set wake thresholds
 	k_busy_wait(1000);
 	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
 	i2c_reg_write_byte_dt(&imu, ICM42688_INT_SOURCE1, 0x07); // enable WOM interrupt
@@ -430,7 +434,7 @@ bool quat_epsilon(float *q, float *q2) {
 }
 
 bool quat_epsilon_coarse(float *q, float *q2) {
-	return fabs(q[0] - q2[0]) < 0.0005f && fabs(q[1] - q2[1]) < 0.0005f && fabs(q[2] - q2[2]) < 0.0005f && fabs(q[3] - q2[3]) < 0.0005f;
+	return fabs(q[0] - q2[0]) < 0.0003f && fabs(q[1] - q2[1]) < 0.0003f && fabs(q[2] - q2[2]) < 0.0003f && fabs(q[3] - q2[3]) < 0.0003f;
 }
 
 void main(void)
@@ -506,9 +510,10 @@ void main(void)
 
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 
+	// TODO: LED pulsing (otherwise it draws 5mA all the time)
 	// maybey test pwm?
 	//pwm_set_pulse_dt(&led0, PWM_MSEC(20)); // 10/20 = 50%
-	gpio_pin_set_dt(&led, 1);
+//	gpio_pin_set_dt(&led, 1);
 	// i dunno when to be using the led lol
 
 	// Recover quats if present
@@ -555,6 +560,35 @@ void main(void)
 			gpio_pin_set_dt(&led, 0);
 			configure_system_off_chgstat();
 		}
+		last_batt_pptt[last_batt_pptt_i] = batt_pptt;
+		last_batt_pptt_i++;
+		last_batt_pptt_i %= 15;
+		for (uint8_t i = 0; i < 15; i++) {  // Average battery readings across 16 samples
+			if (last_batt_pptt[i] == 10001) {
+				batt_pptt += batt_pptt / (i + 1);
+			} else {
+				batt_pptt += last_batt_pptt[i];
+			}
+		}
+		batt_pptt /= 16;
+		if (batt_pptt + 80 < last_batt_pptt[15]) {last_batt_pptt[15] = batt_pptt + 80;} // Lower bound -80pptt
+		else if (batt_pptt > last_batt_pptt[15]) {last_batt_pptt[15] = batt_pptt;} // Upper bound +0pptt
+		else {batt_pptt = last_batt_pptt[15];} // Effectively 80-10000 -> 0-100
+
+		if (time_begin > led_time) {
+			if (led_time != 0) {
+				led_time_off = time_begin + 500;
+			}
+			if (batt_pptt < 1000) { // Under 10% battery left
+				led_time += 1000;
+			} else {
+				led_time += 10000;
+			}
+			gpio_pin_set_dt(&led, 1);
+		} else if (time_begin > led_time_off) {
+			gpio_pin_set_dt(&led, 0);
+		}
+
 		bool charging = gpio_pin_get_dt(&chgstat); // TODO: Charging detect doesn't work (hardware issue)
 		bool docked = gpio_pin_get_dt(&dock);
 		if (docked)
@@ -640,7 +674,7 @@ void main(void)
 					//icm_reset(aux_imu);
 					//mmc_reset(aux_mag);
 					// Turn off LED
-					//gpio_pin_set_dt(&led, 0);
+					gpio_pin_set_dt(&led, 0);
 					configure_system_off_WOM(main_imu);
 				}
 			} else {
@@ -744,7 +778,7 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 			//icm_reset(aux_imu);
 			//mmc_reset(aux_mag);
 			// Turn off LED
-			//gpio_pin_set_dt(&led, 0);
+			gpio_pin_set_dt(&led, 0);
 			configure_system_off_WOM(main_imu);
 		}
 
