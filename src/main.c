@@ -462,21 +462,21 @@ void main(void)
 
 	const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
 	const struct gpio_dt_spec chgstat = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chgstat_gpios);
-	// const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
-	// const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
+	//const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
+	//const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
 
 	const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
 	const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
-	// const struct i2c_dt_spec aux_imu = I2C_DT_SPEC_GET(AUX_IMU_NODE);
-	// const struct i2c_dt_spec aux_mag = I2C_DT_SPEC_GET(AUX_MAG_NODE);
+	//const struct i2c_dt_spec aux_imu = I2C_DT_SPEC_GET(AUX_IMU_NODE);
+	//const struct i2c_dt_spec aux_mag = I2C_DT_SPEC_GET(AUX_MAG_NODE);
 
-	// const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
+	//const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
 	const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
 
 	gpio_pin_configure_dt(&dock, GPIO_INPUT);
 	gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
-	// gpio_pin_configure_dt(&int0, GPIO_INPUT);
-	// gpio_pin_configure_dt(&int1, GPIO_INPUT);
+	//gpio_pin_configure_dt(&int0, GPIO_INPUT);
+	//gpio_pin_configure_dt(&int1, GPIO_INPUT);
 
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 
@@ -523,8 +523,8 @@ void main(void)
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
 			mmc_reset(main_mag);
-			// icm_reset(aux_imu);
-			// mmc_reset(aux_mag);
+			//icm_reset(aux_imu);
+			//mmc_reset(aux_mag);
 			// Turn off LED
 			gpio_pin_set_dt(&led, 0);
 			configure_system_off_chgstat();
@@ -536,8 +536,8 @@ void main(void)
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
 			mmc_reset(main_mag);
-			// icm_reset(aux_imu);
-			// mmc_reset(aux_mag);
+			//icm_reset(aux_imu);
+			//mmc_reset(aux_mag);
 			// Turn off LED
 			gpio_pin_set_dt(&led, 0);
 			configure_system_off_dock();
@@ -680,8 +680,8 @@ tx_payload.data[i]=0;
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
 			mmc_reset(main_mag);
-			// icm_reset(aux_imu);
-			// mmc_reset(aux_mag);
+			//icm_reset(aux_imu);
+			//mmc_reset(aux_mag);
 			// Turn off LED
 			//gpio_pin_set_dt(&led, 0);
 			configure_system_off_WOM(main_imu);
