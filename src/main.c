@@ -465,11 +465,6 @@ void main(void)
 	// const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
 	// const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
 
-	gpio_pin_configure_dt(&dock, GPIO_INPUT);
-	gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
-	// gpio_pin_configure_dt(&int0, GPIO_INPUT);
-	// gpio_pin_configure_dt(&int1, GPIO_INPUT);
-
 	const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
 	const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
 	// const struct i2c_dt_spec aux_imu = I2C_DT_SPEC_GET(AUX_IMU_NODE);
@@ -477,6 +472,11 @@ void main(void)
 
 	// const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
 	const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
+
+	gpio_pin_configure_dt(&dock, GPIO_INPUT);
+	gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
+	// gpio_pin_configure_dt(&int0, GPIO_INPUT);
+	// gpio_pin_configure_dt(&int1, GPIO_INPUT);
 
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 
@@ -520,12 +520,14 @@ void main(void)
 		unsigned int batt_pptt = read_batt();
 		if (batt_pptt == 0)
 		{
-	//		// Communicate all imus to shut down
-	//		icm_reset(main_imu);
-	//		mmc_reset(main_mag);
-	//		// icm_reset(aux_imu);
-	//		// mmc_reset(aux_mag);
-	//		configure_system_off_chgstat();
+			// Communicate all imus to shut down
+			icm_reset(main_imu);
+			mmc_reset(main_mag);
+			// icm_reset(aux_imu);
+			// mmc_reset(aux_mag);
+			// Turn off LED
+			gpio_pin_set_dt(&led, 0);
+			configure_system_off_chgstat();
 		}
 		bool charging = gpio_pin_get_dt(&chgstat); // TODO: Charging detect doesn't work (hardware issue)
 		bool docked = gpio_pin_get_dt(&dock);
@@ -536,6 +538,8 @@ void main(void)
 			mmc_reset(main_mag);
 			// icm_reset(aux_imu);
 			// mmc_reset(aux_mag);
+			// Turn off LED
+			gpio_pin_set_dt(&led, 0);
 			configure_system_off_dock();
 		}
 		//TODO: dongle can communicate back to the tracker? ie toggle mag or disable/enable tracking to save power
@@ -678,6 +682,8 @@ tx_payload.data[i]=0;
 			mmc_reset(main_mag);
 			// icm_reset(aux_imu);
 			// mmc_reset(aux_mag);
+			// Turn off LED
+			//gpio_pin_set_dt(&led, 0);
 			configure_system_off_WOM(main_imu);
 		}
 
