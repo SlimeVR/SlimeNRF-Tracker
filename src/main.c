@@ -377,9 +377,9 @@ void configure_system_off_WOM(const struct i2c_dt_spec imu)
 	i2c_reg_write_byte_dt(&imu, ICM42688_INTF_CONFIG1, 0x00); // set low power clock
 	k_busy_wait(1000);
 	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x04); // select register bank 4
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_X_THR, 0x30); // set wake thresholds // 80 x 3.9 mg is ~312 mg
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Y_THR, 0x30); // set wake thresholds
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Z_THR, 0x30); // set wake thresholds
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_X_THR, 0x10); // set wake thresholds // 80 x 3.9 mg is ~312 mg
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Y_THR, 0x10); // set wake thresholds
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Z_THR, 0x10); // set wake thresholds
 	k_busy_wait(1000);
 	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
 	i2c_reg_write_byte_dt(&imu, ICM42688_INT_SOURCE1, 0x07); // enable WOM interrupt
