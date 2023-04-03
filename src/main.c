@@ -67,8 +67,8 @@ static struct esb_payload rx_payload;
 static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-static struct esb_payload tx_payload_status = ESB_CREATE_PAYLOAD(0,
-														  0,0,0,0);
+//static struct esb_payload tx_payload_status = ESB_CREATE_PAYLOAD(0,
+//														  0,0,0,0);
 
 #define _RADIO_SHORTS_COMMON                                       \
 	(RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | \
@@ -110,12 +110,14 @@ bool aux_data = false;
 float lin_ax, lin_ay, lin_az;					// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 float q2[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
+float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
+float last_q2[4] = {1.0f, 0.0f, 0.0f, 0.0f};	// vector to hold quaternion
 
 // storing temporary values
 float mx, my, mz; // variables to hold latest mag data values
 uint16_t tx_buf[7];
 int64_t start_time;
-int64_t init_time=0;
+int64_t last_data_time;
 
 // ICM42688 definitions
 
@@ -418,6 +420,15 @@ void configure_system_off_dock(void){
 	k_sleep(K_SECONDS(1));
 }
 
+static inline float fabs(float __n)
+{
+	return (__n < 0) ? -__n : __n;
+}
+
+bool quat_epsilon(float *q, float *q2) {
+	return fabs(q[0] - q2[0]) < 0.0001f && fabs(q[1] - q2[1]) < 0.0001f && fabs(q[2] - q2[2]) < 0.0001f && fabs(q[3] - q2[3]) < 0.0001f;
+}
+
 void main(void)
 {
 	start_time = k_uptime_get(); // ~75ms from start_time to first data sent with main imus only
@@ -592,10 +603,11 @@ void main(void)
 for(uint16_t i=0;i<16;i++){
 tx_payload.data[i]=0;
 }
+
 			for (uint16_t i = 0; i < packets; i++)
 			{
 				uint16_t index = i * 8; // Packet size 8 bytes
-				if (rawData[index] & 0x80 == 0x80) {
+				if ((rawData[index] & 0x80) == 0x80) {
 					continue; // Skip empty packets
 				}
 				// combine into 16 bit values
@@ -609,7 +621,7 @@ tx_payload.data[i]=0;
 				float gy = raw1 * gRes - gyroBias[1];
 				float gz = raw2 * gRes - gyroBias[2];
 				// TODO: swap out fusion?
-				MadgwickQuaternionUpdate(ay, ax, -az, gy * pi / 180.0f, gx * pi / 180.0f, -gz * pi / 180.0f, -mx, my, mz, 0.002);
+				MadgwickQuaternionUpdate(ay, ax, -az, gy * pi / 180.0f, gx * pi / 180.0f, -gz * pi / 180.0f, -mx, my, mz, 0.001);
 				//MadgwickQuaternionUpdate(ax, ay, az, gx * pi / 180.0f, gy * pi / 180.0f, gz * pi / 180.0f, my, -mx, -mz, 0.002); // 500Hz (1/500) TODO: use adjusted rate
 				if (i == packets - 1) {
 					// Calculate linear acceleration (no gravity)
@@ -618,7 +630,18 @@ tx_payload.data[i]=0;
 					lin_az = az - q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3];
 				}
 			}
-			// TODO: on significant change set main_data true
+
+			if (quat_epsilon(q, last_q)) {
+				if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
+					configure_system_off_WOM(main_imu);
+				}
+			} else {
+				last_data_time = k_uptime_get();
+				for (uint8_t i = 0; i < 4; i++){
+					last_q[i] = q[i];
+				}
+			}
+
 			tx_buf[0] = INT16_TO_UINT16(TO_FIXED_14(q[0]));
 			tx_buf[1] = INT16_TO_UINT16(TO_FIXED_14(q[1]));
 			tx_buf[2] = INT16_TO_UINT16(TO_FIXED_14(q[2]));
