@@ -133,7 +133,7 @@ int64_t led_time_off = 0;
 	  AODR_1kHz, AODR_2kHz, AODR_4kHz, AODR_8kHz, AODR_16kHz, AODR_32kHz
 	  GODR_12_5Hz, GODR_25Hz, GODR_50Hz, GODR_100Hz, GODR_200Hz, GODR_500Hz, GODR_1kHz, GODR_2kHz, GODR_4kHz, GODR_8kHz, GODR_16kHz, GODR_32kHz
 */
-uint8_t Ascale = AFS_16G, Gscale = GFS_250DPS, AODR = AODR_200Hz, GODR = GODR_1kHz, aMode = aMode_LN, gMode = gMode_LN;
+uint8_t Ascale = AFS_8G, Gscale = GFS_1000DPS, AODR = AODR_200Hz, GODR = GODR_1kHz, aMode = aMode_LN, gMode = gMode_LN;
 
 float aRes, gRes;														   // scale resolutions per LSB for the accel and gyro sensor2
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
@@ -381,9 +381,9 @@ void configure_system_off_WOM(const struct i2c_dt_spec imu)
 	i2c_reg_write_byte_dt(&imu, ICM42688_INTF_CONFIG1, 0x00); // set low power clock
 	k_busy_wait(1000);
 	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x04); // select register bank 4
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_X_THR, 0x0C); // set wake thresholds // 80 x 3.9 mg is ~312 mg
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Y_THR, 0x0C); // set wake thresholds
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Z_THR, 0x0C); // set wake thresholds
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_X_THR, 0x08); // set wake thresholds // 80 x 3.9 mg is ~312 mg
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Y_THR, 0x08); // set wake thresholds
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Z_THR, 0x08); // set wake thresholds
 	k_busy_wait(1000);
 	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
 	i2c_reg_write_byte_dt(&imu, ICM42688_INT_SOURCE1, 0x07); // enable WOM interrupt
@@ -656,7 +656,8 @@ void main(void)
 				float gy = raw1 * gRes - gyroBias[1];
 				float gz = raw2 * gRes - gyroBias[2];
 				// TODO: swap out fusion?
-				MadgwickQuaternionUpdate(ay, ax, -az, gy * pi / 180.0f, gx * pi / 180.0f, -gz * pi / 180.0f, -mx, my, mz, 0.001);
+				MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my, mz, -mx, 0.001);
+				//MadgwickQuaternionUpdate(ay, ax, -az, gy * pi / 180.0f, gx * pi / 180.0f, -gz * pi / 180.0f, -mx, my, mz, 0.001);
 				//MadgwickQuaternionUpdate(ax, ay, az, gx * pi / 180.0f, gy * pi / 180.0f, gz * pi / 180.0f, my, -mx, -mz, 0.002); // 500Hz (1/500) TODO: use adjusted rate
 				if (i == packets - 1) {
 					// Calculate linear acceleration (no gravity)
