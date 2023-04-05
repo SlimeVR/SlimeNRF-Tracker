@@ -84,7 +84,7 @@ static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 #define AUX_IMU_NODE DT_NODELABEL(icm_1)
 #define AUX_MAG_NODE DT_NODELABEL(mmc_1)
 
-#define TICKRATE_MS 6
+int TICKRATE_MS = 6;
 
 bool main_ok = false;
 bool aux_ok = false;
@@ -108,6 +108,7 @@ bool aux_data = false;
 #define beta sqrtf(3.0f / 4.0f) * GyroMeasError // compute beta
 #define zeta sqrtf(3.0f / 4.0f) * GyroMeasDrift // compute zeta, the other free parameter in the Madgwick scheme usually set to a small or zero value
 float lin_ax, lin_ay, lin_az;					// linear acceleration (acceleration with gravity component subtracted)
+float lin_ax2, lin_ay2, lin_az2;					// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 float q2[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
@@ -115,6 +116,7 @@ float last_q2[4] = {1.0f, 0.0f, 0.0f, 0.0f};	// vector to hold quaternion
 
 // storing temporary values
 float mx, my, mz; // variables to hold latest mag data values
+float mx2, my2, mz2; // variables to hold latest mag data values
 uint16_t tx_buf[7];
 int64_t start_time;
 int64_t last_data_time;
@@ -139,6 +141,8 @@ float aRes, gRes;														   // scale resolutions per LSB for the accel and
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
 float accelBias[3] = {0.0f, 0.0f, 0.0f}, gyroBias[3] = {0.0f, 0.0f, 0.0f}; // offset biases for the accel and gyro
 
+float accelBias2[3] = {0.0f, 0.0f, 0.0f}, gyroBias2[3] = {0.0f, 0.0f, 0.0f}; // offset biases for the accel and gyro
+
 // MMC5983MA definitions
 
 /* Specify sensor parameters (continuous mode sample rate is dependent on bandwidth)
@@ -152,7 +156,10 @@ float mRes = 1.0f / 16384.0f;											   // mag sensitivity if using 18 bit da
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
 float magBias[3] = {0, 0, 0}, magScale[3] = {1, 1, 1}, magOffset[3] = {0}; // Bias corrections for magnetometer
 uint32_t MMC5983MAData[3];												   // Stores the 18-bit unsigned magnetometer sensor output
-float MMC5983MA_offset = 131072.0f; // mag range unsigned to signed
+#define MMC5983MA_offset 131072.0f // mag range unsigned to signed
+
+float magBias2[3] = {0, 0, 0}, magScale2[3] = {1, 1, 1}, magOffset2[3] = {0}; // Bias corrections for magnetometer
+uint32_t MMC5983MAData2[3];												   // Stores the 18-bit unsigned magnetometer sensor output
 
 // Implementation of Sebastian Madgwick's "...efficient orientation filter for... inertial/magnetic sensor arrays"
 // (see http://www.x-io.co.uk/category/open-source/ for examples and more details)
@@ -160,7 +167,7 @@ float MMC5983MA_offset = 131072.0f; // mag range unsigned to signed
 // device orientation -- which can be converted to yaw, pitch, and roll. Useful for stabilizing quadcopters, etc.
 // The performance of the orientation filter is at least as good as conventional Kalman-based filtering algorithms
 // but is much less computationally intensive---it can be performed on a 3.3 V Pro Mini operating at 8 MHz!
-__attribute__((optimize("O3"))) void MadgwickQuaternionUpdate(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, float ts)
+__attribute__((optimize("O3"))) void MadgwickQuaternionUpdate(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, float ts, float *q)
 {
 	float q1 = q[0], q2 = q[1], q3 = q[2], q4 = q[3]; // short name local variable for readability
 	float norm;
@@ -372,11 +379,43 @@ int esb_initialize(void)
 	return 0;
 }
 
+int powerstate = 0;
+int last_powerstate = 0;
+
+void set_LN(void) {
+	TICKRATE_MS = 6;
+	aMode = aMode_LN;
+	gMode = gMode_LN;
+	MBW = MBW_400Hz;
+	MODR = MODR_200Hz;
+}
+
+void set_LP(void) {
+	TICKRATE_MS = 33;
+	aMode = aMode_LP;
+	gMode = gMode_SBY;
+	MBW = MBW_800Hz;
+	MODR = MODR_ONESHOT;
+}
+
+void reconfigure_imu(const struct i2c_dt_spec imu) {
+	aRes = icm_getAres(Ascale);
+	gRes = icm_getGres(Gscale);
+    i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
+    i2c_reg_write_byte_dt(&imu, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
+    i2c_reg_write_byte_dt(&imu, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
+}
+
+void reconfigure_mag(const struct i2c_dt_spec mag) {
+    i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_1, MBW); // set mag bandwidth
+    i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | 0x08 | MODR); // set mag ODR
+}
+
 void configure_system_off_WOM(const struct i2c_dt_spec imu)
 {
 	icm_DRStatus(imu); // clear reset done int flag
 	i2c_reg_write_byte_dt(&imu, ICM42688_INT_SOURCE0, 0x00); // temporary disable interrupts
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR_50Hz); // set accel ODR and FS
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR_200Hz); // set accel ODR and FS
 	i2c_reg_write_byte_dt(&imu, ICM42688_PWR_MGMT0, aMode_LP); // set accel and gyro modes
 	i2c_reg_write_byte_dt(&imu, ICM42688_INTF_CONFIG1, 0x00); // set low power clock
 	k_busy_wait(1000);
@@ -434,7 +473,7 @@ bool quat_epsilon(float *q, float *q2) {
 }
 
 bool quat_epsilon_coarse(float *q, float *q2) {
-	return fabs(q[0] - q2[0]) < 0.0003f && fabs(q[1] - q2[1]) < 0.0003f && fabs(q[2] - q2[2]) < 0.0003f && fabs(q[3] - q2[3]) < 0.0003f;
+	return fabs(q[0] - q2[0]) < 0.0005f && fabs(q[1] - q2[1]) < 0.0005f && fabs(q[2] - q2[2]) < 0.0005f && fabs(q[3] - q2[3]) < 0.0005f;
 }
 
 void main(void)
@@ -479,11 +518,11 @@ void main(void)
 	nvs_read(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
 	nvs_read(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
 	nvs_read(&fs, MAIN_MAG_OFFSET_ID, &magOffset, sizeof(magOffset));
-	//nvs_read(&fs, AUX_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
-	//nvs_read(&fs, AUX_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
-	//nvs_read(&fs, AUX_MAG_BIAS_ID, &magBias, sizeof(magBias));
-	//nvs_read(&fs, AUX_MAG_SCALE_ID, &magScale, sizeof(magScale));
-	//nvs_read(&fs, MAIN_MAG_OFFSET_ID, &magOffset, sizeof(magOffset));
+	nvs_read(&fs, AUX_ACCEL_BIAS_ID, &accelBias2, sizeof(accelBias));
+	nvs_read(&fs, AUX_GYRO_BIAS_ID, &gyroBias2, sizeof(gyroBias));
+	nvs_read(&fs, AUX_MAG_BIAS_ID, &magBias2, sizeof(magBias));
+	nvs_read(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
+	nvs_read(&fs, MAIN_MAG_OFFSET_ID, &magOffset2, sizeof(magOffset));
 
 	// get sensor resolutions for user settings, only need to do this once
 	// TODO: surely these can be defines lol
@@ -497,8 +536,8 @@ void main(void)
 
 	const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
 	const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
-	//const struct i2c_dt_spec aux_imu = I2C_DT_SPEC_GET(AUX_IMU_NODE);
-	//const struct i2c_dt_spec aux_mag = I2C_DT_SPEC_GET(AUX_MAG_NODE);
+	const struct i2c_dt_spec aux_imu = I2C_DT_SPEC_GET(AUX_IMU_NODE);
+	const struct i2c_dt_spec aux_mag = I2C_DT_SPEC_GET(AUX_MAG_NODE);
 
 	//const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
 	const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
@@ -510,11 +549,8 @@ void main(void)
 
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 
-	// TODO: LED pulsing (otherwise it draws 5mA all the time)
-	// maybey test pwm?
 	//pwm_set_pulse_dt(&led0, PWM_MSEC(20)); // 10/20 = 50%
-//	gpio_pin_set_dt(&led, 1);
-	// i dunno when to be using the led lol
+	//gpio_pin_set_dt(&led, 1);
 
 	// Recover quats if present
 	retained_validate();
@@ -527,20 +563,8 @@ void main(void)
 		retained_update();
 	}
 // 0ms delta to read calibration and configure pins (unknown time to read retained data but probably negligible)
-	int err;
-
-	err = clocks_start();
-	if (err)
-	{
-		return;
-	}
-
-	err = esb_initialize();
-	if (err)
-	{
-		return;
-	}
-
+	clocks_start();
+	esb_initialize();
 	tx_payload.noack = false;
 // 1ms delta to start ESB
 	for (;;)
@@ -549,13 +573,16 @@ void main(void)
 		int64_t time_begin = k_uptime_get();
 
 		unsigned int batt_pptt = read_batt();
+//batt_pptt = 10000; // hw issue
 		if (batt_pptt == 0)
 		{
 			// Communicate all imus to shut down
-			icm_reset(main_imu);
+    		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
-			//icm_reset(aux_imu);
-			//mmc_reset(aux_mag);
+			if (aux_ok) {
+    			i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
+				i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for aux MMC to finish reset
+			}
 			// Turn off LED
 			gpio_pin_set_dt(&led, 0);
 			configure_system_off_chgstat();
@@ -594,10 +621,12 @@ void main(void)
 		if (docked)
 		{ // TODO: move to interrupts? (Then you do not need to do the above)
 			// Communicate all imus to shut down
-			icm_reset(main_imu);
+    		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
-			//icm_reset(aux_imu);
-			//mmc_reset(aux_mag);
+			if (aux_ok) {
+    			i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
+				i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for aux MMC to finish reset
+			}
 			// Turn off LED
 			gpio_pin_set_dt(&led, 0);
 			configure_system_off_dock();
@@ -605,9 +634,13 @@ void main(void)
 		//TODO: dongle can communicate back to the tracker? ie toggle mag or disable/enable tracking to save power
 		//TODO: if no dongle paired, search for dongles and connect to the first one (set target dongle, write to memory)
 
+		bool reconfig = last_powerstate != powerstate ? true : false;
+		last_powerstate = powerstate;
+
+		bool system_off_main = false;
+		main_data = false;
 		if (main_ok)
 		{
-			// TODO: add calibration steps and store calibration
 			// TODO: on any errors set main_ok false and skip (make functions return nonzero)
 			// Read main FIFO
 			uint8_t rawCount[2];
@@ -629,57 +662,70 @@ void main(void)
 			float ay = raw1 * aRes - accelBias[1];
 			float az = raw2 * aRes - accelBias[2];
 			// TODO: make sure these are writing to separate buffers for main vs. aux
-			mmc_readData(main_mag, MMC5983MAData);
-			// transform and convert to float values
-			// TODO: make sure these are reading to separate buffers for main vs. aux
-			mx = ((float)MMC5983MAData[0] - MMC5983MA_offset) * mRes - magBias[0];
-			my = ((float)MMC5983MAData[1] - MMC5983MA_offset) * mRes - magBias[1];
-			mz = ((float)MMC5983MAData[2] - MMC5983MA_offset) * mRes - magBias[2];
-			mx *= magScale[0];
-			my *= magScale[1];
-			mz *= magScale[2];
-
-			for (uint16_t i = 0; i < packets; i++)
-			{
-				uint16_t index = i * 8; // Packet size 8 bytes
-				if ((rawData[index] & 0x80) == 0x80) {
-					continue; // Skip empty packets
-				}
-				// combine into 16 bit values
-				// TODO: make sure these are reading to separate buffers for main vs. aux
-				float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]); // gx
-				float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]); // gy
-				float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]); // gz
+			if (last_powerstate == 0) {
+				mmc_readData(main_mag, MMC5983MAData);
 				// transform and convert to float values
 				// TODO: make sure these are reading to separate buffers for main vs. aux
-				float gx = raw0 * gRes - gyroBias[0];
-				float gy = raw1 * gRes - gyroBias[1];
-				float gz = raw2 * gRes - gyroBias[2];
-				// TODO: swap out fusion?
-				MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my, mz, -mx, 0.001);
-				//MadgwickQuaternionUpdate(ay, ax, -az, gy * pi / 180.0f, gx * pi / 180.0f, -gz * pi / 180.0f, -mx, my, mz, 0.001);
-				//MadgwickQuaternionUpdate(ax, ay, az, gx * pi / 180.0f, gy * pi / 180.0f, gz * pi / 180.0f, my, -mx, -mz, 0.002); // 500Hz (1/500) TODO: use adjusted rate
-				if (i == packets - 1) {
-					// Calculate linear acceleration (no gravity)
-					lin_ax = ax + 2.0f * (q[0] * q[1] + q[2] * q[3]);
-					lin_ay = ay + 2.0f * (q[1] * q[3] - q[0] * q[2]);
-					lin_az = az - q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3];
+				mx = ((float)MMC5983MAData[0] - MMC5983MA_offset) * mRes - magBias[0];
+				my = ((float)MMC5983MAData[1] - MMC5983MA_offset) * mRes - magBias[1];
+				mz = ((float)MMC5983MAData[2] - MMC5983MA_offset) * mRes - magBias[2];
+				mx *= magScale[0];
+				my *= magScale[1];
+				mz *= magScale[2];
+			}
+
+			if (reconfig) {
+				switch (powerstate) {
+					case 0:
+						set_LN();
+						break;
+					case 1:
+						set_LP();
+						break;
+				};
+				reconfigure_imu(main_imu); // Reconfigure if needed
+				reconfigure_mag(main_mag); // Reconfigure if needed
+			}
+
+			if (packets == 2 && powerstate == 1) {
+				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my, mz, -mx, 0.01, q);
+			} else {
+				for (uint16_t i = 0; i < packets; i++)
+				{
+					uint16_t index = i * 8; // Packet size 8 bytes
+					if ((rawData[index] & 0x80) == 0x80) {
+						continue; // Skip empty packets
+					}
+					// combine into 16 bit values
+					// TODO: make sure these are reading to separate buffers for main vs. aux
+					float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]); // gx
+					float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]); // gy
+					float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]); // gz
+					// transform and convert to float values
+					// TODO: make sure these are reading to separate buffers for main vs. aux
+					float gx = raw0 * gRes - gyroBias[0];
+					float gy = raw1 * gRes - gyroBias[1];
+					float gz = raw2 * gRes - gyroBias[2];
+					// TODO: swap out fusion?
+					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my, mz, -mx, 0.001, q);
+					if (i == packets - 1) {
+						// Calculate linear acceleration (no gravity)
+						lin_ax = ax + 2.0f * (q[0] * q[1] + q[2] * q[3]);
+						lin_ay = ay + 2.0f * (q[1] * q[3] - q[0] * q[2]);
+						lin_az = az - q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3];
+					}
 				}
 			}
 
 			if (quat_epsilon_coarse(q, last_q)) { // Probably okay to use the constantly updating last_q
-				if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms // TODO: Use system off from main loop
-					// Communicate all imus to shut down
-					icm_reset(main_imu);
-    				i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
-					//icm_reset(aux_imu);
-					//mmc_reset(aux_mag);
-					// Turn off LED
-					gpio_pin_set_dt(&led, 0);
-					configure_system_off_WOM(main_imu);
+				if (k_uptime_get() - last_data_time > 1 * 60 * 1000) { // No motion in last 1m
+					system_off_main = true;
+				} else if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
+					powerstate = 1;
 				}
 			} else {
 				last_data_time = k_uptime_get();
+				powerstate = 0;
 			}
 
 			if (!(quat_epsilon(q, last_q))) {
@@ -713,12 +759,11 @@ void main(void)
 				tx_payload.data[13] = tx_buf[5] & 255;
 				tx_payload.data[14] = (tx_buf[6] >> 8) & 255;
 				tx_payload.data[15] = tx_buf[6] & 255;
-				esb_flush_tx(); // TODO: this clears everything so it'll suck for the other imu
+				esb_flush_tx();
+				main_data = true;
 				esb_write_payload(&tx_payload); // Add transmission to queue
 			}
-		}
-		else
-		{
+		} else {
 // 5ms delta (???) from entering loop
 			int64_t time_delta = k_uptime_get() - start_time;
 			if (time_delta < 11)
@@ -760,24 +805,172 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 				}
 			}
 		}
-		/*
-		check aux
-		if aux setup
-			read aux fifo
-			read aux mag
-			fusion
-		if aux not setup
-			setup aux
-			if aux calibration mode
-				calibrate and clear reset
-		*/
 
-		if (false) { // TODO: Idle state on no movement
+		bool system_off_aux = false;
+		if (aux_ok)
+		{
+			// TODO: on any errors set aux_ok false and skip (make functions return nonzero)
+			// Read main FIFO
+			uint8_t rawCount[2];
+			i2c_burst_read_dt(&aux_imu, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
+			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
+			count += 16; // Add two read buffer packets
+			uint16_t packets = count / 8;								 // Packet size 8 bytes
+			uint8_t rawData[2080];
+			i2c_burst_read_dt(&aux_imu, ICM42688_FIFO_DATA, &rawData[0], count); // Read buffer
+    		uint8_t rawAccel[6];
+    		i2c_burst_read_dt(&aux_imu, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6); // Read accel only
+			float raw0 = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
+			float raw1 = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
+			float raw2 = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
+			// transform and convert to float values
+			float ax = raw0 * aRes - accelBias2[0];
+			float ay = raw1 * aRes - accelBias2[1];
+			float az = raw2 * aRes - accelBias2[2];
+			if (last_powerstate == 0) {
+				mmc_readData(aux_mag, MMC5983MAData2);
+				// transform and convert to float values
+				// TODO: make sure these are reading to separate buffers for main vs. aux
+				mx2 = ((float)MMC5983MAData2[0] - MMC5983MA_offset) * mRes - magBias2[0];
+				my2 = ((float)MMC5983MAData2[1] - MMC5983MA_offset) * mRes - magBias2[1];
+				mz2 = ((float)MMC5983MAData2[2] - MMC5983MA_offset) * mRes - magBias2[2];
+				mx2 *= magScale2[0];
+				my2 *= magScale2[1];
+				mz2 *= magScale2[2];
+			}
+
+			if (reconfig) {
+				switch (powerstate) {
+					case 0:
+						set_LN();
+						break;
+					case 1:
+						set_LP();
+						break;
+				};
+				reconfigure_imu(aux_imu); // Reconfigure if needed
+				reconfigure_mag(aux_mag); // Reconfigure if needed
+			}
+
+			if (packets == 2 && powerstate == 1) {
+				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my2, mz2, -mx2, 0.01, q2);
+			} else {
+				for (uint16_t i = 0; i < packets; i++)
+				{
+					uint16_t index = i * 8; // Packet size 8 bytes
+					if ((rawData[index] & 0x80) == 0x80) {
+						continue; // Skip empty packets
+					}
+					// combine into 16 bit values
+					// TODO: make sure these are reading to separate buffers for main vs. aux
+					float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]); // gx
+					float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]); // gy
+					float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]); // gz
+					// transform and convert to float values
+					// TODO: make sure these are reading to separate buffers for main vs. aux
+					float gx = raw0 * gRes - gyroBias2[0];
+					float gy = raw1 * gRes - gyroBias2[1];
+					float gz = raw2 * gRes - gyroBias2[2];
+					// TODO: swap out fusion?
+					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my2, mz2, -mx2, 0.001, q2);
+					if (i == packets - 1) {
+						// Calculate linear acceleration (no gravity)
+						lin_ax2 = ax + 2.0f * (q2[0] * q2[1] + q2[2] * q2[3]);
+						lin_ay2 = ay + 2.0f * (q2[1] * q2[3] - q2[0] * q2[2]);
+						lin_az2 = az - q2[0] * q2[0] - q2[1] * q2[1] - q2[2] * q2[2] + q2[3] * q2[3];
+					}
+				}
+			}
+
+			if (quat_epsilon_coarse(q2, last_q2)) { // Probably okay to use the constantly updating last_q
+				if (k_uptime_get() - last_data_time > 1 * 60 * 1000) { // No motion in last 1m
+					system_off_main = true;
+				} else if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
+					powerstate = 1;
+				}
+			} else {
+				last_data_time = k_uptime_get();
+				powerstate = 0;
+			}
+
+			if (!(quat_epsilon(q2, last_q2))) {
+				for (uint8_t i = 0; i < 4; i++) {
+					last_q2[i] = q2[i];
+				}
+				for (uint16_t i = 0; i < 16; i++) {
+					tx_payload.data[i] = 0;
+				}
+				tx_buf[0] = INT16_TO_UINT16(TO_FIXED_14(q2[0]));
+				tx_buf[1] = INT16_TO_UINT16(TO_FIXED_14(q2[1]));
+				tx_buf[2] = INT16_TO_UINT16(TO_FIXED_14(q2[2]));
+				tx_buf[3] = INT16_TO_UINT16(TO_FIXED_14(q2[3]));
+				tx_buf[4] = INT16_TO_UINT16(TO_FIXED_10(lin_ax2));
+				tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay2));
+				tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az2));
+				tx_payload.data[0] = 1; // TODO: imu id here
+				//tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
+				tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
+				tx_payload.data[2] = (tx_buf[0] >> 8) & 255;
+				tx_payload.data[3] = tx_buf[0] & 255;
+				tx_payload.data[4] = (tx_buf[1] >> 8) & 255;
+				tx_payload.data[5] = tx_buf[1] & 255;
+				tx_payload.data[6] = (tx_buf[2] >> 8) & 255;
+				tx_payload.data[7] = tx_buf[2] & 255;
+				tx_payload.data[8] = (tx_buf[3] >> 8) & 255;
+				tx_payload.data[9] = tx_buf[3] & 255;
+				tx_payload.data[10] = (tx_buf[4] >> 8) & 255;
+				tx_payload.data[11] = tx_buf[4] & 255;
+				tx_payload.data[12] = (tx_buf[5] >> 8) & 255;
+				tx_payload.data[13] = tx_buf[5] & 255;
+				tx_payload.data[14] = (tx_buf[6] >> 8) & 255;
+				tx_payload.data[15] = tx_buf[6] & 255;
+				if (!main_data) esb_flush_tx();
+				esb_write_payload(&tx_payload); // Add transmission to queue
+			}
+		} else {
+			uint8_t ICM42688ID = icm_getChipID(aux_imu);						 // Read CHIP_ID register for ICM42688
+			uint8_t MMC5983ID = mmc_getChipID(aux_mag);							 // Read CHIP_ID register for MMC5983MA
+			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
+			{
+    			i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
+				icm_reset(aux_imu);												 // software reset ICM42688 to default registers
+				icm_DRStatus(aux_imu);												 // clear reset done int flag
+				icm_init(aux_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
+// 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
+				if (reset_mode == 2) { // Reset mode aux calibration
+					mmc_getOffset(aux_mag, magOffset2);								 // get SET/RESET difference
+					nvs_write(&fs, AUX_MAG_OFFSET_ID, &magOffset2, sizeof(magOffset));
+					mmc_reset(aux_mag);											 // software reset MMC5983MA to default registers
+				}
+				mmc_SET(aux_mag);													 // "deGauss" magnetometer
+				mmc_init(aux_mag, MODR, MBW, MSET);								 // configure
+// 0-1ms delta to setup mmc
+				aux_ok = true;
+				if (reset_mode == 2) { // Reset mode aux calibration
+gpio_pin_set_dt(&led, 0); // scuffed led
+					// TODO: Add LED flashies
+					// TODO: Wait for accelerometer to settle, then calibrate (5 sec timeout to skip)
+					icm_offsetBias(aux_imu, accelBias2, gyroBias2); // This takes about 750ms
+					nvs_write(&fs, AUX_ACCEL_BIAS_ID, &accelBias2, sizeof(accelBias));
+					nvs_write(&fs, AUX_GYRO_BIAS_ID, &gyroBias2, sizeof(gyroBias));
+gpio_pin_set_dt(&led, 1); // scuffed led
+					// TODO: Wait for accelerometer movement, then calibrate (5 sec timeout to skip)
+					mmc_offsetBias(aux_mag, magBias2, magScale2); // This takes about 10s
+					nvs_write(&fs, AUX_MAG_BIAS_ID, &magBias2, sizeof(magBias));
+					nvs_write(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
+					reset_mode = 0; // Clear reset mode
+				}
+			}
+		}
+
+		if (system_off_main && (aux_ok ? system_off_aux : true)) { // System off on extended no movement
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
-			mmc_reset(main_mag);
-			//icm_reset(aux_imu);
-			//mmc_reset(aux_mag);
+    		i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+			if (aux_ok) {
+    			i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
+				i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for aux MMC to finish reset
+			}
 			// Turn off LED
 			gpio_pin_set_dt(&led, 0);
 			configure_system_off_WOM(main_imu);
@@ -785,7 +978,6 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 
 		// Get time elapsed and sleep/yield until next tick
 		int64_t time_delta = k_uptime_get() - time_begin;
-//tx_payload_status.data[0]=time_delta;tx_payload_status.data[1]=TICKRATE_MS-time_delta;esb_write_payload(&tx_payload_status);
 		if (time_delta > TICKRATE_MS)
 		{
 			k_yield();
