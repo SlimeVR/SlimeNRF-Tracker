@@ -135,7 +135,7 @@ int64_t led_time_off = 0;
 	  AODR_1kHz, AODR_2kHz, AODR_4kHz, AODR_8kHz, AODR_16kHz, AODR_32kHz
 	  GODR_12_5Hz, GODR_25Hz, GODR_50Hz, GODR_100Hz, GODR_200Hz, GODR_500Hz, GODR_1kHz, GODR_2kHz, GODR_4kHz, GODR_8kHz, GODR_16kHz, GODR_32kHz
 */
-uint8_t Ascale = AFS_8G, Gscale = GFS_1000DPS, AODR = AODR_200Hz, GODR = GODR_1kHz, aMode = aMode_LN, gMode = gMode_LN;
+uint8_t Ascale = AFS_8G, Gscale = GFS_1000DPS, AODR = AODR_200Hz, GODR = GODR_500Hz, aMode = aMode_LN, gMode = gMode_LN;
 
 float aRes, gRes;														   // scale resolutions per LSB for the accel and gyro sensor2
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
@@ -707,7 +707,7 @@ void main(void)
 					float gy = raw1 * gRes - gyroBias[1];
 					float gz = raw2 * gRes - gyroBias[2];
 					// TODO: swap out fusion?
-					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my, mz, -mx, 0.001, q);
+					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my, mz, -mx, 0.002, q);
 					if (i == packets - 1) {
 						// Calculate linear acceleration (no gravity)
 						lin_ax = ax + 2.0f * (q[0] * q[1] + q[2] * q[3]);
@@ -872,7 +872,7 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					float gy = raw1 * gRes - gyroBias2[1];
 					float gz = raw2 * gRes - gyroBias2[2];
 					// TODO: swap out fusion?
-					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my2, mz2, -mx2, 0.001, q2);
+					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my2, mz2, -mx2, 0.002, q2);
 					if (i == packets - 1) {
 						// Calculate linear acceleration (no gravity)
 						lin_ax2 = ax + 2.0f * (q2[0] * q2[1] + q2[2] * q2[3]);
