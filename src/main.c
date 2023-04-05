@@ -718,7 +718,7 @@ void main(void)
 			}
 
 			if (quat_epsilon_coarse(q, last_q)) { // Probably okay to use the constantly updating last_q
-				if (k_uptime_get() - last_data_time > 1 * 60 * 1000) { // No motion in last 1m
+				if (k_uptime_get() - last_data_time > 5 * 60 * 1000) { // No motion in last 5m
 					system_off_main = true;
 				} else if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
 					powerstate = 1;
@@ -883,7 +883,7 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 			}
 
 			if (quat_epsilon_coarse(q2, last_q2)) { // Probably okay to use the constantly updating last_q
-				if (k_uptime_get() - last_data_time > 1 * 60 * 1000) { // No motion in last 1m
+				if (k_uptime_get() - last_data_time > 5 * 60 * 1000) { // No motion in last 5m
 					system_off_main = true;
 				} else if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
 					powerstate = 1;
