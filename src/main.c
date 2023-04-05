@@ -88,6 +88,7 @@ int TICKRATE_MS = 6;
 
 bool main_ok = false;
 bool aux_ok = false;
+bool aux_exists = true;
 
 bool main_data = false;
 bool aux_data = false;
@@ -927,7 +928,7 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 				if (!main_data) esb_flush_tx();
 				esb_write_payload(&tx_payload); // Add transmission to queue
 			}
-		} else {
+		} else if (aux_exists) {
 			uint8_t ICM42688ID = icm_getChipID(aux_imu);						 // Read CHIP_ID register for ICM42688
 			uint8_t MMC5983ID = mmc_getChipID(aux_mag);							 // Read CHIP_ID register for MMC5983MA
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
@@ -960,6 +961,8 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					nvs_write(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
 					reset_mode = 0; // Clear reset mode
 				}
+			} else {
+				aux_exists = false;
 			}
 		}
 
