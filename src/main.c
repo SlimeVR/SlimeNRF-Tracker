@@ -86,6 +86,21 @@ static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 
 int TICKRATE_MS = 6;
 
+unsigned int batt_pptt;
+
+const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
+const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
+const struct i2c_dt_spec aux_imu = I2C_DT_SPEC_GET(AUX_IMU_NODE);
+const struct i2c_dt_spec aux_mag = I2C_DT_SPEC_GET(AUX_MAG_NODE);
+
+//const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
+const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
+
+bool threads_running = false;
+
+bool main_running = false;
+bool aux_running = false;
+
 bool main_ok = false;
 bool aux_ok = false;
 bool aux_exists = true;
@@ -125,6 +140,11 @@ unsigned int last_batt_pptt[16] = {10001,10001,10001,10001,10001,10001,10001,100
 int8_t last_batt_pptt_i = 0;
 int64_t led_time = 0;
 int64_t led_time_off = 0;
+uint8_t reset_mode = 0;
+bool system_off_main = false;
+bool system_off_aux = false;
+bool reconfig;
+bool charging;
 
 // ICM42688 definitions
 
@@ -136,7 +156,8 @@ int64_t led_time_off = 0;
 	  AODR_1kHz, AODR_2kHz, AODR_4kHz, AODR_8kHz, AODR_16kHz, AODR_32kHz
 	  GODR_12_5Hz, GODR_25Hz, GODR_50Hz, GODR_100Hz, GODR_200Hz, GODR_500Hz, GODR_1kHz, GODR_2kHz, GODR_4kHz, GODR_8kHz, GODR_16kHz, GODR_32kHz
 */
-uint8_t Ascale = AFS_8G, Gscale = GFS_1000DPS, AODR = AODR_200Hz, GODR = GODR_500Hz, aMode = aMode_LN, gMode = gMode_LN;
+uint8_t Ascale = AFS_8G, Gscale = GFS_1000DPS, AODR = AODR_200Hz, GODR = GODR_1kHz, aMode = aMode_LN, gMode = gMode_LN;
+#define INTEGRATION_TIME 0.001
 
 float aRes, gRes;														   // scale resolutions per LSB for the accel and gyro sensor2
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
@@ -477,181 +498,21 @@ bool quat_epsilon_coarse(float *q, float *q2) {
 	return fabs(q[0] - q2[0]) < 0.0005f && fabs(q[1] - q2[1]) < 0.0005f && fabs(q[2] - q2[2]) < 0.0005f && fabs(q[3] - q2[3]) < 0.0005f;
 }
 
-void main(void)
-{
-	start_time = k_uptime_get(); // ~75ms from start_time to first data sent with main imus only
-	// TODO: Need to skip all this junk and check the battery and dock first
-	int32_t reset_reason = NRF_POWER->RESETREAS;
-	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
-	uint8_t reboot_counter = 0, reset_mode = 0;
-	struct flash_pages_info info;
-
-	fs.flash_device = NVS_PARTITION_DEVICE;
-	fs.offset = NVS_PARTITION_OFFSET; // Start NVS FS here
-	flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
-	fs.sector_size = info.size; // Sector size equal to page size
-	fs.sector_count = 4U; // 4 sectors
-	nvs_mount(&fs);
-// 5-6ms delta to initialize NVS
-	if (reset_reason & 0x01) { // Count pin resets
-		nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
-		reset_mode = reboot_counter;
-		reboot_counter++;
-		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
-		k_msleep(1000); // Wait before clearing counter and continuing
-		reboot_counter = 0;
-		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
-	}
-// 0ms or 1000ms delta for reboot counter
-	if (reset_mode == 3) { // Reset mode pairing reset
-		// TODO: Unset any paired dongle, Flash the LED
-		reset_mode = 0; // Clear reset mode
-	}
-
-	if (reset_mode > 3) { // Reset mode DFU
-		// TODO: DFU
-		reset_mode = 0; // Clear reset mode
-	}
-
-	// Read calibration from NVS
-	nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
-	nvs_read(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
-	nvs_read(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
-	nvs_read(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
-	nvs_read(&fs, MAIN_MAG_OFFSET_ID, &magOffset, sizeof(magOffset));
-	nvs_read(&fs, AUX_ACCEL_BIAS_ID, &accelBias2, sizeof(accelBias));
-	nvs_read(&fs, AUX_GYRO_BIAS_ID, &gyroBias2, sizeof(gyroBias));
-	nvs_read(&fs, AUX_MAG_BIAS_ID, &magBias2, sizeof(magBias));
-	nvs_read(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
-	nvs_read(&fs, MAIN_MAG_OFFSET_ID, &magOffset2, sizeof(magOffset));
-
-	// get sensor resolutions for user settings, only need to do this once
-	// TODO: surely these can be defines lol
-	aRes = icm_getAres(Ascale);
-	gRes = icm_getGres(Gscale);
-
-	const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
-	const struct gpio_dt_spec chgstat = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chgstat_gpios);
-	//const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
-	//const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
-
-	const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
-	const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
-	const struct i2c_dt_spec aux_imu = I2C_DT_SPEC_GET(AUX_IMU_NODE);
-	const struct i2c_dt_spec aux_mag = I2C_DT_SPEC_GET(AUX_MAG_NODE);
-
-	//const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
-	const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
-
-	gpio_pin_configure_dt(&dock, GPIO_INPUT);
-	gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
-	//gpio_pin_configure_dt(&int0, GPIO_INPUT);
-	//gpio_pin_configure_dt(&int1, GPIO_INPUT);
-
-	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
-
-	//pwm_set_pulse_dt(&led0, PWM_MSEC(20)); // 10/20 = 50%
-	//gpio_pin_set_dt(&led, 1);
-
-	// Recover quats if present
-	retained_validate();
-	if (retained.stored_quats) {
-		for (uint8_t i = 0; i < 4; i++){
-			q[i] = retained.q[i];
-			q2[i] = retained.q2[i];
-		}
-		retained.stored_quats = false; // Invalidate the retained quaternions
-		retained_update();
-	}
-// 0ms delta to read calibration and configure pins (unknown time to read retained data but probably negligible)
-	clocks_start();
-	esb_initialize();
-	tx_payload.noack = false;
-// 1ms delta to start ESB
-	for (;;)
-	{
-		// Get start time
-		int64_t time_begin = k_uptime_get();
-
-		unsigned int batt_pptt = read_batt();
-//batt_pptt = 10000; // hw issue
-		if (batt_pptt == 0)
-		{
-			// Communicate all imus to shut down
-    		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
-			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
-			if (aux_ok) {
-    			i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
-				i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for aux MMC to finish reset
-			}
-			// Turn off LED
-			gpio_pin_set_dt(&led, 0);
-			configure_system_off_chgstat();
-		}
-		last_batt_pptt[last_batt_pptt_i] = batt_pptt;
-		last_batt_pptt_i++;
-		last_batt_pptt_i %= 15;
-		for (uint8_t i = 0; i < 15; i++) {  // Average battery readings across 16 samples
-			if (last_batt_pptt[i] == 10001) {
-				batt_pptt += batt_pptt / (i + 1);
-			} else {
-				batt_pptt += last_batt_pptt[i];
-			}
-		}
-		batt_pptt /= 16;
-		if (batt_pptt + 80 < last_batt_pptt[15]) {last_batt_pptt[15] = batt_pptt + 80;} // Lower bound -80pptt
-		else if (batt_pptt > last_batt_pptt[15]) {last_batt_pptt[15] = batt_pptt;} // Upper bound +0pptt
-		else {batt_pptt = last_batt_pptt[15];} // Effectively 80-10000 -> 0-100
-
-		if (time_begin > led_time) {
-			if (led_time != 0) {
-				led_time_off = time_begin + 500;
-			}
-			if (batt_pptt < 1000) { // Under 10% battery left
-				led_time += 1000;
-			} else {
-				led_time += 10000;
-			}
-			gpio_pin_set_dt(&led, 1);
-		} else if (time_begin > led_time_off) {
-			gpio_pin_set_dt(&led, 0);
-		}
-
-		bool charging = gpio_pin_get_dt(&chgstat); // TODO: Charging detect doesn't work (hardware issue)
-		bool docked = gpio_pin_get_dt(&dock);
-		if (docked)
-		{ // TODO: move to interrupts? (Then you do not need to do the above)
-			// Communicate all imus to shut down
-    		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
-			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
-			if (aux_ok) {
-    			i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
-				i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for aux MMC to finish reset
-			}
-			// Turn off LED
-			gpio_pin_set_dt(&led, 0);
-			configure_system_off_dock();
-		}
-		//TODO: dongle can communicate back to the tracker? ie toggle mag or disable/enable tracking to save power
-		//TODO: if no dongle paired, search for dongles and connect to the first one (set target dongle, write to memory)
-
-		bool reconfig = last_powerstate != powerstate ? true : false;
-		last_powerstate = powerstate;
-
-		bool system_off_main = false;
-		main_data = false;
+// TODO: make threads more abstract, pass in imus n stuff instead
+void main_imu_thread(void) {
+	k_sleep(K_FOREVER);
+	main_running = true;
+	while (1) {
 		if (main_ok)
 		{
 			// TODO: on any errors set main_ok false and skip (make functions return nonzero)
 			// Read main FIFO
 			uint8_t rawCount[2];
-			// TODO: make sure these are writing to separate buffers for main vs. aux
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
 			count += 16; // Add two read buffer packets
 			uint16_t packets = count / 8;								 // Packet size 8 bytes
 			uint8_t rawData[2080];
-			// TODO: make sure these are writing to separate buffers for main vs. aux
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_DATA, &rawData[0], count); // Read buffer
     		uint8_t rawAccel[6];
     		i2c_burst_read_dt(&main_imu, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6); // Read accel only
@@ -662,7 +523,6 @@ void main(void)
 			float ax = raw0 * aRes - accelBias[0];
 			float ay = raw1 * aRes - accelBias[1];
 			float az = raw2 * aRes - accelBias[2];
-			// TODO: make sure these are writing to separate buffers for main vs. aux
 			if (last_powerstate == 0) {
 				mmc_readData(main_mag, MMC5983MAData);
 				// transform and convert to float values
@@ -708,7 +568,7 @@ void main(void)
 					float gy = raw1 * gRes - gyroBias[1];
 					float gz = raw2 * gRes - gyroBias[2];
 					// TODO: swap out fusion?
-					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my, mz, -mx, 0.002, q);
+					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my, mz, -mx, INTEGRATION_TIME, q);
 					if (i == packets - 1) {
 						// Calculate linear acceleration (no gravity)
 						lin_ax = ax + 2.0f * (q[0] * q[1] + q[2] * q[3]);
@@ -806,8 +666,24 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 				}
 			}
 		}
+		main_running = false;
+		k_sleep(K_FOREVER);
+		main_running = true;
+	}
+}
 
-		bool system_off_aux = false;
+K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
+
+void wait_for_main_imu_thread(void) {
+	while (main_running) {
+		k_yield();
+	}
+}
+
+void aux_imu_thread(void) {
+	k_sleep(K_FOREVER);
+	aux_running = true;
+	while (1) {
 		if (aux_ok)
 		{
 			// TODO: on any errors set aux_ok false and skip (make functions return nonzero)
@@ -873,7 +749,7 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					float gy = raw1 * gRes - gyroBias2[1];
 					float gz = raw2 * gRes - gyroBias2[2];
 					// TODO: swap out fusion?
-					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my2, mz2, -mx2, 0.002, q2);
+					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my2, mz2, -mx2, INTEGRATION_TIME, q2);
 					if (i == packets - 1) {
 						// Calculate linear acceleration (no gravity)
 						lin_ax2 = ax + 2.0f * (q2[0] * q2[1] + q2[2] * q2[3]);
@@ -901,6 +777,7 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 				for (uint16_t i = 0; i < 16; i++) {
 					tx_payload.data[i] = 0;
 				}
+				wait_for_main_imu_thread();
 				tx_buf[0] = INT16_TO_UINT16(TO_FIXED_14(q2[0]));
 				tx_buf[1] = INT16_TO_UINT16(TO_FIXED_14(q2[1]));
 				tx_buf[2] = INT16_TO_UINT16(TO_FIXED_14(q2[2]));
@@ -965,8 +842,185 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 				aux_exists = false;
 			}
 		}
+		aux_running = false;
+		k_sleep(K_FOREVER);
+		aux_running = true;
+	}
+}
+
+K_THREAD_DEFINE(aux_imu_thread_id, 4096, aux_imu_thread, NULL, NULL, NULL, 7, 0, 0);
+
+void wait_for_threads(void) {
+	if (threads_running) {
+		while (main_running) {
+			while (aux_running) {
+				k_yield();
+			}
+		}
+	}
+}
+
+void main(void)
+{
+	start_time = k_uptime_get(); // ~75ms from start_time to first data sent with main imus only
+	// TODO: Need to skip all this junk and check the battery and dock first
+	int32_t reset_reason = NRF_POWER->RESETREAS;
+	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
+	uint8_t reboot_counter = 0;
+	struct flash_pages_info info;
+
+	fs.flash_device = NVS_PARTITION_DEVICE;
+	fs.offset = NVS_PARTITION_OFFSET; // Start NVS FS here
+	flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
+	fs.sector_size = info.size; // Sector size equal to page size
+	fs.sector_count = 4U; // 4 sectors
+	nvs_mount(&fs);
+// 5-6ms delta to initialize NVS
+	if (reset_reason & 0x01) { // Count pin resets
+		nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+		reset_mode = reboot_counter;
+		reboot_counter++;
+		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+		k_msleep(1000); // Wait before clearing counter and continuing
+		reboot_counter = 0;
+		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+	}
+// 0ms or 1000ms delta for reboot counter
+	if (reset_mode == 3) { // Reset mode pairing reset
+		// TODO: Unset any paired dongle, Flash the LED
+		reset_mode = 0; // Clear reset mode
+	}
+
+	if (reset_mode > 3) { // Reset mode DFU
+		// TODO: DFU
+		reset_mode = 0; // Clear reset mode
+	}
+
+	// Read calibration from NVS
+	nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
+	nvs_read(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
+	nvs_read(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
+	nvs_read(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
+	nvs_read(&fs, MAIN_MAG_OFFSET_ID, &magOffset, sizeof(magOffset));
+	nvs_read(&fs, AUX_ACCEL_BIAS_ID, &accelBias2, sizeof(accelBias));
+	nvs_read(&fs, AUX_GYRO_BIAS_ID, &gyroBias2, sizeof(gyroBias));
+	nvs_read(&fs, AUX_MAG_BIAS_ID, &magBias2, sizeof(magBias));
+	nvs_read(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
+	nvs_read(&fs, MAIN_MAG_OFFSET_ID, &magOffset2, sizeof(magOffset));
+
+	// get sensor resolutions for user settings, only need to do this once
+	// TODO: surely these can be defines lol
+	aRes = icm_getAres(Ascale);
+	gRes = icm_getGres(Gscale);
+
+	const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
+	const struct gpio_dt_spec chgstat = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chgstat_gpios);
+	//const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
+	//const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
+
+	gpio_pin_configure_dt(&dock, GPIO_INPUT);
+	gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
+	//gpio_pin_configure_dt(&int0, GPIO_INPUT);
+	//gpio_pin_configure_dt(&int1, GPIO_INPUT);
+
+	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
+
+	//pwm_set_pulse_dt(&led0, PWM_MSEC(20)); // 10/20 = 50%
+	//gpio_pin_set_dt(&led, 1);
+
+	// Recover quats if present
+	retained_validate();
+	if (retained.stored_quats) {
+		for (uint8_t i = 0; i < 4; i++){
+			q[i] = retained.q[i];
+			q2[i] = retained.q2[i];
+		}
+		retained.stored_quats = false; // Invalidate the retained quaternions
+		retained_update();
+	}
+// 0ms delta to read calibration and configure pins (unknown time to read retained data but probably negligible)
+	clocks_start();
+	esb_initialize();
+	tx_payload.noack = false;
+// 1ms delta to start ESB
+	while (1)
+	{
+		// Get start time
+		int64_t time_begin = k_uptime_get();
+
+		batt_pptt = read_batt();
+		if (batt_pptt == 0)
+		{
+			wait_for_threads();
+			// Communicate all imus to shut down
+    		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+			if (aux_ok) {
+    			i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
+				i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for aux MMC to finish reset
+			}
+			// Turn off LED
+			gpio_pin_set_dt(&led, 0);
+			configure_system_off_chgstat();
+		}
+		last_batt_pptt[last_batt_pptt_i] = batt_pptt;
+		last_batt_pptt_i++;
+		last_batt_pptt_i %= 15;
+		for (uint8_t i = 0; i < 15; i++) {  // Average battery readings across 16 samples
+			if (last_batt_pptt[i] == 10001) {
+				batt_pptt += batt_pptt / (i + 1);
+			} else {
+				batt_pptt += last_batt_pptt[i];
+			}
+		}
+		batt_pptt /= 16;
+		if (batt_pptt + 80 < last_batt_pptt[15]) {last_batt_pptt[15] = batt_pptt + 80;} // Lower bound -80pptt
+		else if (batt_pptt > last_batt_pptt[15]) {last_batt_pptt[15] = batt_pptt;} // Upper bound +0pptt
+		else {batt_pptt = last_batt_pptt[15];} // Effectively 80-10000 -> 0-100
+
+		if (time_begin > led_time) {
+			if (led_time != 0) {
+				led_time_off = time_begin + 500;
+			}
+			if (batt_pptt < 1000) { // Under 10% battery left
+				led_time += 1000;
+			} else {
+				led_time += 10000;
+			}
+			gpio_pin_set_dt(&led, 1);
+		} else if (time_begin > led_time_off) {
+			gpio_pin_set_dt(&led, 0);
+		}
+
+		charging = gpio_pin_get_dt(&chgstat); // TODO: Charging detect doesn't work (hardware issue)
+		bool docked = gpio_pin_get_dt(&dock);
+		if (docked)
+		{ // TODO: move to interrupts? (Then you do not need to do the above)
+			wait_for_threads();
+			// Communicate all imus to shut down
+    		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+			if (aux_ok) {
+    			i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
+				i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for aux MMC to finish reset
+			}
+			// Turn off LED
+			gpio_pin_set_dt(&led, 0);
+			configure_system_off_dock();
+		}
+		//TODO: dongle can communicate back to the tracker? ie toggle mag or disable/enable tracking to save power
+		//TODO: if no dongle paired, search for dongles and connect to the first one (set target dongle, write to memory)
+
+		reconfig = last_powerstate != powerstate ? true : false;
+		last_powerstate = powerstate;
+		main_data = false;
+
+		k_wakeup(main_imu_thread_id);
+		k_wakeup(aux_imu_thread_id);
+		threads_running = true;
 
 		if (system_off_main && (aux_ok ? system_off_aux : true)) { // System off on extended no movement
+			wait_for_threads();
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
     		i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
