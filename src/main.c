@@ -743,8 +743,8 @@ void main(void)
 				tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay));
 				tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az));
 				tx_payload.data[0] = 0; // TODO: imu id here
-				//tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
-				tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
+				tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
+				//tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
 				tx_payload.data[2] = (tx_buf[0] >> 8) & 255;
 				tx_payload.data[3] = tx_buf[0] & 255;
 				tx_payload.data[4] = (tx_buf[1] >> 8) & 255;
@@ -908,8 +908,8 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 				tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay2));
 				tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az2));
 				tx_payload.data[0] = 1; // TODO: imu id here
-				//tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
-				tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
+				tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
+				//tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
 				tx_payload.data[2] = (tx_buf[0] >> 8) & 255;
 				tx_payload.data[3] = tx_buf[0] & 255;
 				tx_payload.data[4] = (tx_buf[1] >> 8) & 255;
