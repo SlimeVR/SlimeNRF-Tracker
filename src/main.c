@@ -892,7 +892,7 @@ void main(void)
 
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 
-	if (reset_mode > 3) { // Reset mode DFU
+	if (reset_mode == 4) { // Reset mode DFU
 		// TODO: DFU
 		reset_mode = 0; // Clear reset mode
 	}
@@ -930,7 +930,7 @@ void main(void)
 			}
 			esb_flush_rx();
 			esb_flush_tx();
-			esb_write_payload(&tx_payload_pair);
+			esb_write_payload(&tx_payload_pair); // Still fails after a while
 			gpio_pin_set_dt(&led, 1);
 			k_msleep(100);
 			gpio_pin_set_dt(&led, 0);
