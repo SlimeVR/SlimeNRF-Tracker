@@ -67,8 +67,8 @@ static struct esb_payload rx_payload;
 static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-//static struct esb_payload tx_payload_status = ESB_CREATE_PAYLOAD(0,
-//														  0,0,0,0);
+static struct esb_payload tx_payload_pair = ESB_CREATE_PAYLOAD(0,
+														  0, 0, 0, 0, 0, 0, 0, 0);
 
 #define _RADIO_SHORTS_COMMON                                       \
 	(RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | \
@@ -83,6 +83,17 @@ static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 #define MAIN_MAG_NODE DT_NODELABEL(mmc_0)
 #define AUX_IMU_NODE DT_NODELABEL(icm_1)
 #define AUX_MAG_NODE DT_NODELABEL(mmc_1)
+
+// this was randomly generated
+uint8_t discovery_base_addr_0[4] = {0x62, 0x39, 0x8A, 0xF2};
+uint8_t discovery_base_addr_1[4] = {0x28, 0xFF, 0x50, 0xB8};
+uint8_t discovery_addr_prefix[8] = {0xFE, 0xFF, 0x29, 0x27, 0x09, 0x02, 0xB2, 0xD6};
+
+uint8_t paired_addr[8] = {0,0,0,0,0,0,0,0};
+
+uint8_t base_addr_0[4] = {0,0,0,0};
+uint8_t base_addr_1[4] = {0,0,0,0};
+uint8_t addr_prefix[8] = {0,0,0,0,0,0,0,0};
 
 int TICKRATE_MS = 6;
 
@@ -129,6 +140,8 @@ float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 float q2[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
 float last_q2[4] = {1.0f, 0.0f, 0.0f, 0.0f};	// vector to hold quaternion
+
+int tracker_id = 0;
 
 // storing temporary values
 float mx, my, mz; // variables to hold latest mag data values
@@ -287,22 +300,18 @@ void event_handler(struct esb_evt const *event)
 	switch (event->evt_id)
 	{
 	case ESB_EVENT_TX_SUCCESS:
-		// LOG_DBG("TX SUCCESS EVENT");
 		break;
 	case ESB_EVENT_TX_FAILED:
-		// LOG_DBG("TX FAILED EVENT");
 		break;
 	case ESB_EVENT_RX_RECEIVED:
-		while (esb_read_rx_payload(&rx_payload) == 0)
-		{
-			// LOG_DBG("Packet received, len %d : "
-			//	"0x%02x, 0x%02x, 0x%02x, 0x%02x, "
-			//	"0x%02x, 0x%02x, 0x%02x, 0x%02x",
-			//	rx_payload.length, rx_payload.data[0],
-			//	rx_payload.data[1], rx_payload.data[2],
-			//	rx_payload.data[3], rx_payload.data[4],
-			//	rx_payload.data[5], rx_payload.data[6],
-			//	rx_payload.data[7]);
+		if (paired_addr[0] == 0x00) {
+			if (esb_read_rx_payload(&rx_payload) == 0) {
+				if (rx_payload.length == 8) {
+					for (int i = 0; i < 8; i++) {
+						paired_addr[i] = rx_payload.data[i];
+					}
+				}
+			}
 		}
 		break;
 	}
@@ -348,12 +357,6 @@ int clocks_start(void)
 int esb_initialize(void)
 {
 	int err;
-	/* These are arbitrary default addresses. In end user products
-	 * different addresses should be used for each set of devices.
-	 */
-	uint8_t base_addr_0[4] = {0xE7, 0xE7, 0xE7, 0xE7};
-	uint8_t base_addr_1[4] = {0xC2, 0xC2, 0xC2, 0xC2};
-	uint8_t addr_prefix[8] = {0xE7, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8};
 
 	struct esb_config config = ESB_DEFAULT_CONFIG;
 
@@ -603,7 +606,7 @@ void main_imu_thread(void) {
 				tx_buf[4] = INT16_TO_UINT16(TO_FIXED_10(lin_ax));
 				tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay));
 				tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az));
-				tx_payload.data[0] = 0; // TODO: imu id here
+				tx_payload.data[0] = tracker_id << 4;
 				tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
 				//tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
 				tx_payload.data[2] = (tx_buf[0] >> 8) & 255;
@@ -785,7 +788,7 @@ void aux_imu_thread(void) {
 				tx_buf[4] = INT16_TO_UINT16(TO_FIXED_10(lin_ax2));
 				tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay2));
 				tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az2));
-				tx_payload.data[0] = 1; // TODO: imu id here
+				tx_payload.data[0] = (tracker_id << 4) | 1;
 				tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
 				//tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
 				tx_payload.data[2] = (tx_buf[0] >> 8) & 255;
@@ -867,8 +870,8 @@ void main(void)
 	int32_t reset_reason = NRF_POWER->RESETREAS;
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 	uint8_t reboot_counter = 0;
-	struct flash_pages_info info;
 
+	struct flash_pages_info info;
 	fs.flash_device = NVS_PARTITION_DEVICE;
 	fs.offset = NVS_PARTITION_OFFSET; // Start NVS FS here
 	flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
@@ -886,14 +889,77 @@ void main(void)
 		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
 	}
 // 0ms or 1000ms delta for reboot counter
-	if (reset_mode == 3) { // Reset mode pairing reset
-		// TODO: Unset any paired dongle, Flash the LED
-		reset_mode = 0; // Clear reset mode
-	}
+
+	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 
 	if (reset_mode > 3) { // Reset mode DFU
 		// TODO: DFU
 		reset_mode = 0; // Clear reset mode
+	}
+
+	if (reset_mode == 3) { // Reset mode pairing reset
+		nvs_write(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr)); // Clear paired address
+		reset_mode = 0; // Clear reset mode
+	} else {
+		// Read paired address from NVS
+		nvs_read(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr));
+	}
+
+	clocks_start();
+
+	if (paired_addr[0] == 0x00) { // No dongle paired
+		for (int i = 0; i < 4; i++) {
+			base_addr_0[i] = discovery_base_addr_0[i];
+			base_addr_1[i] = discovery_base_addr_1[i];
+		}
+		for (int i = 0; i < 8; i++) {
+			addr_prefix[i] = discovery_addr_prefix[i];
+		}
+		esb_initialize();
+		tx_payload_pair.noack = false;
+		uint64_t addr = (((uint64_t)(NRF_FICR->DEVICEADDR[1]) << 32) | NRF_FICR->DEVICEADDR[0]) & 0xFFFFFF;
+		uint8_t check = addr & 255;
+		if (check == 0) check = 8;
+		tx_payload_pair.data[0] = check; // Use int from device address to make sure packet is for this device
+		for (int i = 0; i < 6; i++) {
+			tx_payload_pair.data[i+2] = (addr >> (8 * i)) & 0xFF;
+		}
+		while (paired_addr[0] != check) {
+			if (paired_addr[0] != 0x00) {
+				paired_addr[0] == 0x00; // Packet not for this device
+			}
+			esb_write_payload(&tx_payload_pair);
+			gpio_pin_set_dt(&led, 1);
+			k_msleep(100);
+			gpio_pin_set_dt(&led, 0);
+			k_msleep(900);
+		}
+		nvs_write(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr)); // Write new address and tracker id
+		esb_disable();
+	}
+
+	tracker_id = paired_addr[1];
+
+	// Recreate dongle address
+	uint8_t buf2[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+	for (int i = 0; i < 4; i++) {
+		buf2[i] = paired_addr[i+2];
+		buf2[i+4] = paired_addr[i+2] + paired_addr[6];
+	}
+	for (int i = 0; i < 8; i++) {
+		buf2[i+8] = paired_addr[7] + i;
+	}
+	for (int i = 0; i < 16; i++) {
+		if (buf2[i] == 0x00 || buf2[i] == 0x55 || buf2[i] == 0xAA) {
+			buf2[i] += 8;
+		};
+	}
+	for (int i = 0; i < 4; i++) {
+		base_addr_0[i] = buf2[i];
+		base_addr_1[i] = buf2[i+4];
+	}
+	for (int i = 0; i < 8; i++) {
+		addr_prefix[i] = buf2[i+8];
 	}
 
 	// Read calibration from NVS
@@ -923,8 +989,6 @@ void main(void)
 	//gpio_pin_configure_dt(&int0, GPIO_INPUT);
 	//gpio_pin_configure_dt(&int1, GPIO_INPUT);
 
-	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
-
 	//pwm_set_pulse_dt(&led0, PWM_MSEC(20)); // 10/20 = 50%
 	//gpio_pin_set_dt(&led, 1);
 
@@ -939,7 +1003,6 @@ void main(void)
 		retained_update();
 	}
 // 0ms delta to read calibration and configure pins (unknown time to read retained data but probably negligible)
-	clocks_start();
 	esb_initialize();
 	tx_payload.noack = false;
 // 1ms delta to start ESB
