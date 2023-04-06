@@ -662,7 +662,7 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
 gpio_pin_set_dt(&led, 1); // scuffed led
 					// TODO: Wait for accelerometer movement, then calibrate (5 sec timeout to skip)
-					mmc_offsetBias(main_mag, magBias, magScale); // This takes about 10s
+					mmc_offsetBias(main_mag, magBias, magScale); // This takes about 20s
 					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
 					nvs_write(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
 					reset_mode = 0; // Clear reset mode
@@ -836,7 +836,7 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 					nvs_write(&fs, AUX_GYRO_BIAS_ID, &gyroBias2, sizeof(gyroBias));
 gpio_pin_set_dt(&led, 1); // scuffed led
 					// TODO: Wait for accelerometer movement, then calibrate (5 sec timeout to skip)
-					mmc_offsetBias(aux_mag, magBias2, magScale2); // This takes about 10s
+					mmc_offsetBias(aux_mag, magBias2, magScale2); // This takes about 20s
 					nvs_write(&fs, AUX_MAG_BIAS_ID, &magBias2, sizeof(magBias));
 					nvs_write(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
 					reset_mode = 0; // Clear reset mode
