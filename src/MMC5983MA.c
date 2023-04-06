@@ -176,14 +176,14 @@ void mmc_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
     //Serial.println("Calculate mag offset bias: move all around to sample the complete response surface!");
     //k_busy_wait(1000 * 4000);
 
-    for (int ii = 0; ii < 2000; ii++) // About 10 seconds
+    for (int ii = 0; ii < 2000; ii++) // About 20 seconds
     {
         mmc_readData(dev_i2c, mag_temp);
         for (int jj = 0; jj < 3; jj++) {
             if((int32_t)(mag_temp[jj] - magOffset) > mag_max[jj]) mag_max[jj] = (int32_t)(mag_temp[jj] - magOffset);
             if((int32_t)(mag_temp[jj] - magOffset) < mag_min[jj]) mag_min[jj] = (int32_t)(mag_temp[jj] - magOffset);
         }
-        k_msleep(5);
+        k_msleep(10);
     }
 
     // Get hard iron correction
