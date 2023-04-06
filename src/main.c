@@ -928,6 +928,8 @@ void main(void)
 			if (paired_addr[0] != 0x00) {
 				paired_addr[0] == 0x00; // Packet not for this device
 			}
+			esb_flush_rx();
+			esb_flush_tx();
 			esb_write_payload(&tx_payload_pair);
 			gpio_pin_set_dt(&led, 1);
 			k_msleep(100);
