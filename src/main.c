@@ -119,6 +119,8 @@ bool aux_exists = true;
 bool main_data = false;
 bool aux_data = false;
 
+#define MAG_ENABLED true
+
 #define INT16_TO_UINT16(x) ((uint16_t)32768 + (uint16_t)(x))
 #define TO_FIXED_14(x) ((int16_t)((x) * (1 << 14)))
 #define TO_FIXED_10(x) ((int16_t)((x) * (1 << 10)))
@@ -202,7 +204,7 @@ uint32_t MMC5983MAData2[3];												   // Stores the 18-bit unsigned magnetom
 // device orientation -- which can be converted to yaw, pitch, and roll. Useful for stabilizing quadcopters, etc.
 // The performance of the orientation filter is at least as good as conventional Kalman-based filtering algorithms
 // but is much less computationally intensive---it can be performed on a 3.3 V Pro Mini operating at 8 MHz!
-__attribute__((optimize("O3"))) void MadgwickQuaternionUpdate(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, float ts, float *q)
+__attribute__((optimize("O3"))) void MadgwickQuaternionUpdate(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, float ts, float *q, bool mag)
 {
 	float q1 = q[0], q2 = q[1], q3 = q[2], q4 = q[3]; // short name local variable for readability
 	float norm;
@@ -243,32 +245,40 @@ __attribute__((optimize("O3"))) void MadgwickQuaternionUpdate(float ax, float ay
 	ay *= norm;
 	az *= norm;
 
-	// Normalise magnetometer measurement
-	norm = sqrtf(mx * mx + my * my + mz * mz);
-	if (norm == 0.0f)
-		return; // handle NaN
-	norm = 1.0f / norm;
-	mx *= norm;
-	my *= norm;
-	mz *= norm;
+	if (mag) {
+		// Normalise magnetometer measurement
+		norm = sqrtf(mx * mx + my * my + mz * mz);
+		if (norm == 0.0f)
+			return; // handle NaN
+		norm = 1.0f / norm;
+		mx *= norm;
+		my *= norm;
+		mz *= norm;
 
-	// Reference direction of Earth's magnetic field
-	_2q1mx = 2.0f * q1 * mx;
-	_2q1my = 2.0f * q1 * my;
-	_2q1mz = 2.0f * q1 * mz;
-	_2q2mx = 2.0f * q2 * mx;
-	hx = mx * q1q1 - _2q1my * q4 + _2q1mz * q3 + mx * q2q2 + _2q2 * my * q3 + _2q2 * mz * q4 - mx * q3q3 - mx * q4q4;
-	hy = _2q1mx * q4 + my * q1q1 - _2q1mz * q2 + _2q2mx * q3 - my * q2q2 + my * q3q3 + _2q3 * mz * q4 - my * q4q4;
-	_2bx = sqrtf(hx * hx + hy * hy);
-	_2bz = -_2q1mx * q3 + _2q1my * q2 + mz * q1q1 + _2q2mx * q4 - mz * q2q2 + _2q3 * my * q4 - mz * q3q3 + mz * q4q4;
-	_4bx = 2.0f * _2bx;
-	_4bz = 2.0f * _2bz;
+		// Reference direction of Earth's magnetic field
+		_2q1mx = 2.0f * q1 * mx;
+		_2q1my = 2.0f * q1 * my;
+		_2q1mz = 2.0f * q1 * mz;
+		_2q2mx = 2.0f * q2 * mx;
+		hx = mx * q1q1 - _2q1my * q4 + _2q1mz * q3 + mx * q2q2 + _2q2 * my * q3 + _2q2 * mz * q4 - mx * q3q3 - mx * q4q4;
+		hy = _2q1mx * q4 + my * q1q1 - _2q1mz * q2 + _2q2mx * q3 - my * q2q2 + my * q3q3 + _2q3 * mz * q4 - my * q4q4;
+		_2bx = sqrtf(hx * hx + hy * hy);
+		_2bz = -_2q1mx * q3 + _2q1my * q2 + mz * q1q1 + _2q2mx * q4 - mz * q2q2 + _2q3 * my * q4 - mz * q3q3 + mz * q4q4;
+		_4bx = 2.0f * _2bx;
+		_4bz = 2.0f * _2bz;
 
-	// Gradient decent algorithm corrective step
-	s1 = -_2q3 * (2.0f * q2q4 - _2q1q3 - ax) + _2q2 * (2.0f * q1q2 + _2q3q4 - ay) - _2bz * q3 * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (-_2bx * q4 + _2bz * q2) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + _2bx * q3 * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
-	s2 = _2q4 * (2.0f * q2q4 - _2q1q3 - ax) + _2q1 * (2.0f * q1q2 + _2q3q4 - ay) - 4.0f * q2 * (1.0f - 2.0f * q2q2 - 2.0f * q3q3 - az) + _2bz * q4 * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (_2bx * q3 + _2bz * q1) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + (_2bx * q4 - _4bz * q2) * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
-	s3 = -_2q1 * (2.0f * q2q4 - _2q1q3 - ax) + _2q4 * (2.0f * q1q2 + _2q3q4 - ay) - 4.0f * q3 * (1.0f - 2.0f * q2q2 - 2.0f * q3q3 - az) + (-_4bx * q3 - _2bz * q1) * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (_2bx * q2 + _2bz * q4) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + (_2bx * q1 - _4bz * q3) * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
-	s4 = _2q2 * (2.0f * q2q4 - _2q1q3 - ax) + _2q3 * (2.0f * q1q2 + _2q3q4 - ay) + (-_4bx * q4 + _2bz * q2) * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (-_2bx * q1 + _2bz * q3) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + _2bx * q2 * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
+		// Gradient decent algorithm corrective step
+		s1 = -_2q3 * (2.0f * q2q4 - _2q1q3 - ax) + _2q2 * (2.0f * q1q2 + _2q3q4 - ay);
+		s2 = _2q4 * (2.0f * q2q4 - _2q1q3 - ax) + _2q1 * (2.0f * q1q2 + _2q3q4 - ay) - 4.0f * q2 * (1.0f - 2.0f * q2q2 - 2.0f * q3q3 - az);
+		s3 = -_2q1 * (2.0f * q2q4 - _2q1q3 - ax) + _2q4 * (2.0f * q1q2 + _2q3q4 - ay) - 4.0f * q3 * (1.0f - 2.0f * q2q2 - 2.0f * q3q3 - az);
+		s4 = _2q2 * (2.0f * q2q4 - _2q1q3 - ax) + _2q3 * (2.0f * q1q2 + _2q3q4 - ay);
+	} else {
+		// Gradient decent algorithm corrective step
+		s1 = -_2q3 * (2.0f * q2q4 - _2q1q3 - ax) + _2q2 * (2.0f * q1q2 + _2q3q4 - ay) - _2bz * q3 * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (-_2bx * q4 + _2bz * q2) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + _2bx * q3 * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
+		s2 = _2q4 * (2.0f * q2q4 - _2q1q3 - ax) + _2q1 * (2.0f * q1q2 + _2q3q4 - ay) - 4.0f * q2 * (1.0f - 2.0f * q2q2 - 2.0f * q3q3 - az) + _2bz * q4 * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (_2bx * q3 + _2bz * q1) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + (_2bx * q4 - _4bz * q2) * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
+		s3 = -_2q1 * (2.0f * q2q4 - _2q1q3 - ax) + _2q4 * (2.0f * q1q2 + _2q3q4 - ay) - 4.0f * q3 * (1.0f - 2.0f * q2q2 - 2.0f * q3q3 - az) + (-_4bx * q3 - _2bz * q1) * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (_2bx * q2 + _2bz * q4) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + (_2bx * q1 - _4bz * q3) * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
+		s4 = _2q2 * (2.0f * q2q4 - _2q1q3 - ax) + _2q3 * (2.0f * q1q2 + _2q3q4 - ay) + (-_4bx * q4 + _2bz * q2) * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (-_2bx * q1 + _2bz * q3) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + _2bx * q2 * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
+	}
 	norm = sqrtf(s1 * s1 + s2 * s2 + s3 * s3 + s4 * s4); // normalise step magnitude
 	norm = 1.0f / norm;
 	s1 *= norm;
@@ -526,6 +536,7 @@ void main_imu_thread(void) {
 			float ax = raw0 * aRes - accelBias[0];
 			float ay = raw1 * aRes - accelBias[1];
 			float az = raw2 * aRes - accelBias[2];
+#if (MAG_ENABLED == true)
 			if (last_powerstate == 0) {
 				mmc_readData(main_mag, MMC5983MAData);
 				// transform and convert to float values
@@ -537,6 +548,7 @@ void main_imu_thread(void) {
 				my *= magScale[1];
 				mz *= magScale[2];
 			}
+#endif
 
 			if (reconfig) {
 				switch (powerstate) {
@@ -548,11 +560,13 @@ void main_imu_thread(void) {
 						break;
 				};
 				reconfigure_imu(main_imu); // Reconfigure if needed
+#if (MAG_ENABLED == true)
 				reconfigure_mag(main_mag); // Reconfigure if needed
+#endif
 			}
 
 			if (packets == 2 && powerstate == 1) {
-				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my, mz, -mx, 0.01, q);
+				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my, mz, -mx, 0.01, q, MAG_ENABLED);
 			} else {
 				for (uint16_t i = 0; i < packets; i++)
 				{
@@ -571,7 +585,7 @@ void main_imu_thread(void) {
 					float gy = raw1 * gRes - gyroBias[1];
 					float gz = raw2 * gRes - gyroBias[2];
 					// TODO: swap out fusion?
-					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my, mz, -mx, INTEGRATION_TIME, q);
+					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my, mz, -mx, INTEGRATION_TIME, q, MAG_ENABLED);
 					if (i == packets - 1) {
 						// Calculate linear acceleration (no gravity)
 						lin_ax = ax + 2.0f * (q[0] * q[1] + q[2] * q[3]);
@@ -644,6 +658,7 @@ void main_imu_thread(void) {
 				icm_DRStatus(main_imu);												 // clear reset done int flag
 				icm_init(main_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
+#if (MAG_ENABLED == true)
 				if (reset_mode == 1) { // Reset mode main calibration
 					mmc_getOffset(main_mag, magOffset);								 // get SET/RESET difference
 					nvs_write(&fs, MAIN_MAG_OFFSET_ID, &magOffset, sizeof(magOffset));
@@ -651,6 +666,7 @@ void main_imu_thread(void) {
 				}
 				mmc_SET(main_mag);													 // "deGauss" magnetometer
 				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
+#endif
 // 0-1ms delta to setup mmc
 				main_ok = true;
 				if (reset_mode == 1) { // Reset mode main calibration
@@ -662,9 +678,11 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
 gpio_pin_set_dt(&led, 1); // scuffed led
 					// TODO: Wait for accelerometer movement, then calibrate (5 sec timeout to skip)
+#if (MAG_ENABLED == true)
 					mmc_offsetBias(main_mag, magBias, magScale); // This takes about 20s
 					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
 					nvs_write(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
+#endif
 					reset_mode = 0; // Clear reset mode
 				}
 			}
@@ -707,6 +725,7 @@ void aux_imu_thread(void) {
 			float ax = raw0 * aRes - accelBias2[0];
 			float ay = raw1 * aRes - accelBias2[1];
 			float az = raw2 * aRes - accelBias2[2];
+#if (MAG_ENABLED == true)
 			if (last_powerstate == 0) {
 				mmc_readData(aux_mag, MMC5983MAData2);
 				// transform and convert to float values
@@ -718,6 +737,7 @@ void aux_imu_thread(void) {
 				my2 *= magScale2[1];
 				mz2 *= magScale2[2];
 			}
+#endif
 
 			if (reconfig) {
 				switch (powerstate) {
@@ -729,11 +749,13 @@ void aux_imu_thread(void) {
 						break;
 				};
 				reconfigure_imu(aux_imu); // Reconfigure if needed
+#if (MAG_ENABLED == true)
 				reconfigure_mag(aux_mag); // Reconfigure if needed
+#endif
 			}
 
 			if (packets == 2 && powerstate == 1) {
-				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my2, mz2, -mx2, 0.01, q2);
+				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my2, mz2, -mx2, 0.01, q2, MAG_ENABLED);
 			} else {
 				for (uint16_t i = 0; i < packets; i++)
 				{
@@ -752,7 +774,7 @@ void aux_imu_thread(void) {
 					float gy = raw1 * gRes - gyroBias2[1];
 					float gz = raw2 * gRes - gyroBias2[2];
 					// TODO: swap out fusion?
-					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my2, mz2, -mx2, INTEGRATION_TIME, q2);
+					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my2, mz2, -mx2, INTEGRATION_TIME, q2, MAG_ENABLED);
 					if (i == packets - 1) {
 						// Calculate linear acceleration (no gravity)
 						lin_ax2 = ax + 2.0f * (q2[0] * q2[1] + q2[2] * q2[3]);
@@ -818,6 +840,7 @@ void aux_imu_thread(void) {
 				icm_DRStatus(aux_imu);												 // clear reset done int flag
 				icm_init(aux_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
+#if (MAG_ENABLED == true)
 				if (reset_mode == 2) { // Reset mode aux calibration
 					mmc_getOffset(aux_mag, magOffset2);								 // get SET/RESET difference
 					nvs_write(&fs, AUX_MAG_OFFSET_ID, &magOffset2, sizeof(magOffset));
@@ -825,6 +848,7 @@ void aux_imu_thread(void) {
 				}
 				mmc_SET(aux_mag);													 // "deGauss" magnetometer
 				mmc_init(aux_mag, MODR, MBW, MSET);								 // configure
+#endif
 // 0-1ms delta to setup mmc
 				aux_ok = true;
 				if (reset_mode == 2) { // Reset mode aux calibration
@@ -836,9 +860,11 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 					nvs_write(&fs, AUX_GYRO_BIAS_ID, &gyroBias2, sizeof(gyroBias));
 gpio_pin_set_dt(&led, 1); // scuffed led
 					// TODO: Wait for accelerometer movement, then calibrate (5 sec timeout to skip)
+#if (MAG_ENABLED == true)
 					mmc_offsetBias(aux_mag, magBias2, magScale2); // This takes about 20s
 					nvs_write(&fs, AUX_MAG_BIAS_ID, &magBias2, sizeof(magBias));
 					nvs_write(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
+#endif
 					reset_mode = 0; // Clear reset mode
 				}
 			} else {
