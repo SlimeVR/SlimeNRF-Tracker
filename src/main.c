@@ -191,11 +191,11 @@ uint8_t MODR = MODR_200Hz, MBW = MBW_400Hz, MSET = MSET_2000;
 
 float mRes = 1.0f / 16384.0f;											   // mag sensitivity if using 18 bit data
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
-float magBias[3] = {0, 0, 0}, magScale[3] = {1, 1, 1}, magOffset[3] = {0}; // Bias corrections for magnetometer
+float magBias[3] = {0, 0, 0}, magScale[3] = {1, 1, 1}; // Bias corrections for magnetometer
 uint32_t MMC5983MAData[3];												   // Stores the 18-bit unsigned magnetometer sensor output
 #define MMC5983MA_offset 131072.0f // mag range unsigned to signed
 
-float magBias2[3] = {0, 0, 0}, magScale2[3] = {1, 1, 1}, magOffset2[3] = {0}; // Bias corrections for magnetometer
+float magBias2[3] = {0, 0, 0}, magScale2[3] = {1, 1, 1}; // Bias corrections for magnetometer
 uint32_t MMC5983MAData2[3];												   // Stores the 18-bit unsigned magnetometer sensor output
 
 // Implementation of Sebastian Madgwick's "...efficient orientation filter for... inertial/magnetic sensor arrays"
@@ -659,11 +659,6 @@ void main_imu_thread(void) {
 				icm_init(main_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 #if (MAG_ENABLED == true)
-				if (reset_mode == 1) { // Reset mode main calibration
-					mmc_getOffset(main_mag, magOffset);								 // get SET/RESET difference
-					nvs_write(&fs, MAIN_MAG_OFFSET_ID, &magOffset, sizeof(magOffset));
-					mmc_reset(main_mag);											 // software reset MMC5983MA to default registers
-				}
 				mmc_SET(main_mag);													 // "deGauss" magnetometer
 				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
 #endif
@@ -841,11 +836,6 @@ void aux_imu_thread(void) {
 				icm_init(aux_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 #if (MAG_ENABLED == true)
-				if (reset_mode == 2) { // Reset mode aux calibration
-					mmc_getOffset(aux_mag, magOffset2);								 // get SET/RESET difference
-					nvs_write(&fs, AUX_MAG_OFFSET_ID, &magOffset2, sizeof(magOffset));
-					mmc_reset(aux_mag);											 // software reset MMC5983MA to default registers
-				}
 				mmc_SET(aux_mag);													 // "deGauss" magnetometer
 				mmc_init(aux_mag, MODR, MBW, MSET);								 // configure
 #endif
@@ -995,12 +985,10 @@ void main(void)
 	nvs_read(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
 	nvs_read(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
 	nvs_read(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
-	nvs_read(&fs, MAIN_MAG_OFFSET_ID, &magOffset, sizeof(magOffset));
 	nvs_read(&fs, AUX_ACCEL_BIAS_ID, &accelBias2, sizeof(accelBias));
 	nvs_read(&fs, AUX_GYRO_BIAS_ID, &gyroBias2, sizeof(gyroBias));
 	nvs_read(&fs, AUX_MAG_BIAS_ID, &magBias2, sizeof(magBias));
 	nvs_read(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
-	nvs_read(&fs, MAIN_MAG_OFFSET_ID, &magOffset2, sizeof(magOffset));
 
 	// get sensor resolutions for user settings, only need to do this once
 	// TODO: surely these can be defines lol
