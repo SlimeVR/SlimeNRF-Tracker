@@ -383,7 +383,7 @@ int esb_initialize(void)
 	config.selective_auto_ack = true;
 
 	// Fast startup mode
-	NRF_RADIO->MODECNF0 = RADIO_MODECNF0_RU_Fast << RADIO_MODECNF0_RU_Pos;
+	NRF_RADIO->MODECNF0 |= RADIO_MODECNF0_RU_Fast << RADIO_MODECNF0_RU_Pos;
 	// nrf_radio_modecnf0_set(NRF_RADIO, true, 0);
 
 	err = esb_init(&config);
@@ -575,12 +575,13 @@ void main_imu_thread(void) {
 						continue; // Skip empty packets
 					}
 					// combine into 16 bit values
-					// TODO: make sure these are reading to separate buffers for main vs. aux
 					float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]); // gx
 					float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]); // gy
 					float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]); // gz
+					if (raw0 < -32766 || raw1 < -32766 || raw2 < -32766) {
+						continue; // Skip invalid data
+					}
 					// transform and convert to float values
-					// TODO: make sure these are reading to separate buffers for main vs. aux
 					float gx = raw0 * gRes - gyroBias[0];
 					float gy = raw1 * gRes - gyroBias[1];
 					float gz = raw2 * gRes - gyroBias[2];
@@ -759,12 +760,13 @@ void aux_imu_thread(void) {
 						continue; // Skip empty packets
 					}
 					// combine into 16 bit values
-					// TODO: make sure these are reading to separate buffers for main vs. aux
 					float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]); // gx
 					float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]); // gy
 					float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]); // gz
+					if (raw0 < -32766 || raw1 < -32766 || raw2 < -32766) {
+						continue; // Skip invalid data
+					}
 					// transform and convert to float values
-					// TODO: make sure these are reading to separate buffers for main vs. aux
 					float gx = raw0 * gRes - gyroBias2[0];
 					float gy = raw1 * gRes - gyroBias2[1];
 					float gz = raw2 * gRes - gyroBias2[2];
