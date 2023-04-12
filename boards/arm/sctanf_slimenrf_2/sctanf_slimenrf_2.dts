@@ -1,0 +1,182 @@
+// Copyright (c) 2023 Nordic Semiconductor ASA
+// SPDX-License-Identifier: Apache-2.0
+
+/dts-v1/;
+#include <nordic/nrf52832_ciaa.dtsi>
+
+//move to dtsi?
+&pinctrl {
+	i2c0_default: i2c0_default {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 0, 19)>,
+				<NRF_PSEL(TWIM_SCL, 0, 23)>;
+		};
+	};
+
+	i2c0_sleep: i2c0_sleep {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 0, 19)>,
+				<NRF_PSEL(TWIM_SCL, 0, 23)>;
+			low-power-enable;
+		};
+	};
+
+	i2c1_default: i2c1_default {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 0, 12)>,
+				<NRF_PSEL(TWIM_SCL, 0, 14)>;
+		};
+	};
+
+	i2c1_sleep: i2c1_sleep {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 0, 12)>,
+				<NRF_PSEL(TWIM_SCL, 0, 14)>;
+			low-power-enable;
+		};
+	};
+
+//	pwm0_default: pwm0_default {
+//		group1 {
+//			psels = <NRF_PSEL(PWM_OUT0, 0, 25)>;
+//			nordic,invert;
+//		};
+//	};
+//
+//	pwm0_sleep: pwm0_sleep {
+//		group1 {
+//			psels = <NRF_PSEL(PWM_OUT0, 0, 25)>;
+//			low-power-enable;
+//		};
+//	};
+
+};
+//end
+
+/ {
+	model = "sctanf slimenrf 2";
+	compatible = "sctanf-slimenrf-2";
+
+	chosen {
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,code-partition = &slot0_partition;
+	};
+
+//	pwmleds {
+//		compatible = "pwm-leds";
+//		pwm_led0: pwm_led_0 {
+//			pwms = <&pwm0 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+//		};
+//	};
+
+	battery-divider {
+		compatible = "voltage-divider";
+		status = "okay";
+		io-channels = <&adc 1>;
+		output-ohms = <510000>;
+		full-ohms = <(1000000+510000)>;
+		power-gpios = <&gpio0 2 (GPIO_OPEN_DRAIN|GPIO_ACTIVE_LOW)>;
+	};
+
+	zephyr,user {
+		dock-gpios = <&gpio0 8 (GPIO_PULL_UP|GPIO_ACTIVE_LOW)>;
+		chgstat-gpios = <&gpio0 6 (GPIO_PULL_UP|GPIO_ACTIVE_LOW)>;
+		int0-gpios = <&gpio0 11 (GPIO_PULL_UP|GPIO_ACTIVE_LOW)>;
+		int1-gpios = <&gpio0 26 (GPIO_PULL_UP|GPIO_ACTIVE_LOW)>;
+		led-gpios = <&gpio0 25 (GPIO_OPEN_SOURCE|GPIO_ACTIVE_HIGH)>;
+	};
+
+};
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x0 0xc000>;
+		};
+		slot0_partition: partition@c000 {
+			label = "image-0";
+			reg = <0xc000 0x32000>;
+		};
+		slot1_partition: partition@3e000 {
+			label = "image-1";
+			reg = <0x3e000 0x32000>;
+		};
+		scratch_partition: partition@70000 {
+			label = "image-scratch";
+			reg = <0x70000 0xa000>;
+		};
+		storage_partition: partition@7a000 {
+			label = "storage";
+			reg = <0x7a000 0x6000>;
+		};
+	};
+};
+
+&adc {
+	status = "okay";
+};
+
+&gpiote {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&i2c0 {
+	compatible = "nordic,nrf-twim";
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_FAST>;
+	pinctrl-0 = <&i2c0_default>;
+	pinctrl-1 = <&i2c0_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	icm_0: icm42688@68 {
+		compatible = "i2c-device";
+		label = "main-imu";
+		reg = <0x68>;
+	};
+
+	mmc_0: mmc5983ma@30 {
+		compatible = "i2c-device";
+		label = "main-mag";
+		reg = <0x30>;
+	};
+
+};
+
+&i2c1 {
+	compatible = "nordic,nrf-twim";
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_FAST>;
+	pinctrl-0 = <&i2c1_default>;
+	pinctrl-1 = <&i2c1_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	icm_1: icm42688@68 {
+		compatible = "i2c-device";
+		label = "aux-imu";
+		reg = <0x68>;
+	};
+
+	mmc_1: mmc5983ma@30 {
+		compatible = "i2c-device";
+		label = "aux-mag";
+		reg = <0x30>;
+	};
+
+};
+
+//&pwm0 {
+//	status = "okay";
+//	pinctrl-0 = <&pwm0_default>;
+//	pinctrl-1 = <&pwm0_sleep>;
+//	pinctrl-names = "default", "sleep";
+//};
