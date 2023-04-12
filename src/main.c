@@ -325,13 +325,15 @@ void event_handler(struct esb_evt const *event)
 	case ESB_EVENT_TX_FAILED:
 		break;
 	case ESB_EVENT_RX_RECEIVED:
-		if (paired_addr[0] == 0x00) {
-			if (esb_read_rx_payload(&rx_payload) == 0) {
+		if (esb_read_rx_payload(&rx_payload) == 0) {
+			if (paired_addr[0] == 0x00) {
 				if (rx_payload.length == 8) {
 					for (int i = 0; i < 8; i++) {
 						paired_addr[i] = rx_payload.data[i];
 					}
 				}
+			} else {
+				LOG_INF("RX RECEIVED");
 			}
 		}
 		break;
@@ -539,7 +541,7 @@ void main_imu_thread(void) {
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
 			count += 16; // Add two read buffer packets
 			uint16_t packets = count / 8;								 // Packet size 8 bytes
-			LOG_INF("Reading %u (+2) packets from FIFO buffer\n", packets-2);
+			LOG_INF("Reading %u (+2) packets from FIFO buffer", packets-2);
 			uint8_t rawData[2080];
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_DATA, &rawData[0], count); // Read buffer
     		uint8_t rawAccel[6];
@@ -551,7 +553,7 @@ void main_imu_thread(void) {
 			float ax = raw0 * aRes - accelBias[0];
 			float ay = raw1 * aRes - accelBias[1];
 			float az = raw2 * aRes - accelBias[2];
-			LOG_INF("Accel: %.2f %.2f %.2f\n", ax, ay, az);
+			LOG_INF("Accel: %.2f %.2f %.2f", ax, ay, az);
 #if (MAG_ENABLED == true)
 			if (last_powerstate == 0) {
 				mmc_readData(main_mag, MMC5983MAData);
@@ -563,7 +565,7 @@ void main_imu_thread(void) {
 				mx *= magScale[0];
 				my *= magScale[1];
 				mz *= magScale[2];
-				LOG_INF("Mag: %.2f %.2f %.2f\n", mx, my, mz);
+				LOG_INF("Mag: %.2f %.2f %.2f", mx, my, mz);
 			}
 #endif
 
@@ -571,11 +573,11 @@ void main_imu_thread(void) {
 				switch (powerstate) {
 					case 0:
 						set_LN();
-						LOG_INF("Switch main imus to low noise\n");
+						LOG_INF("Switch main imus to low noise");
 						break;
 					case 1:
 						set_LP();
-						LOG_INF("Switch main imus to low power\n");
+						LOG_INF("Switch main imus to low power");
 						break;
 				};
 				reconfigure_imu(main_imu); // Reconfigure if needed
@@ -617,10 +619,10 @@ void main_imu_thread(void) {
 
 			if (quat_epsilon_coarse(q, last_q)) { // Probably okay to use the constantly updating last_q
 				if (k_uptime_get() - last_data_time > 5 * 60 * 1000) { // No motion in last 5m
-					LOG_INF("No motion from main imus in 5m\n");
+					LOG_INF("No motion from main imus in 5m");
 					system_off_main = true;
 				} else if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
-					LOG_INF("No motion from main imus in 500ms\n");
+					LOG_INF("No motion from main imus in 500ms");
 					powerstate = 1;
 				}
 			} else {
@@ -677,7 +679,7 @@ void main_imu_thread(void) {
 			uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
 			{
-				LOG_INF("Found main imus\n");
+				LOG_INF("Found main imus");
     			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
 				icm_reset(main_imu);												 // software reset ICM42688 to default registers
 				icm_DRStatus(main_imu);												 // clear reset done int flag
@@ -690,21 +692,21 @@ void main_imu_thread(void) {
 // 0-1ms delta to setup mmc
 				main_ok = true;
 				if (reset_mode == 1) { // Reset mode main calibration
-					LOG_INF("Enter main calibration\n");
+					LOG_INF("Enter main calibration");
 gpio_pin_set_dt(&led, 0); // scuffed led
 					// TODO: Add LED flashies
 					// TODO: Wait for accelerometer to settle, then calibrate (5 sec timeout to skip)
 					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 750ms
 					nvs_write(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
 					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
-					LOG_INF("Finished accel and gyro zero offset calibration\n");
+					LOG_INF("Finished accel and gyro zero offset calibration");
 gpio_pin_set_dt(&led, 1); // scuffed led
 					// TODO: Wait for accelerometer movement, then calibrate (5 sec timeout to skip)
 #if (MAG_ENABLED == true)
 					mmc_offsetBias(main_mag, magBias, magScale); // This takes about 20s
 					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
 					nvs_write(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
-					LOG_INF("Finished mag hard/soft iron offset calibration\n");
+					LOG_INF("Finished mag hard/soft iron offset calibration");
 #endif
 					reset_mode = 0; // Clear reset mode
 				}
@@ -766,11 +768,11 @@ void aux_imu_thread(void) {
 				switch (powerstate) {
 					case 0:
 						set_LN();
-						LOG_INF("Switch aux imus to low noise\n");
+						LOG_INF("Switch aux imus to low noise");
 						break;
 					case 1:
 						set_LP();
-						LOG_INF("Switch aux imus to low power\n");
+						LOG_INF("Switch aux imus to low power");
 						break;
 				};
 				reconfigure_imu(aux_imu); // Reconfigure if needed
@@ -812,10 +814,10 @@ void aux_imu_thread(void) {
 
 			if (quat_epsilon_coarse(q2, last_q2)) { // Probably okay to use the constantly updating last_q
 				if (k_uptime_get() - last_data_time > 5 * 60 * 1000) { // No motion in last 5m
-					LOG_INF("No motion from aux imus in 5m\n");
+					LOG_INF("No motion from aux imus in 5m");
 					system_off_main = true;
 				} else if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
-					LOG_INF("No motion from aux imus in 500ms\n");
+					LOG_INF("No motion from aux imus in 500ms");
 					powerstate = 1;
 				}
 			} else {
@@ -865,7 +867,7 @@ void aux_imu_thread(void) {
 			uint8_t MMC5983ID = mmc_getChipID(aux_mag);							 // Read CHIP_ID register for MMC5983MA
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
 			{
-				LOG_INF("Found aux imus\n");
+				LOG_INF("Found aux imus");
     			i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
 				icm_reset(aux_imu);												 // software reset ICM42688 to default registers
 				icm_DRStatus(aux_imu);												 // clear reset done int flag
@@ -878,21 +880,21 @@ void aux_imu_thread(void) {
 // 0-1ms delta to setup mmc
 				aux_ok = true;
 				if (reset_mode == 2) { // Reset mode aux calibration
-					LOG_INF("Enter aux calibration\n");
+					LOG_INF("Enter aux calibration");
 gpio_pin_set_dt(&led, 0); // scuffed led
 					// TODO: Add LED flashies
 					// TODO: Wait for accelerometer to settle, then calibrate (5 sec timeout to skip)
 					icm_offsetBias(aux_imu, accelBias2, gyroBias2); // This takes about 750ms
 					nvs_write(&fs, AUX_ACCEL_BIAS_ID, &accelBias2, sizeof(accelBias));
 					nvs_write(&fs, AUX_GYRO_BIAS_ID, &gyroBias2, sizeof(gyroBias));
-					LOG_INF("Finished accel and gyro zero offset calibration\n");
+					LOG_INF("Finished accel and gyro zero offset calibration");
 gpio_pin_set_dt(&led, 1); // scuffed led
 					// TODO: Wait for accelerometer movement, then calibrate (5 sec timeout to skip)
 #if (MAG_ENABLED == true)
 					mmc_offsetBias(aux_mag, magBias2, magScale2); // This takes about 20s
 					nvs_write(&fs, AUX_MAG_BIAS_ID, &magBias2, sizeof(magBias));
 					nvs_write(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
-					LOG_INF("Finished mag hard/soft iron offset calibration\n");
+					LOG_INF("Finished mag hard/soft iron offset calibration");
 #endif
 					reset_mode = 0; // Clear reset mode
 				}
@@ -939,7 +941,7 @@ void main(void)
 		reset_mode = reboot_counter;
 		reboot_counter++;
 		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
-		LOG_INF("Reset Count: %u\n", reboot_counter);
+		LOG_INF("Reset Count: %u", reboot_counter);
 		k_msleep(1000); // Wait before clearing counter and continuing
 		reboot_counter = 0;
 		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
@@ -950,12 +952,12 @@ void main(void)
 
 	if (reset_mode == 4) { // Reset mode DFU
 		// TODO: DFU
-		LOG_INF("Enter DFU\n");
+		LOG_INF("Enter DFU");
 		reset_mode = 0; // Clear reset mode
 	}
 
 	if (reset_mode == 3) { // Reset mode pairing reset
-		LOG_INF("Enter pairing reset\n");
+		LOG_INF("Enter pairing reset");
 		nvs_write(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr)); // Clear paired address
 		reset_mode = 0; // Clear reset mode
 	} else {
@@ -978,14 +980,14 @@ void main(void)
 		uint64_t addr = (((uint64_t)(NRF_FICR->DEVICEADDR[1]) << 32) | NRF_FICR->DEVICEADDR[0]) & 0xFFFFFF;
 		uint8_t check = addr & 255;
 		if (check == 0) check = 8;
-		LOG_INF("Check Code: %02X\n", paired_addr[0]);
+		LOG_INF("Check Code: %02X", paired_addr[0]);
 		tx_payload_pair.data[0] = check; // Use int from device address to make sure packet is for this device
 		for (int i = 0; i < 6; i++) {
 			tx_payload_pair.data[i+2] = (addr >> (8 * i)) & 0xFF;
 		}
 		while (paired_addr[0] != check) {
 			if (paired_addr[0] != 0x00) {
-				LOG_INF("Incorrect check code: %02X\n", paired_addr[0]);
+				LOG_INF("Incorrect check code: %02X", paired_addr[0]);
 				paired_addr[0] == 0x00; // Packet not for this device
 			}
 			esb_flush_rx();
@@ -996,14 +998,14 @@ void main(void)
 			gpio_pin_set_dt(&led, 0);
 			k_msleep(900);
 		}
-		LOG_INF("Paired\n");
+		LOG_INF("Paired");
 		nvs_write(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr)); // Write new address and tracker id
 		esb_disable();
 	}
-	LOG_INF("Read pairing data\n");
-	LOG_INF("Check Code: %02X\n", paired_addr[0]);
-	LOG_INF("Tracker ID: %u\n", paired_addr[1]);
-	LOG_INF("Address: %02X %02X %02X %02X %02X %02X\n", paired_addr[2], paired_addr[3], paired_addr[4], paired_addr[5], paired_addr[6], paired_addr[7]);
+	LOG_INF("Read pairing data");
+	LOG_INF("Check Code: %02X", paired_addr[0]);
+	LOG_INF("Tracker ID: %u", paired_addr[1]);
+	LOG_INF("Address: %02X %02X %02X %02X %02X %02X", paired_addr[2], paired_addr[3], paired_addr[4], paired_addr[5], paired_addr[6], paired_addr[7]);
 
 	tracker_id = paired_addr[1];
 
@@ -1038,15 +1040,15 @@ void main(void)
 	nvs_read(&fs, AUX_GYRO_BIAS_ID, &gyroBias2, sizeof(gyroBias));
 	nvs_read(&fs, AUX_MAG_BIAS_ID, &magBias2, sizeof(magBias));
 	nvs_read(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
-	LOG_INF("Read calibrations\n");
-	LOG_INF("Main accel bias: %.2f %.2f %.2f\n", accelBias[0], accelBias[1], accelBias[2]);
-	LOG_INF("Main gyro bias: %.2f %.2f %.2f\n", gyroBias[0], gyroBias[1], gyroBias[2]);
-	LOG_INF("Main mag bias: %.2f %.2f %.2f\n", magBias[0], magBias[1], magBias[2]);
-	LOG_INF("Main mag scale: %.2f %.2f %.2f\n", magScale[0], magScale[1], magScale[2]);
-	LOG_INF("Aux accel bias: %.2f %.2f %.2f\n", accelBias2[0], accelBias2[1], accelBias2[2]);
-	LOG_INF("Aux gyro bias: %.2f %.2f %.2f\n", gyroBias2[0], gyroBias2[1], gyroBias2[2]);
-	LOG_INF("Aux mag bias: %.2f %.2f %.2f\n", magBias2[0], magBias2[1], magBias2[2]);
-	LOG_INF("Aux mag scale: %.2f %.2f %.2f\n", magScale2[0], magScale2[1], magScale2[2]);
+	LOG_INF("Read calibrations");
+	LOG_INF("Main accel bias: %.2f %.2f %.2f", accelBias[0], accelBias[1], accelBias[2]);
+	LOG_INF("Main gyro bias: %.2f %.2f %.2f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	LOG_INF("Main mag bias: %.2f %.2f %.2f", magBias[0], magBias[1], magBias[2]);
+	LOG_INF("Main mag scale: %.2f %.2f %.2f", magScale[0], magScale[1], magScale[2]);
+	LOG_INF("Aux accel bias: %.2f %.2f %.2f", accelBias2[0], accelBias2[1], accelBias2[2]);
+	LOG_INF("Aux gyro bias: %.2f %.2f %.2f", gyroBias2[0], gyroBias2[1], gyroBias2[2]);
+	LOG_INF("Aux mag bias: %.2f %.2f %.2f", magBias2[0], magBias2[1], magBias2[2]);
+	LOG_INF("Aux mag scale: %.2f %.2f %.2f", magScale2[0], magScale2[1], magScale2[2]);
 
 	// get sensor resolutions for user settings, only need to do this once
 	// TODO: surely these can be defines lol
@@ -1073,7 +1075,7 @@ void main(void)
 			q[i] = retained.q[i];
 			q2[i] = retained.q2[i];
 		}
-		LOG_INF("Recovered quaternions\nMain: %.2f %.2f %.2f %.2f\nAux: %.2f %.2f %.2f %.2f\n", q[0], q[1], q[2], q[3], q2[0], q2[1], q2[2], q2[3]);
+		LOG_INF("Recovered quaternions\nMain: %.2f %.2f %.2f %.2f\nAux: %.2f %.2f %.2f %.2f", q[0], q[1], q[2], q[3], q2[0], q2[1], q2[2], q2[3]);
 		retained.stored_quats = false; // Invalidate the retained quaternions
 		retained_update();
 	}
@@ -1092,9 +1094,9 @@ void main(void)
 		batt_pptt = read_batt();
 		if (batt_pptt == 0 && !docked)
 		{
-			LOG_INF("Waiting for system off (Low battery)\n");
+			LOG_INF("Waiting for system off (Low battery)");
 			wait_for_threads();
-			LOG_INF("Shutdown\n");
+			LOG_INF("Shutdown");
 			// Communicate all imus to shut down
     		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
@@ -1137,9 +1139,9 @@ void main(void)
 
 		if (docked)
 		{ // TODO: move to interrupts? (Then you do not need to do the above)
-			LOG_INF("Waiting for system off (Docked)\n");
+			LOG_INF("Waiting for system off (Docked)");
 			wait_for_threads();
-			LOG_INF("Shutdown\n");
+			LOG_INF("Shutdown");
 			// Communicate all imus to shut down
     		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
@@ -1161,9 +1163,9 @@ void main(void)
 		threads_running = true;
 
 		if (system_off_main && (aux_ok ? system_off_aux : true)) { // System off on extended no movement
-			LOG_INF("Waiting for system off (No movement)\n");
+			LOG_INF("Waiting for system off (No movement)");
 			wait_for_threads();
-			LOG_INF("Shutdown\n");
+			LOG_INF("Shutdown");
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
     		i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
@@ -1178,7 +1180,7 @@ void main(void)
 
 		// Get time elapsed and sleep/yield until next tick
 		int64_t time_delta = k_uptime_get() - time_begin;
-		LOG_INF("Tick in %lld milliseconds\n", time_delta);
+		LOG_INF("Tick in %lld milliseconds", time_delta);
 		if (time_delta > TICKRATE_MS)
 		{
 			k_yield();
