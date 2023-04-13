@@ -44,7 +44,7 @@
 
 #include "retained.h"
 
-LOG_MODULE_REGISTER(main);
+LOG_MODULE_REGISTER(main, 3);
 
 static struct nvs_fs fs;
 
@@ -177,6 +177,7 @@ bool charging = false;
 */
 uint8_t Ascale = AFS_8G, Gscale = GFS_1000DPS, AODR = AODR_200Hz, GODR = GODR_1kHz, aMode = aMode_LN, gMode = gMode_LN;
 #define INTEGRATION_TIME 0.001
+#define INTEGRATION_TIME_LP 0.005
 
 float aRes, gRes;														   // scale resolutions per LSB for the accel and gyro sensor2
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
@@ -541,7 +542,6 @@ void main_imu_thread(void) {
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
 			count += 16; // Add two read buffer packets
 			uint16_t packets = count / 8;								 // Packet size 8 bytes
-			LOG_INF("Reading %u (+2) packets from FIFO buffer", packets-2);
 			uint8_t rawData[2080];
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_DATA, &rawData[0], count); // Read buffer
     		uint8_t rawAccel[6];
@@ -553,7 +553,6 @@ void main_imu_thread(void) {
 			float ax = raw0 * aRes - accelBias[0];
 			float ay = raw1 * aRes - accelBias[1];
 			float az = raw2 * aRes - accelBias[2];
-			LOG_INF("Accel: %.2f %.2f %.2f", ax, ay, az);
 #if (MAG_ENABLED == true)
 			if (last_powerstate == 0) {
 				mmc_readData(main_mag, MMC5983MAData);
@@ -565,7 +564,6 @@ void main_imu_thread(void) {
 				mx *= magScale[0];
 				my *= magScale[1];
 				mz *= magScale[2];
-				LOG_INF("Mag: %.2f %.2f %.2f", mx, my, mz);
 			}
 #endif
 
@@ -587,7 +585,7 @@ void main_imu_thread(void) {
 			}
 
 			if (packets == 2 && powerstate == 1) {
-				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my, mz, -mx, 0.01, q, MAG_ENABLED);
+				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my, mz, -mx, INTEGRATION_TIME_LP, q, MAG_ENABLED);
 			} else {
 				for (uint16_t i = 0; i < packets; i++)
 				{
@@ -618,10 +616,10 @@ void main_imu_thread(void) {
 			}
 
 			if (quat_epsilon_coarse(q, last_q)) { // Probably okay to use the constantly updating last_q
-				if (k_uptime_get() - last_data_time > 5 * 60 * 1000) { // No motion in last 5m
-					LOG_INF("No motion from main imus in 5m");
+				if (k_uptime_get() - last_data_time > 60 * 1000) { // No motion in last 1m
+					LOG_INF("No motion from main imus in 1m");
 					system_off_main = true;
-				} else if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
+				} else if (powerstate == 0 && k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
 					LOG_INF("No motion from main imus in 500ms");
 					powerstate = 1;
 				}
@@ -782,7 +780,7 @@ void aux_imu_thread(void) {
 			}
 
 			if (packets == 2 && powerstate == 1) {
-				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my2, mz2, -mx2, 0.01, q2, MAG_ENABLED);
+				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my2, mz2, -mx2, INTEGRATION_TIME_LP, q2, MAG_ENABLED);
 			} else {
 				for (uint16_t i = 0; i < packets; i++)
 				{
@@ -813,10 +811,10 @@ void aux_imu_thread(void) {
 			}
 
 			if (quat_epsilon_coarse(q2, last_q2)) { // Probably okay to use the constantly updating last_q
-				if (k_uptime_get() - last_data_time > 5 * 60 * 1000) { // No motion in last 5m
-					LOG_INF("No motion from aux imus in 5m");
+				if (k_uptime_get() - last_data_time > 60 * 1000) { // No motion in last 1m
+					LOG_INF("No motion from aux imus in 1m");
 					system_off_main = true;
-				} else if (k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
+				} else if (powerstate == 0 && k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
 					LOG_INF("No motion from aux imus in 500ms");
 					powerstate = 1;
 				}
@@ -1041,14 +1039,14 @@ void main(void)
 	nvs_read(&fs, AUX_MAG_BIAS_ID, &magBias2, sizeof(magBias));
 	nvs_read(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
 	LOG_INF("Read calibrations");
-	LOG_INF("Main accel bias: %.2f %.2f %.2f", accelBias[0], accelBias[1], accelBias[2]);
-	LOG_INF("Main gyro bias: %.2f %.2f %.2f", gyroBias[0], gyroBias[1], gyroBias[2]);
-	LOG_INF("Main mag bias: %.2f %.2f %.2f", magBias[0], magBias[1], magBias[2]);
-	LOG_INF("Main mag scale: %.2f %.2f %.2f", magScale[0], magScale[1], magScale[2]);
-	LOG_INF("Aux accel bias: %.2f %.2f %.2f", accelBias2[0], accelBias2[1], accelBias2[2]);
-	LOG_INF("Aux gyro bias: %.2f %.2f %.2f", gyroBias2[0], gyroBias2[1], gyroBias2[2]);
-	LOG_INF("Aux mag bias: %.2f %.2f %.2f", magBias2[0], magBias2[1], magBias2[2]);
-	LOG_INF("Aux mag scale: %.2f %.2f %.2f", magScale2[0], magScale2[1], magScale2[2]);
+	LOG_INF("Main accel bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
+	LOG_INF("Main gyro bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	LOG_INF("Main mag bias: %.5f %.5f %.5f", magBias[0], magBias[1], magBias[2]);
+	LOG_INF("Main mag scale: %.5f %.5f %.5f", magScale[0], magScale[1], magScale[2]);
+	LOG_INF("Aux accel bias: %.5f %.5f %.5f", accelBias2[0], accelBias2[1], accelBias2[2]);
+	LOG_INF("Aux gyro bias: %.5f %.5f %.5f", gyroBias2[0], gyroBias2[1], gyroBias2[2]);
+	LOG_INF("Aux mag bias: %.5f %.5f %.5f", magBias2[0], magBias2[1], magBias2[2]);
+	LOG_INF("Aux mag scale: %.5f %.5f %.5f", magScale2[0], magScale2[1], magScale2[2]);
 
 	// get sensor resolutions for user settings, only need to do this once
 	// TODO: surely these can be defines lol
@@ -1180,7 +1178,6 @@ void main(void)
 
 		// Get time elapsed and sleep/yield until next tick
 		int64_t time_delta = k_uptime_get() - time_begin;
-		LOG_INF("Tick in %lld milliseconds", time_delta);
 		if (time_delta > TICKRATE_MS)
 		{
 			k_yield();
