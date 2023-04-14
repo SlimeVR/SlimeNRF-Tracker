@@ -16,6 +16,7 @@
 
 #include "battery.h"
 
+#include "Fusion/Fusion.h"
 #include "magneto1_4.c"
 
 #include <zephyr/drivers/clock_control.h>
