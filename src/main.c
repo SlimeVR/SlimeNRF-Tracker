@@ -16,6 +16,8 @@
 
 #include "battery.h"
 
+#include "magneto1_4.c"
+
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/clock_control/nrf_clock_control.h>
 #include <zephyr/drivers/gpio.h>
@@ -324,6 +326,7 @@ void event_handler(struct esb_evt const *event)
 	case ESB_EVENT_TX_SUCCESS:
 		break;
 	case ESB_EVENT_TX_FAILED:
+		LOG_INF("TX FAILED");
 		break;
 	case ESB_EVENT_RX_RECEIVED:
 		if (esb_read_rx_payload(&rx_payload) == 0) {
