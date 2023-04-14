@@ -17,7 +17,7 @@
 #include "battery.h"
 
 #include "Fusion/Fusion.h"
-#include "magneto1_4.c"
+#include "magneto1_4.h"
 
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/clock_control/nrf_clock_control.h>
@@ -519,10 +519,10 @@ void configure_system_off_dock(void){
 	k_sleep(K_SECONDS(1));
 }
 
-static inline float fabs(float __n)
-{
-	return (__n < 0) ? -__n : __n;
-}
+//static inline float fabs(float __n)
+//{
+//	return (__n < 0) ? -__n : __n;
+//}
 
 bool quat_epsilon(float *q, float *q2) {
 	return fabs(q[0] - q2[0]) < 0.0001f && fabs(q[1] - q2[1]) < 0.0001f && fabs(q[2] - q2[2]) < 0.0001f && fabs(q[3] - q2[3]) < 0.0001f;

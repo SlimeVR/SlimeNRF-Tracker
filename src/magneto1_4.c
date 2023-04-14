@@ -4,7 +4,9 @@
 #include <math.h>
 #include <malloc.h>
 
-#include "mymathlib_matrix.c"
+#include "mymathlib_matrix.h"
+
+#include "magneto1_4.h"
 
 double *C, *S11, *S12, *S12t, *S22, *S22a, *S22b, *SS, *E, *U, *SSS;
 double *eigen_real, *eigen_imag, *v1, *v2, *v, *Q, *Q_1, *B, *QB, *SSSS;
