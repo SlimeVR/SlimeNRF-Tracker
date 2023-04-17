@@ -60,13 +60,9 @@ static struct nvs_fs fs;
 #define MAIN_ACCEL_BIAS_ID 3
 #define MAIN_GYRO_BIAS_ID 4
 #define MAIN_MAG_BIAS_ID 5
-#define MAIN_MAG_SCALE_ID 6
-#define MAIN_MAG_OFFSET_ID 7
-#define AUX_ACCEL_BIAS_ID 8
-#define AUX_GYRO_BIAS_ID 9
-#define AUX_MAG_BIAS_ID 10
-#define AUX_MAG_SCALE_ID 11
-#define AUX_MAG_OFFSET_ID 12
+#define AUX_ACCEL_BIAS_ID 6
+#define AUX_GYRO_BIAS_ID 7
+#define AUX_MAG_BIAS_ID 8
 
 static struct esb_payload rx_payload;
 static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
@@ -199,11 +195,13 @@ uint8_t MODR = MODR_200Hz, MBW = MBW_400Hz, MSET = MSET_2000;
 
 float mRes = 1.0f / 16384.0f;											   // mag sensitivity if using 18 bit data
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
-float magBias[3] = {0, 0, 0}, magScale[3] = {1, 1, 1}; // Bias corrections for magnetometer
+float magBAinv[4][3];
+//float magBias[3] = {0, 0, 0}, magScale[3] = {1, 1, 1}; // Bias corrections for magnetometer
 uint32_t MMC5983MAData[3];												   // Stores the 18-bit unsigned magnetometer sensor output
 #define MMC5983MA_offset 131072.0f // mag range unsigned to signed
 
-float magBias2[3] = {0, 0, 0}, magScale2[3] = {1, 1, 1}; // Bias corrections for magnetometer
+float magBAinv2[4][3];
+//float magBias2[3] = {0, 0, 0}, magScale2[3] = {1, 1, 1}; // Bias corrections for magnetometer
 uint32_t MMC5983MAData2[3];												   // Stores the 18-bit unsigned magnetometer sensor output
 
 // Implementation of Sebastian Madgwick's "...efficient orientation filter for... inertial/magnetic sensor arrays"
@@ -532,6 +530,52 @@ bool quat_epsilon_coarse(float *q, float *q2) {
 	return fabs(q[0] - q2[0]) < 0.0005f && fabs(q[1] - q2[1]) < 0.0005f && fabs(q[2] - q2[2]) < 0.0005f && fabs(q[3] - q2[3]) < 0.0005f;
 }
 
+bool vec_epsilon(float *a, float *a2) {
+	return fabs(a[0] - a2[0]) < 0.1f && fabs(a[1] - a2[1]) < 0.1f && fabs(a[2] - a2[2]) < 0.1f;
+}
+
+void accel_read(const struct i2c_dt_spec imu, float *a) {
+    uint8_t rawAccel[6];
+    i2c_burst_read_dt(&imu, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6);
+	float raw0 = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
+	float raw1 = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
+	float raw2 = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
+	a[0] = raw0 * aRes;
+	a[1] = raw1 * aRes;
+	a[2] = raw2 * aRes;
+}
+
+void mag_read(const struct i2c_dt_spec mag, float *m) {
+	uint32_t rawMag[3];
+	mmc_readData(main_mag, rawMag);
+	m[0] = ((float)rawMag[0] - MMC5983MA_offset) * mRes;
+	m[1] = ((float)rawMag[1] - MMC5983MA_offset) * mRes;
+	m[2] = ((float)rawMag[2] - MMC5983MA_offset) * mRes;
+}
+
+void apply_BAinv(float xyz[3], float BAinv[4][3]) {
+	float temp[3];
+	for (int i = 0; i < 3; i++)
+	    temp[i] = xyz[i] - BAinv[0][i];
+	xyz[0] = BAinv[1][0] * temp[0] + BAinv[1][1] * temp[1] + BAinv[1][2] * temp[2];
+	xyz[1] = BAinv[2][0] * temp[0] + BAinv[2][1] * temp[1] + BAinv[2][2] * temp[2];
+	xyz[2] = BAinv[3][0] * temp[0] + BAinv[3][1] * temp[1] + BAinv[3][2] * temp[2];
+}
+
+bool wait_for_motion(const struct i2c_dt_spec mag, bool motion, int samples) {
+	float a[3], last_a[3];
+	accel_read(main_imu, last_a);
+	for (int i = 0; i < samples; i++) {
+		k_msleep(500);
+		accel_read(main_imu, a);
+		if (vec_epsilon(a, last_a)) {
+			return true;
+		}
+		memcpy(a, last_a, sizeof(a));
+	}
+	return false;
+}
+
 // TODO: make threads more abstract, pass in imus n stuff instead
 void main_imu_thread(void) {
 	k_sleep(K_FOREVER);
@@ -548,26 +592,21 @@ void main_imu_thread(void) {
 			uint16_t packets = count / 8;								 // Packet size 8 bytes
 			uint8_t rawData[2080];
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_DATA, &rawData[0], count); // Read buffer
-    		uint8_t rawAccel[6];
-    		i2c_burst_read_dt(&main_imu, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6); // Read accel only
-			float raw0 = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
-			float raw1 = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
-			float raw2 = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
-			// transform and convert to float values
-			float ax = raw0 * aRes - accelBias[0];
-			float ay = raw1 * aRes - accelBias[1];
-			float az = raw2 * aRes - accelBias[2];
+
+    		float a[3];
+			accel_read(main_imu, a);
+			float ax = a[0] - accelBias[0];
+			float ay = a[1] - accelBias[1];
+			float az = a[2] - accelBias[2];
+
 #if (MAG_ENABLED == true)
 			if (last_powerstate == 0) {
-				mmc_readData(main_mag, MMC5983MAData);
-				// transform and convert to float values
-				// TODO: make sure these are reading to separate buffers for main vs. aux
-				mx = ((float)MMC5983MAData[0] - MMC5983MA_offset) * mRes - magBias[0];
-				my = ((float)MMC5983MAData[1] - MMC5983MA_offset) * mRes - magBias[1];
-				mz = ((float)MMC5983MAData[2] - MMC5983MA_offset) * mRes - magBias[2];
-				mx *= magScale[0];
-				my *= magScale[1];
-				mz *= magScale[2];
+				float m[3];
+				mag_read(main_mag, m);
+				apply_BAinv(m, magBAinv);
+				mx = m[0];
+				my = m[1];
+				mz = m[2];
 			}
 #endif
 
@@ -690,24 +729,42 @@ void main_imu_thread(void) {
 #if (MAG_ENABLED == true)
 				mmc_SET(main_mag);													 // "deGauss" magnetometer
 				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
-#endif
 // 0-1ms delta to setup mmc
+#endif
 				main_ok = true;
 				if (reset_mode == 1) { // Reset mode main calibration
 					LOG_INF("Enter main calibration");
 gpio_pin_set_dt(&led, 0); // scuffed led
 					// TODO: Add LED flashies
-					// TODO: Wait for accelerometer to settle, then calibrate (5 sec timeout to skip)
+					LOG_INF("Rest the device on a stable surface");
+					if (!wait_for_motion(main_imu, false, 20)) { // Wait for accelerometer to settle, timeout 10s
+						break; // Timeout, calibration failed
+					}
+					k_msleep(500); // Delay before beginning acquisition
+					LOG_INF("Start accel and gyro calibration");
 					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 750ms
 					nvs_write(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
 					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
 					LOG_INF("Finished accel and gyro zero offset calibration");
-gpio_pin_set_dt(&led, 1); // scuffed led
-					// TODO: Wait for accelerometer movement, then calibrate (5 sec timeout to skip)
 #if (MAG_ENABLED == true)
-					mmc_offsetBias(main_mag, magBias, magScale); // This takes about 20s
-					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
-					nvs_write(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
+gpio_pin_set_dt(&led, 1); // scuffed led
+					LOG_INF("Gently rotate device in all directions");
+					if (!wait_for_motion(main_imu, true, 20)) { // Wait for accelerometer motion, timeout 10s
+						break; // Timeout, calibration failed
+					}
+					k_msleep(500); // Delay before beginning acquisition
+					LOG_INF("Start mag calibration");
+					double ata[100] = {0.0};
+					double norm_sum = 0.0;
+					double sample_count = 0.0;
+					float m[3];
+					for (int i = 0; i < 200; i++) { // 200 samples in 20s, 100ms per sample
+						mag_read(main_mag, m);
+						magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count);
+						k_msleep(100);
+					}
+					magneto_current_calibration(magBAinv, ata, norm_sum, sample_count);
+					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
 					LOG_INF("Finished mag hard/soft iron offset calibration");
 #endif
 					reset_mode = 0; // Clear reset mode
@@ -727,7 +784,7 @@ void wait_for_main_imu_thread(void) {
 		k_yield();
 	}
 }
-
+#ifdef bruh
 void aux_imu_thread(void) {
 	k_sleep(K_FOREVER);
 	aux_running = true;
@@ -909,7 +966,11 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 		aux_running = true;
 	}
 }
-
+#else
+void aux_imu_thread(void) {
+	k_sleep(K_FOREVER);
+}
+#endif
 K_THREAD_DEFINE(aux_imu_thread_id, 4096, aux_imu_thread, NULL, NULL, NULL, 7, 0, 0);
 
 void wait_for_threads(void) {
@@ -990,7 +1051,7 @@ void main(void)
 		while (paired_addr[0] != check) {
 			if (paired_addr[0] != 0x00) {
 				LOG_INF("Incorrect check code: %02X", paired_addr[0]);
-				paired_addr[0] == 0x00; // Packet not for this device
+				paired_addr[0] = 0x00; // Packet not for this device
 			}
 			esb_flush_rx();
 			esb_flush_tx();
@@ -1036,21 +1097,23 @@ void main(void)
 	// Read calibration from NVS
 	nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
 	nvs_read(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
-	nvs_read(&fs, MAIN_MAG_BIAS_ID, &magBias, sizeof(magBias));
-	nvs_read(&fs, MAIN_MAG_SCALE_ID, &magScale, sizeof(magScale));
+	nvs_read(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
 	nvs_read(&fs, AUX_ACCEL_BIAS_ID, &accelBias2, sizeof(accelBias));
 	nvs_read(&fs, AUX_GYRO_BIAS_ID, &gyroBias2, sizeof(gyroBias));
-	nvs_read(&fs, AUX_MAG_BIAS_ID, &magBias2, sizeof(magBias));
-	nvs_read(&fs, AUX_MAG_SCALE_ID, &magScale2, sizeof(magScale));
+	nvs_read(&fs, AUX_MAG_BIAS_ID, &magBAinv2, sizeof(magBAinv));
 	LOG_INF("Read calibrations");
 	LOG_INF("Main accel bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 	LOG_INF("Main gyro bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
-	LOG_INF("Main mag bias: %.5f %.5f %.5f", magBias[0], magBias[1], magBias[2]);
-	LOG_INF("Main mag scale: %.5f %.5f %.5f", magScale[0], magScale[1], magScale[2]);
+	LOG_INF("Main mag matrix:");
+	for (int i = 0; i < 3; i++) {
+		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+	}
 	LOG_INF("Aux accel bias: %.5f %.5f %.5f", accelBias2[0], accelBias2[1], accelBias2[2]);
 	LOG_INF("Aux gyro bias: %.5f %.5f %.5f", gyroBias2[0], gyroBias2[1], gyroBias2[2]);
-	LOG_INF("Aux mag bias: %.5f %.5f %.5f", magBias2[0], magBias2[1], magBias2[2]);
-	LOG_INF("Aux mag scale: %.5f %.5f %.5f", magScale2[0], magScale2[1], magScale2[2]);
+	LOG_INF("Aux mag matrix:");
+	for (int i = 0; i < 3; i++) {
+		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv2[0][i], magBAinv2[1][i], magBAinv2[2][i], magBAinv2[3][i]);
+	}
 
 	// get sensor resolutions for user settings, only need to do this once
 	// TODO: surely these can be defines lol
@@ -1127,10 +1190,10 @@ void main(void)
 
 		if (time_begin > led_time) {
 			if (led_time != 0) {
-				led_time_off = time_begin + 500;
+				led_time_off = time_begin + 300;
 			}
 			if (batt_pptt < 1000) { // Under 10% battery left
-				led_time += 1000;
+				led_time += 600;
 			} else {
 				led_time += 10000;
 			}
