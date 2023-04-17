@@ -643,7 +643,6 @@ void main_imu_thread(void) {
 					a.array[0] = ax;
 					a.array[1] = -az;
 					a.array[2] = ay;
-        			g = FusionOffsetUpdate(&offset, g);
 #if MAG_ENABLED
         			FusionVector m;
 					m.array[0] = my;
