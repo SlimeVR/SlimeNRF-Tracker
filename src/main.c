@@ -574,7 +574,7 @@ bool wait_for_motion(const struct i2c_dt_spec mag, bool motion, int samples) {
 	for (int i = 0; i < samples; i++) {
 		k_msleep(500);
 		accel_read(main_imu, a);
-		if (vec_epsilon(a, last_a)) {
+		if (vec_epsilon(a, last_a) != motion) {
 			return true;
 		}
 		memcpy(last_a, a, sizeof(a));
