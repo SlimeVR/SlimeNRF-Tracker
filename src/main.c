@@ -120,6 +120,7 @@ bool aux_exists = true;
 bool main_data = false;
 bool aux_data = false;
 
+#define USE_NEW_FUSION
 #define MAG_ENABLED true
 
 #define INT16_TO_UINT16(x) ((uint16_t)32768 + (uint16_t)(x))
@@ -145,6 +146,11 @@ float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
 float last_q2[4] = {1.0f, 0.0f, 0.0f, 0.0f};	// vector to hold quaternion
 
 float q3[4] = {-0.5f, 0.5f, 0.5f, 0.5f}; // correction quat
+
+FusionOffset offset;
+FusionAhrs ahrs;
+FusionOffset offset2;
+FusionAhrs ahrs2;
 
 int tracker_id = 0;
 
@@ -571,7 +577,7 @@ bool wait_for_motion(const struct i2c_dt_spec mag, bool motion, int samples) {
 		if (vec_epsilon(a, last_a)) {
 			return true;
 		}
-		memcpy(a, last_a, sizeof(a));
+		memcpy(last_a, a, sizeof(a));
 	}
 	return false;
 }
@@ -628,7 +634,29 @@ void main_imu_thread(void) {
 			}
 
 			if (packets == 2 && powerstate == 1) {
+#ifdef USE_NEW_FUSION
+        			FusionVector g, a;
+					g.array[0] = 0;
+					g.array[1] = 0;
+					g.array[2] = 0;
+					a.array[0] = ax;
+					a.array[1] = -az;
+					a.array[2] = ay;
+        			g = FusionOffsetUpdate(&offset, g);
+#if MAG_ENABLED
+        			FusionVector m;
+					m.array[0] = my;
+					m.array[1] = mz;
+					m.array[2] = -mx;
+        			FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME_LP);
+#else
+        			FusionAhrsUpdateNoMagnetometer(&ahrs, g, a, INTEGRATION_TIME_LP);
+#endif
+					FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
+					memcpy(q, quat.array, sizeof(q));
+#else
 				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my, mz, -mx, INTEGRATION_TIME_LP, q, MAG_ENABLED);
+#endif
 			} else {
 				for (uint16_t i = 0; i < packets; i++)
 				{
@@ -648,6 +676,33 @@ void main_imu_thread(void) {
 					float gy = raw1 * gRes - gyroBias[1];
 					float gz = raw2 * gRes - gyroBias[2];
 					// TODO: swap out fusion?
+#ifdef USE_NEW_FUSION
+        			FusionVector g, a;
+					g.array[0] = gx;
+					g.array[1] = -gz;
+					g.array[2] = gy;
+					a.array[0] = ax;
+					a.array[1] = -az;
+					a.array[2] = ay;
+        			g = FusionOffsetUpdate(&offset, g);
+#if MAG_ENABLED
+        			FusionVector m;
+					m.array[0] = my;
+					m.array[1] = mz;
+					m.array[2] = -mx;
+        			FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME);
+#else
+        			FusionAhrsUpdateNoMagnetometer(&ahrs, g, a, INTEGRATION_TIME);
+#endif
+					if (i == packets - 1) {
+        				const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);
+						lin_ax = earth.array[0];
+						lin_ay = earth.array[1];
+						lin_az = earth.array[2];
+						FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
+						memcpy(q, quat.array, sizeof(q));
+					}
+#else
 					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my, mz, -mx, INTEGRATION_TIME, q, MAG_ENABLED);
 					if (i == packets - 1) {
 						// Calculate linear acceleration (no gravity)
@@ -655,6 +710,7 @@ void main_imu_thread(void) {
 						lin_ay = ay + 2.0f * (q[1] * q[3] - q[0] * q[2]);
 						lin_az = az - q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3];
 					}
+#endif
 				}
 			}
 
@@ -769,6 +825,20 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 #endif
 					reset_mode = 0; // Clear reset mode
 				}
+#ifdef USE_NEW_FUSION
+				// Setup fusion
+			    FusionOffsetInitialise(&offset, 1/INTEGRATION_TIME);
+			    FusionAhrsInitialise(&ahrs);
+			    const FusionAhrsSettings settings = {
+			            .convention = FusionConventionNwu,
+			            .gain = 0.5f,
+			            .accelerationRejection = 10.0f,
+			            .magneticRejection = 20.0f,
+			            .rejectionTimeout = 5 * 1/INTEGRATION_TIME, /* 5 seconds */
+			    };
+			    FusionAhrsSetSettings(&ahrs, &settings);
+				memcpy(ahrs.quaternion.array, q, sizeof(q)); // Load existing quat
+#endif
 			}
 		}
 		main_running = false;
