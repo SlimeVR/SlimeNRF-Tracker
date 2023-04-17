@@ -572,6 +572,7 @@ bool wait_for_motion(const struct i2c_dt_spec mag, bool motion, int samples) {
 	float a[3], last_a[3];
 	accel_read(main_imu, last_a);
 	for (int i = 0; i < samples; i++) {
+gpio_pin_toggle_dt(&led); // scuffed led
 		k_msleep(500);
 		accel_read(main_imu, a);
 		if (vec_epsilon(a, last_a) != motion) {
@@ -794,20 +795,24 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 					// TODO: Add LED flashies
 					LOG_INF("Rest the device on a stable surface");
 					if (!wait_for_motion(main_imu, false, 20)) { // Wait for accelerometer to settle, timeout 10s
+gpio_pin_set_dt(&led, 0); // scuffed led
 						break; // Timeout, calibration failed
 					}
+gpio_pin_set_dt(&led, 1); // scuffed led
 					k_msleep(500); // Delay before beginning acquisition
 					LOG_INF("Start accel and gyro calibration");
 					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 750ms
 					nvs_write(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
 					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
 					LOG_INF("Finished accel and gyro zero offset calibration");
+gpio_pin_set_dt(&led, 0); // scuffed led
 #if (MAG_ENABLED == true)
-gpio_pin_set_dt(&led, 1); // scuffed led
 					LOG_INF("Gently rotate device in all directions");
 					if (!wait_for_motion(main_imu, true, 20)) { // Wait for accelerometer motion, timeout 10s
+gpio_pin_set_dt(&led, 0); // scuffed led
 						break; // Timeout, calibration failed
 					}
+gpio_pin_set_dt(&led, 1); // scuffed led
 					k_msleep(500); // Delay before beginning acquisition
 					LOG_INF("Start mag calibration");
 					double ata[100] = {0.0};
@@ -815,6 +820,7 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					double sample_count = 0.0;
 					float m[3];
 					for (int i = 0; i < 200; i++) { // 200 samples in 20s, 100ms per sample
+gpio_pin_toggle_dt(&led); // scuffed led
 						mag_read(main_mag, m);
 						magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count);
 						k_msleep(100);
@@ -822,6 +828,7 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					magneto_current_calibration(magBAinv, ata, norm_sum, sample_count);
 					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
 					LOG_INF("Finished mag hard/soft iron offset calibration");
+gpio_pin_set_dt(&led, 0); // scuffed led
 #endif
 					reset_mode = 0; // Clear reset mode
 				}
