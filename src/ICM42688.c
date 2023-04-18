@@ -224,7 +224,7 @@ void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
     int16_t temp[7] = {0, 0, 0, 0, 0, 0, 0};
     int32_t sum[7] = {0, 0, 0, 0, 0, 0, 0};
 
-    for (int ii = 0; ii < 128; ii++)
+    for (int ii = 0; ii < 500; ii++)
     {
         icm_readData(dev_i2c, temp);
         sum[1] += temp[1];
@@ -236,12 +236,12 @@ void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
         k_msleep(5);
     }
 
-    dest1[0] = sum[1]*_aRes/128.0f;
-    dest1[1] = sum[2]*_aRes/128.0f;
-    dest1[2] = sum[3]*_aRes/128.0f;
-    dest2[0] = sum[4]*_gRes/128.0f;
-    dest2[1] = sum[5]*_gRes/128.0f;
-    dest2[2] = sum[6]*_gRes/128.0f;
+    dest1[0] = sum[1]*_aRes/500.0f;
+    dest1[1] = sum[2]*_aRes/500.0f;
+    dest1[2] = sum[3]*_aRes/500.0f;
+    dest2[0] = sum[4]*_gRes/500.0f;
+    dest2[1] = sum[5]*_gRes/500.0f;
+    dest2[2] = sum[6]*_gRes/500.0f;
 
     if(dest1[0] > 0.8f) {dest1[0] -= 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
     if(dest1[0] < -0.8f) {dest1[0] += 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation

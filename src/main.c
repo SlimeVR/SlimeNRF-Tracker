@@ -810,7 +810,7 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 gpio_pin_set_dt(&led, 1); // scuffed led
 					k_msleep(500); // Delay before beginning acquisition
 					LOG_INF("Start accel and gyro calibration");
-					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 750ms
+					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 3s
 					nvs_write(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
 					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
 					LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
