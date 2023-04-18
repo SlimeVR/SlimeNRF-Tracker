@@ -573,13 +573,16 @@ bool wait_for_motion(const struct i2c_dt_spec mag, bool motion, int samples) {
 	accel_read(main_imu, last_a);
 	for (int i = 0; i < samples; i++) {
 gpio_pin_toggle_dt(&led); // scuffed led
+		LOG_INF("Accel: %.5f %.5f %.5f", a[0], a[1], a[2]);
 		k_msleep(500);
 		accel_read(main_imu, a);
 		if (vec_epsilon(a, last_a) != motion) {
+			LOG_INF("Pass");
 			return true;
 		}
 		memcpy(last_a, a, sizeof(a));
 	}
+	LOG_INF("Fail");
 	return false;
 }
 
@@ -788,6 +791,7 @@ void main_imu_thread(void) {
 // 0-1ms delta to setup mmc
 #endif
 				main_ok = true;
+				do {
 				if (reset_mode == 1) { // Reset mode main calibration
 					LOG_INF("Enter main calibration");
 gpio_pin_set_dt(&led, 0); // scuffed led
@@ -821,16 +825,21 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					for (int i = 0; i < 200; i++) { // 200 samples in 20s, 100ms per sample
 gpio_pin_toggle_dt(&led); // scuffed led
 						mag_read(main_mag, m);
+						LOG_INF("Mag: %.5f %.5f %.5f (%d/200)", m[0], m[1], m[2], i+1);
 						magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count);
 						k_msleep(100);
 					}
 					magneto_current_calibration(magBAinv, ata, norm_sum, sample_count);
+	for (int i = 0; i < 3; i++) {
+		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+	}
 					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
 					LOG_INF("Finished mag hard/soft iron offset calibration");
 gpio_pin_set_dt(&led, 0); // scuffed led
 #endif
 					reset_mode = 0; // Clear reset mode
 				}
+				} while (false);
 #ifdef USE_NEW_FUSION
 				// Setup fusion
 			    FusionOffsetInitialise(&offset, 1/INTEGRATION_TIME);
@@ -1052,9 +1061,10 @@ K_THREAD_DEFINE(aux_imu_thread_id, 4096, aux_imu_thread, NULL, NULL, NULL, 7, 0,
 void wait_for_threads(void) {
 	if (threads_running) {
 		while (main_running) {
-			while (aux_running) {
-				k_yield();
-			}
+			k_usleep(1);
+		}
+		while (aux_running) {
+			k_usleep(1);
 		}
 	}
 }
@@ -1103,7 +1113,7 @@ void main(void)
 		// Read paired address from NVS
 		nvs_read(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr));
 	}
-
+reset_mode = 1;
 	clocks_start();
 
 	if (paired_addr[0] == 0x00) { // No dongle paired
@@ -1299,6 +1309,7 @@ void main(void)
 		last_powerstate = powerstate;
 		main_data = false;
 
+		wait_for_threads();
 		k_wakeup(main_imu_thread_id);
 		k_wakeup(aux_imu_thread_id);
 		threads_running = true;
