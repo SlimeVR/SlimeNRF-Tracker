@@ -168,7 +168,7 @@ uint8_t reset_mode = 0;
 bool system_off_main = false;
 bool system_off_aux = false;
 bool reconfig;
-bool charging = false;
+//bool charging = false;
 
 // ICM42688 definitions
 
@@ -645,18 +645,10 @@ void main_imu_thread(void) {
 
 			if (packets == 2 && powerstate == 1) {
 #ifdef USE_NEW_FUSION
-        			FusionVector g, a;
-					g.array[0] = 0;
-					g.array[1] = 0;
-					g.array[2] = 0;
-					a.array[0] = ax;
-					a.array[1] = -az;
-					a.array[2] = ay;
+        			FusionVector g = {.array = {0, 0, 0}};
+        			FusionVector a = {.array = {ax, -az, ay}};
 #if MAG_ENABLED
-        			FusionVector m;
-					m.array[0] = my;
-					m.array[1] = mz;
-					m.array[2] = -mx;
+        			FusionVector m = {.array = {my, mz, -mx}};
         			FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME_LP);
 #else
         			FusionAhrsUpdateNoMagnetometer(&ahrs, g, a, INTEGRATION_TIME_LP);
@@ -686,19 +678,11 @@ void main_imu_thread(void) {
 					float gz = raw2 * gRes - gyroBias[2];
 					// TODO: swap out fusion?
 #ifdef USE_NEW_FUSION
-        			FusionVector g, a;
-					g.array[0] = gx;
-					g.array[1] = -gz;
-					g.array[2] = gy;
-					a.array[0] = ax;
-					a.array[1] = -az;
-					a.array[2] = ay;
+        			FusionVector g = {.array = {gx, -gz, gy}};
+        			FusionVector a = {.array = {ax, -az, ay}};
         			g = FusionOffsetUpdate(&offset, g);
 #if MAG_ENABLED
-        			FusionVector m;
-					m.array[0] = my;
-					m.array[1] = mz;
-					m.array[2] = -mx;
+        			FusionVector m = {.array = {my, mz, -mx}};
         			FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME);
 #else
         			FusionAhrsUpdateNoMagnetometer(&ahrs, g, a, INTEGRATION_TIME);
@@ -753,8 +737,8 @@ void main_imu_thread(void) {
 				tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay));
 				tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az));
 				tx_payload.data[0] = tracker_id << 4;
-				tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
-				//tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
+				//tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
+				tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
 				tx_payload.data[2] = (tx_buf[0] >> 8) & 255;
 				tx_payload.data[3] = tx_buf[0] & 255;
 				tx_payload.data[4] = (tx_buf[1] >> 8) & 255;
@@ -1215,12 +1199,12 @@ reset_mode = 1;
 	gRes = icm_getGres(Gscale);
 
 	const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
-	const struct gpio_dt_spec chgstat = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chgstat_gpios);
+	//const struct gpio_dt_spec chgstat = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chgstat_gpios);
 	//const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
 	//const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
 
 	gpio_pin_configure_dt(&dock, GPIO_INPUT);
-	gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
+	//gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
 	//gpio_pin_configure_dt(&int0, GPIO_INPUT);
 	//gpio_pin_configure_dt(&int1, GPIO_INPUT);
 
