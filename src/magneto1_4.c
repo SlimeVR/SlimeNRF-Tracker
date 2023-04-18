@@ -12,7 +12,8 @@ double *C, *S11, *S12, *S12t, *S22, *S22a, *S22b, *SS, *E, *U, *SSS;
 double *eigen_real, *eigen_imag, *v1, *v2, *v, *Q, *Q_1, *B, *QB, *SSSS;
 double *eigen_real3, *eigen_imag3, *Dz, *vdz, *SQ, *A_1;
 
-void magneto_sample(double x, double y, double z, double* ata, double* norm_sum, double* sample_count) {
+void magneto_sample(double x, double y, double z, double *ata, double *norm_sum, double *sample_count)
+{
     *sample_count += 1.0;
     *norm_sum += sqrt(x * x + y * y + z * z);
 
@@ -26,21 +27,21 @@ void magneto_sample(double x, double y, double z, double* ata, double* norm_sum,
         2.0 * x,
         2.0 * y,
         2.0 * z,
-        1.0
-    };
+        1.0};
 
     Multiply_Self_Transpose(ata, D, 10, 1);
 }
 
-void magneto_current_calibration(float BAinv[4][3], double* ata, double norm_sum, double sample_count) {
-	S11 = (double*)malloc(6 * 6 * sizeof(double));
-	Get_Submatrix(S11, 6, 6, ata, 10, 0, 0);
-	S12 = (double*)malloc(6 * 4 * sizeof(double));
-	Get_Submatrix(S12, 6, 4, ata, 10, 0, 6);
-	S12t = (double*)malloc(4 * 6 * sizeof(double));
-	Get_Submatrix(S12t, 4, 6, ata, 10, 6, 0);
-	S22 = (double*)malloc(4 * 4 * sizeof(double));
-	Get_Submatrix(S22, 4, 4, ata, 10, 6, 6);
+void magneto_current_calibration(float BAinv[4][3], double *ata, double norm_sum, double sample_count)
+{
+    S11 = (double *)malloc(6 * 6 * sizeof(double));
+    Get_Submatrix(S11, 6, 6, ata, 10, 0, 0);
+    S12 = (double *)malloc(6 * 4 * sizeof(double));
+    Get_Submatrix(S12, 6, 4, ata, 10, 0, 6);
+    S12t = (double *)malloc(4 * 6 * sizeof(double));
+    Get_Submatrix(S12t, 4, 6, ata, 10, 6, 0);
+    S22 = (double *)malloc(4 * 4 * sizeof(double));
+    Get_Submatrix(S22, 4, 4, ata, 10, 6, 6);
 
     double hm = norm_sum / sample_count;
 
@@ -51,43 +52,73 @@ void magneto_current_calibration(float BAinv[4][3], double* ata, double norm_sum
     Choleski_LU_Inverse(S22, 4);
 
     // Calculate S22a = S22 * S12t   4*6 = 4x4 * 4x6   C = AB
-    S22a = (double*)malloc(4 * 6 * sizeof(double));
+    S22a = (double *)malloc(4 * 6 * sizeof(double));
     Multiply_Matrices(S22a, S22, 4, 4, S12t, 6);
-	free(S22);
-	free(S12t);
+    free(S22);
+    free(S12t);
 
     // Then calculate S22b = S12 * S22a      ( 6x6 = 6x4 * 4x6)
-    S22b = (double*)malloc(6 * 6 * sizeof(double));
+    S22b = (double *)malloc(6 * 6 * sizeof(double));
     Multiply_Matrices(S22b, S12, 6, 4, S22a, 6);
-	free(S12);
+    free(S12);
 
     // Calculate SS = S11 - S22b
-    SS = (double*)malloc(6 * 6 * sizeof(double));
+    SS = (double *)malloc(6 * 6 * sizeof(double));
     for (int i = 0; i < 36; i++)
         SS[i] = S11[i] - S22b[i];
-	free(S11);
-	free(S22b);
+    free(S11);
+    free(S22b);
 
     // Create pre-inverted constraint matrix C
-	C = (double*)malloc(6 * 6 * sizeof(double));
-	C[0] = 0.0; C[1] = 0.5; C[2] = 0.5; C[3] = 0.0;  C[4] = 0.0;  C[5] = 0.0;
-	C[6] = 0.5;  C[7] = 0.0; C[8] = 0.5; C[9] = 0.0;  C[10] = 0.0;  C[11] = 0.0;
-	C[12] = 0.5;  C[13] = 0.5; C[14] = 0.0; C[15] = 0.0;  C[16] = 0.0;  C[17] = 0.0;
-	C[18] = 0.0;  C[19] = 0.0;  C[20] = 0.0;  C[21] = -0.25; C[22] = 0.0;  C[23] = 0.0;
-	C[24] = 0.0;  C[25] = 0.0; C[26] = 0.0;  C[27] = 0.0;  C[28] = -0.25; C[29] = 0.0;
-	C[30] = 0.0;  C[31] = 0.0; C[32] = 0.0;  C[33] = 0.0;  C[34] = 0.0;  C[35] = -0.25;
-    E = (double*)malloc(6 * 6 * sizeof(double));
+    C = (double *)malloc(6 * 6 * sizeof(double));
+    C[0] = 0.0;
+    C[1] = 0.5;
+    C[2] = 0.5;
+    C[3] = 0.0;
+    C[4] = 0.0;
+    C[5] = 0.0;
+    C[6] = 0.5;
+    C[7] = 0.0;
+    C[8] = 0.5;
+    C[9] = 0.0;
+    C[10] = 0.0;
+    C[11] = 0.0;
+    C[12] = 0.5;
+    C[13] = 0.5;
+    C[14] = 0.0;
+    C[15] = 0.0;
+    C[16] = 0.0;
+    C[17] = 0.0;
+    C[18] = 0.0;
+    C[19] = 0.0;
+    C[20] = 0.0;
+    C[21] = -0.25;
+    C[22] = 0.0;
+    C[23] = 0.0;
+    C[24] = 0.0;
+    C[25] = 0.0;
+    C[26] = 0.0;
+    C[27] = 0.0;
+    C[28] = -0.25;
+    C[29] = 0.0;
+    C[30] = 0.0;
+    C[31] = 0.0;
+    C[32] = 0.0;
+    C[33] = 0.0;
+    C[34] = 0.0;
+    C[35] = -0.25;
+    E = (double *)malloc(6 * 6 * sizeof(double));
     Multiply_Matrices(E, C, 6, 6, SS, 6);
-	free(C);
-	free(SS);
+    free(C);
+    free(SS);
 
-    SSS = (double*)malloc(6 * 6 * sizeof(double));
+    SSS = (double *)malloc(6 * 6 * sizeof(double));
     Hessenberg_Form_Elementary(E, SSS, 6);
 
     int index = 0;
     {
-		eigen_real = (double*)malloc(6 * sizeof(double));
-		eigen_imag = (double*)malloc(6 * sizeof(double));
+        eigen_real = (double *)malloc(6 * sizeof(double));
+        eigen_imag = (double *)malloc(6 * sizeof(double));
 
         QR_Hessenberg_Matrix(E, SSS, eigen_real, eigen_imag, 6, 100);
         free(E);
@@ -101,18 +132,18 @@ void magneto_current_calibration(float BAinv[4][3], double* ata, double norm_sum
                 index = i;
             }
         }
-	    free(eigen_real);
-	    free(eigen_imag);
+        free(eigen_real);
+        free(eigen_imag);
     }
 
-    v1 = (double*)malloc(6 * sizeof(double));
+    v1 = (double *)malloc(6 * sizeof(double));
     v1[0] = SSS[index];
     v1[1] = SSS[index + 6];
     v1[2] = SSS[index + 12];
     v1[3] = SSS[index + 18];
     v1[4] = SSS[index + 24];
     v1[5] = SSS[index + 30];
-	free(SSS);
+    free(SSS);
 
     // normalize v1
     {
@@ -136,27 +167,27 @@ void magneto_current_calibration(float BAinv[4][3], double* ata, double norm_sum
     }
 
     // Calculate v2 = S22a * v1      ( 4x1 = 4x6 * 6x1)
-    v2 = (double*)malloc(4 * sizeof(double));
+    v2 = (double *)malloc(4 * sizeof(double));
     Multiply_Matrices(v2, S22a, 4, 6, v1, 1);
-	free(S22a);
+    free(S22a);
 
-    U = (double*)malloc(3 * sizeof(double));
-    Q = (double*)malloc(3 * 3 * sizeof(double));
+    U = (double *)malloc(3 * sizeof(double));
+    Q = (double *)malloc(3 * 3 * sizeof(double));
     double J;
     {
-        v = (double*)malloc(10 * sizeof(double));
+        v = (double *)malloc(10 * sizeof(double));
         v[0] = v1[0];
         v[1] = v1[1];
         v[2] = v1[2];
         v[3] = v1[3];
         v[4] = v1[4];
         v[5] = v1[5];
-	    free(v1);
+        free(v1);
         v[6] = -v2[0];
         v[7] = -v2[1];
         v[8] = -v2[2];
         v[9] = -v2[3];
-    	free(v2);
+        free(v2);
 
         Q[0] = v[0];
         Q[1] = v[5];
@@ -173,12 +204,12 @@ void magneto_current_calibration(float BAinv[4][3], double* ata, double norm_sum
         U[2] = v[8];
 
         J = v[9];
-	    free(v);
+        free(v);
     }
 
-    B = (double*)malloc(3 * sizeof(double));
+    B = (double *)malloc(3 * sizeof(double));
     {
-        Q_1 = (double*)malloc(3 * 3 * sizeof(double));;
+        Q_1 = (double *)malloc(3 * 3 * sizeof(double));
         for (int i = 0; i < 9; i++)
             Q_1[i] = Q[i];
         Choleski_LU_Decomposition(Q_1, 3);
@@ -186,40 +217,44 @@ void magneto_current_calibration(float BAinv[4][3], double* ata, double norm_sum
 
         // Calculate B = Q-1 * U   ( 3x1 = 3x3 * 3x1)
         Multiply_Matrices(B, Q_1, 3, 3, U, 1);
-	    free(U);
-	    free(Q_1);
-        B[0] = -B[0];     // x-axis combined bias
-        B[1] = -B[1];     // y-axis combined bias
-        B[2] = -B[2];     // z-axis combined bias
+        free(U);
+        free(Q_1);
+        B[0] = -B[0]; // x-axis combined bias
+        B[1] = -B[1]; // y-axis combined bias
+        B[2] = -B[2]; // z-axis combined bias
     }
 
     // First calculate QB = Q * B   ( 3x1 = 3x3 * 3x1)
     double btqb;
     {
-        QB = (double*)malloc(3 * sizeof(double));
+        QB = (double *)malloc(3 * sizeof(double));
         Multiply_Matrices(QB, Q, 3, 3, B, 1);
 
         // Then calculate btqb = BT * QB    ( 1x1 = 1x3 * 3x1)
         Multiply_Matrices(&btqb, B, 1, 3, QB, 1);
-	    free(QB);
+        free(QB);
     }
 
     // Calculate SQ, the square root of matrix Q
-    SSSS = (double*)malloc(3 * 3 * sizeof(double));
+    SSSS = (double *)malloc(3 * 3 * sizeof(double));
     Hessenberg_Form_Elementary(Q, SSSS, 3);
 
-    Dz = (double*)malloc(3 * 3 * sizeof(double));
+    Dz = (double *)malloc(3 * 3 * sizeof(double));
+    for (int i = 0; i < 9; i++)
     {
-        eigen_real3 = (double*)malloc(3 * sizeof(double));
-        eigen_imag3 = (double*)malloc(3 * sizeof(double));
+        Dz[i] = 0;
+    }
+    {
+        eigen_real3 = (double *)malloc(3 * sizeof(double));
+        eigen_imag3 = (double *)malloc(3 * sizeof(double));
         QR_Hessenberg_Matrix(Q, SSSS, eigen_real3, eigen_imag3, 3, 100);
-	    free(Q);
+        free(Q);
 
         Dz[0] = sqrt(eigen_real3[0]);
         Dz[4] = sqrt(eigen_real3[1]);
         Dz[8] = sqrt(eigen_real3[2]);
-	    free(eigen_real3);
-	    free(eigen_imag3);
+        free(eigen_real3);
+        free(eigen_imag3);
     }
 
     {
@@ -238,29 +273,29 @@ void magneto_current_calibration(float BAinv[4][3], double* ata, double norm_sum
         SSSS[8] /= norm;
     }
 
-    SQ = (double*)malloc(3 * 3 * sizeof(double));
+    SQ = (double *)malloc(3 * 3 * sizeof(double));
     {
-        vdz = (double*)malloc(3 * 3 * sizeof(double));;
+        vdz = (double *)malloc(3 * 3 * sizeof(double));
+        ;
         Multiply_Matrices(vdz, SSSS, 3, 3, Dz, 3);
-	    free(Dz);
+        free(Dz);
         Transpose_Square_Matrix(SSSS, 3);
         Multiply_Matrices(SQ, vdz, 3, 3, SSSS, 3);
-	    free(SSSS);
-	    free(vdz);
+        free(SSSS);
+        free(vdz);
     }
 
-
-    A_1 = (double*)malloc(3 * 3 * sizeof(double));
+    A_1 = (double *)malloc(3 * 3 * sizeof(double));
     // Calculate hmb = sqrt(btqb - J).
     double hmb = sqrt(btqb - J);
 
     for (int i = 0; i < 9; i++)
         A_1[i] = SQ[i] * hm / hmb;
-	free(SQ);
+    free(SQ);
 
     for (int i = 0; i < 3; i++)
         BAinv[0][i] = B[i];
-	free(B);
+    free(B);
 
     for (int i = 0; i < 3; i++)
     {
@@ -268,5 +303,5 @@ void magneto_current_calibration(float BAinv[4][3], double* ata, double norm_sum
         BAinv[i + 1][1] = A_1[i * 3 + 1];
         BAinv[i + 1][2] = A_1[i * 3 + 2];
     }
-	free(A_1);
+    free(A_1);
 }
