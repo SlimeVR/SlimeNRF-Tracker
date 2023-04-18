@@ -569,16 +569,22 @@ void apply_BAinv(float xyz[3], float BAinv[4][3]) {
 }
 
 bool wait_for_motion(const struct i2c_dt_spec mag, bool motion, int samples) {
+	uint8_t counts = 0;
 	float a[3], last_a[3];
 	accel_read(main_imu, last_a);
-	for (int i = 0; i < samples; i++) {
+	for (int i = 0; i < samples + counts; i++) {
 gpio_pin_toggle_dt(&led); // scuffed led
 		LOG_INF("Accel: %.5f %.5f %.5f", a[0], a[1], a[2]);
 		k_msleep(500);
 		accel_read(main_imu, a);
 		if (vec_epsilon(a, last_a) != motion) {
 			LOG_INF("Pass");
-			return true;
+			counts++;
+			if (counts == 2) {
+				return true;
+			}
+		} else {
+			counts = 0;
 		}
 		memcpy(last_a, a, sizeof(a));
 	}
@@ -807,6 +813,8 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 750ms
 					nvs_write(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
 					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
+					LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
+					LOG_INF("%.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
 					LOG_INF("Finished accel and gyro zero offset calibration");
 gpio_pin_set_dt(&led, 0); // scuffed led
 #if (MAG_ENABLED == true)
@@ -830,10 +838,10 @@ gpio_pin_toggle_dt(&led); // scuffed led
 						k_msleep(100);
 					}
 					magneto_current_calibration(magBAinv, ata, norm_sum, sample_count);
-	for (int i = 0; i < 3; i++) {
-		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
-	}
 					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
+					for (int i = 0; i < 3; i++) {
+						LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+					}
 					LOG_INF("Finished mag hard/soft iron offset calibration");
 gpio_pin_set_dt(&led, 0); // scuffed led
 #endif
