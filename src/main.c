@@ -642,22 +642,22 @@ void main_imu_thread(void) {
 #endif
 			}
 
+        	FusionVector z = {.array = {0, 0, 0}};
 			if (packets == 2 && powerstate == 1) {
 					ahrs.initialising = true;
 					ahrs.rampedGain = 10.0f;
 					ahrs.accelerometerIgnored = false;
 					ahrs.accelerationRejectionTimer = 0;
 					ahrs.accelerationRejectionTimeout = false;
+        			FusionVector a = {.array = {ax, -az, ay}};
+#if MAG_ENABLED
 					ahrs.magnetometerIgnored = false;
 					ahrs.magneticRejectionTimer = 0;
 					ahrs.magneticRejectionTimeout = false;
-        			FusionVector g = {.array = {0, 0, 0}};
-        			FusionVector a = {.array = {ax, -az, ay}};
-#if MAG_ENABLED
         			FusionVector m = {.array = {my, mz, -mx}};
-        			FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME_LP);
+        			FusionAhrsUpdate(&ahrs, z, a, m, INTEGRATION_TIME_LP);
 #else
-        			FusionAhrsUpdateNoMagnetometer(&ahrs, g, a, INTEGRATION_TIME_LP);
+        			FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME_LP);
 #endif
 					FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
 					memcpy(q, quat.array, sizeof(q));
@@ -686,7 +686,7 @@ void main_imu_thread(void) {
         			FusionVector m = {.array = {my, mz, -mx}};
         			FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME);
 #else
-        			FusionAhrsUpdateNoMagnetometer(&ahrs, g, a, INTEGRATION_TIME);
+        			FusionAhrsUpdate(&ahrs, g, a, z, INTEGRATION_TIME);
 #endif
 					if (i == packets - 1) {
         				const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);
