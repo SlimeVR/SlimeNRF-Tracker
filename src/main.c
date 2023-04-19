@@ -576,15 +576,13 @@ void main_imu_thread(void) {
 #else
         			FusionAhrsUpdate(&ahrs, g, a, z, INTEGRATION_TIME);
 #endif
-					if (i == packets - 1) {
-        				const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);
-						lin_ax = earth.array[0];
-						lin_ay = earth.array[1];
-						lin_az = earth.array[2];
-						FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
-						memcpy(q, quat.array, sizeof(q));
-					}
 				}
+        		const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);
+				lin_ax = earth.array[0];
+				lin_ay = earth.array[1];
+				lin_az = earth.array[2];
+				FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
+				memcpy(q, quat.array, sizeof(q));
 			}
 
 			if (quat_epsilon_coarse(q, last_q)) { // Probably okay to use the constantly updating last_q
