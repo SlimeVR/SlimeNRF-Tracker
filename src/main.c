@@ -439,17 +439,21 @@ int last_powerstate = 0;
 void set_LN(void) {
 	TICKRATE_MS = 6;
 	aMode = aMode_LN;
+#if (MAG_ENABLED == true)
 	gMode = gMode_LN;
 	MBW = MBW_400Hz;
 	MODR = MODR_200Hz;
+#endif
 }
 
 void set_LP(void) {
 	TICKRATE_MS = 33;
 	aMode = aMode_LP;
+#if (MAG_ENABLED == true)
 	gMode = gMode_SBY;
 	MBW = MBW_800Hz;
 	MODR = MODR_ONESHOT;
+#endif
 }
 
 void reconfigure_imu(const struct i2c_dt_spec imu) {
@@ -642,7 +646,7 @@ void main_imu_thread(void) {
 			}
 
         	FusionVector z = {.array = {0, 0, 0}};
-			if (packets == 2 && powerstate == 1) {
+			if (packets == 2 && powerstate == 1 && MAG_ENABLED == true) {
 					ahrs.initialising = true;
 					ahrs.rampedGain = 10.0f;
 					ahrs.accelerometerIgnored = false;
