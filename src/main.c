@@ -120,8 +120,7 @@ bool aux_exists = true;
 bool main_data = false;
 bool aux_data = false;
 
-#define USE_NEW_FUSION
-#define MAG_ENABLED true
+#define MAG_ENABLED false
 
 #define INT16_TO_UINT16(x) ((uint16_t)32768 + (uint16_t)(x))
 #define TO_FIXED_14(x) ((int16_t)((x) * (1 << 14)))
@@ -644,7 +643,14 @@ void main_imu_thread(void) {
 			}
 
 			if (packets == 2 && powerstate == 1) {
-#ifdef USE_NEW_FUSION
+					ahrs.initialising = true;
+					ahrs.rampedGain = 10.0f;
+					ahrs.accelerometerIgnored = false;
+					ahrs.accelerationRejectionTimer = 0;
+					ahrs.accelerationRejectionTimeout = false;
+					ahrs.magnetometerIgnored = false;
+					ahrs.magneticRejectionTimer = 0;
+					ahrs.magneticRejectionTimeout = false;
         			FusionVector g = {.array = {0, 0, 0}};
         			FusionVector a = {.array = {ax, -az, ay}};
 #if MAG_ENABLED
@@ -655,9 +661,6 @@ void main_imu_thread(void) {
 #endif
 					FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
 					memcpy(q, quat.array, sizeof(q));
-#else
-				MadgwickQuaternionUpdate(ax, -az, ay, 0, 0, 0, my, mz, -mx, INTEGRATION_TIME_LP, q, MAG_ENABLED);
-#endif
 			} else {
 				for (uint16_t i = 0; i < packets; i++)
 				{
@@ -676,8 +679,6 @@ void main_imu_thread(void) {
 					float gx = raw0 * gRes - gyroBias[0];
 					float gy = raw1 * gRes - gyroBias[1];
 					float gz = raw2 * gRes - gyroBias[2];
-					// TODO: swap out fusion?
-#ifdef USE_NEW_FUSION
         			FusionVector g = {.array = {gx, -gz, gy}};
         			FusionVector a = {.array = {ax, -az, ay}};
         			g = FusionOffsetUpdate(&offset, g);
@@ -695,15 +696,6 @@ void main_imu_thread(void) {
 						FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
 						memcpy(q, quat.array, sizeof(q));
 					}
-#else
-					MadgwickQuaternionUpdate(ax, -az, ay, gx * pi / 180.0f, -gz * pi / 180.0f, gy * pi / 180.0f, my, mz, -mx, INTEGRATION_TIME, q, MAG_ENABLED);
-					if (i == packets - 1) {
-						// Calculate linear acceleration (no gravity)
-						lin_ax = ax + 2.0f * (q[0] * q[1] + q[2] * q[3]);
-						lin_ay = ay + 2.0f * (q[1] * q[3] - q[0] * q[2]);
-						lin_az = az - q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3];
-					}
-#endif
 				}
 			}
 
@@ -832,7 +824,6 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 					reset_mode = 0; // Clear reset mode
 				}
 				} while (false);
-#ifdef USE_NEW_FUSION
 				// Setup fusion
 			    FusionOffsetInitialise(&offset, 1/INTEGRATION_TIME);
 			    FusionAhrsInitialise(&ahrs);
@@ -845,7 +836,6 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 			    };
 			    FusionAhrsSetSettings(&ahrs, &settings);
 				memcpy(ahrs.quaternion.array, q, sizeof(q)); // Load existing quat
-#endif
 			}
 		}
 		main_running = false;
@@ -1105,7 +1095,7 @@ void main(void)
 		// Read paired address from NVS
 		nvs_read(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr));
 	}
-reset_mode = 1;
+
 	clocks_start();
 
 	if (paired_addr[0] == 0x00) { // No dongle paired
