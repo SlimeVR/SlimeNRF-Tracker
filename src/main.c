@@ -120,7 +120,7 @@ bool aux_exists = true;
 bool main_data = false;
 bool aux_data = false;
 
-#define MAG_ENABLED false
+#define MAG_ENABLED true
 
 #define INT16_TO_UINT16(x) ((uint16_t)32768 + (uint16_t)(x))
 #define TO_FIXED_14(x) ((int16_t)((x) * (1 << 14)))
@@ -154,8 +154,6 @@ FusionAhrs ahrs2;
 int tracker_id = 0;
 
 // storing temporary values
-float mx, my, mz; // variables to hold latest mag data values
-float mx2, my2, mz2; // variables to hold latest mag data values
 uint16_t tx_buf[7];
 int64_t start_time;
 int64_t last_data_time;
@@ -615,6 +613,7 @@ void main_imu_thread(void) {
 			float az = a[2] - accelBias[2];
 
 #if (MAG_ENABLED == true)
+			float mx, my, mz;
 			if (last_powerstate == 0) {
 				float m[3];
 				mag_read(main_mag, m);
@@ -650,15 +649,7 @@ void main_imu_thread(void) {
 					ahrs.accelerationRejectionTimer = 0;
 					ahrs.accelerationRejectionTimeout = false;
         			FusionVector a = {.array = {ax, -az, ay}};
-#if MAG_ENABLED
-					ahrs.magnetometerIgnored = false;
-					ahrs.magneticRejectionTimer = 0;
-					ahrs.magneticRejectionTimeout = false;
-        			FusionVector m = {.array = {my, mz, -mx}};
-        			FusionAhrsUpdate(&ahrs, z, a, m, INTEGRATION_TIME_LP);
-#else
         			FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME_LP);
-#endif
 					FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
 					memcpy(q, quat.array, sizeof(q));
 			} else {
