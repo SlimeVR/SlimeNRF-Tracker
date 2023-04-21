@@ -331,6 +331,7 @@ int last_powerstate = 0;
 
 void set_LN(void) {
 	TICKRATE_MS = 6;
+	// TODO: This becomes part of the sensor
 	aMode = aMode_LN;
 #if (MAG_ENABLED == true)
 	gMode = gMode_LN;
@@ -341,6 +342,7 @@ void set_LN(void) {
 
 void set_LP(void) {
 	TICKRATE_MS = 33;
+	// TODO: This becomes part of the sensor
 	aMode = aMode_LP;
 #if (MAG_ENABLED == true)
 	gMode = gMode_SBY;
