@@ -939,11 +939,13 @@ void wait_for_threads(void) {
 
 void main(void)
 {
-	start_time = k_uptime_get(); // ~75ms from start_time to first data sent with main imus only
 	// TODO: Need to skip all this junk and check the battery and dock first
 	int32_t reset_reason = NRF_POWER->RESETREAS;
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 	uint8_t reboot_counter = 0;
+
+	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
+	gpio_pin_set_dt(&led, 1); // Boot LED
 
 	struct flash_pages_info info;
 	fs.flash_device = NVS_PARTITION_DEVICE;
@@ -965,7 +967,9 @@ void main(void)
 	}
 // 0ms or 1000ms delta for reboot counter
 
-	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
+	gpio_pin_set_dt(&led, 0);
+
+// TODO: if reset counter is 0 but reset reason was 1 then perform imu scanning (pressed reset once)
 
 	if (reset_mode == 4) { // Reset mode DFU
 		// TODO: DFU
@@ -1071,6 +1075,7 @@ void main(void)
 
 	// get sensor resolutions for user settings, only need to do this once
 	// TODO: surely these can be defines lol
+	// TODO: this becomes part of the sensor
 	aRes = icm_getAres(Ascale);
 	gRes = icm_getGres(Gscale);
 
