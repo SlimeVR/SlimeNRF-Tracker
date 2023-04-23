@@ -502,6 +502,7 @@ void main_imu_thread(void) {
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
 			count += 16; // Add two read buffer packets
 			uint16_t packets = count / 8;								 // Packet size 8 bytes
+			if (count > 255) count = 255; // nrf52832 cant read length above 255 at once, probably should cause issues but seems ok
 			uint8_t rawData[2080];
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_DATA, &rawData[0], count); // Read buffer
 

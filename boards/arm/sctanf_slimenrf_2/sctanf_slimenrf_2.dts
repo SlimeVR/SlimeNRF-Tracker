@@ -84,7 +84,7 @@
 		chgstat-gpios = <&gpio0 6 (GPIO_PULL_UP|GPIO_ACTIVE_LOW)>;
 		int0-gpios = <&gpio0 11 (GPIO_PULL_UP|GPIO_ACTIVE_LOW)>;
 		int1-gpios = <&gpio0 26 (GPIO_PULL_UP|GPIO_ACTIVE_LOW)>;
-		led-gpios = <&gpio0 25 (GPIO_OPEN_SOURCE|GPIO_ACTIVE_HIGH)>;
+		led-gpios = <&gpio0 25 (GPIO_OPEN_DRAIN|GPIO_ACTIVE_LOW)>;
 	};
 
 };
