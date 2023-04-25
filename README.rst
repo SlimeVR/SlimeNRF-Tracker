@@ -1,1 +1,0 @@
-Tracker firmware for SlimeNRF
