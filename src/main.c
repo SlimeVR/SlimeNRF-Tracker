@@ -47,7 +47,7 @@
 
 #include "retained.h"
 
-LOG_MODULE_REGISTER(main, 3);
+LOG_MODULE_REGISTER(main, 4);
 
 static struct nvs_fs fs;
 
@@ -167,8 +167,10 @@ bool system_off_aux = false;
 bool reconfig;
 //bool charging = false;
 
+// TODO: move to sensor
 // ICM42688 definitions
 
+// TODO: move to sensor
 /* Specify sensor parameters (sample rate is twice the bandwidth)
  * choices are:
 	  AFS_2G, AFS_4G, AFS_8G, AFS_16G
@@ -181,6 +183,7 @@ uint8_t Ascale = AFS_8G, Gscale = GFS_1000DPS, AODR = AODR_200Hz, GODR = GODR_1k
 #define INTEGRATION_TIME 0.001
 #define INTEGRATION_TIME_LP 0.005
 
+// TODO: move to sensor
 float aRes, gRes;														   // scale resolutions per LSB for the accel and gyro sensor2
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
 float accelBias[3] = {0.0f, 0.0f, 0.0f}, gyroBias[3] = {0.0f, 0.0f, 0.0f}; // offset biases for the accel and gyro
@@ -189,6 +192,7 @@ float accelBias2[3] = {0.0f, 0.0f, 0.0f}, gyroBias2[3] = {0.0f, 0.0f, 0.0f}; // 
 
 // MMC5983MA definitions
 
+// TODO: move to sensor
 /* Specify sensor parameters (continuous mode sample rate is dependent on bandwidth)
  * choices are: MODR_ONESHOT, MODR_1Hz, MODR_10Hz, MODR_20Hz, MODR_50 Hz, MODR_100Hz, MODR_200Hz (BW = 0x01), MODR_1000Hz (BW = 0x03)
  * Bandwidth choices are: MBW_100Hz, MBW_200Hz, MBW_400Hz, MBW_800Hz
@@ -196,6 +200,7 @@ float accelBias2[3] = {0.0f, 0.0f, 0.0f}, gyroBias2[3] = {0.0f, 0.0f, 0.0f}; // 
  */
 uint8_t MODR = MODR_200Hz, MBW = MBW_400Hz, MSET = MSET_2000;
 
+// TODO: move to sensor
 float mRes = 1.0f / 16384.0f;											   // mag sensitivity if using 18 bit data
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
 float magBAinv[4][3];
@@ -212,6 +217,44 @@ void q_multiply(float *x, float *y, float *out) {
 	out[1] = x[1]*y[0] + x[0]*y[1] - x[3]*y[2] + x[2]*y[3];
 	out[2] = x[2]*y[0] + x[3]*y[1] + x[0]*y[2] - x[1]*y[3];
 	out[3] = x[3]*y[0] - x[2]*y[1] + x[1]*y[2] + x[0]*y[3];
+}
+
+#include <nrfx_timer.h>
+
+static volatile uint32_t m_counter = 1;
+static const nrfx_timer_t m_timer = NRFX_TIMER_INSTANCE(1);
+
+static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
+	if (event_type == NRF_TIMER_EVENT_COMPARE1) {
+		esb_start_tx();
+	}
+}
+
+void timer_offset(uint32_t timer) {
+	uint32_t length = nrfx_timer_ms_to_ticks(&m_timer, 3);
+	uint32_t offset = length * paired_addr[1] / 16;
+	uint32_t correction = 3000 + offset - timer;
+	m_counter = (m_counter + correction) % length;
+	uint32_t new = m_counter;
+	if (new < 1) new = 1;
+    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, new, true);
+}
+
+void timer_init(void) {
+    nrfx_err_t err;
+    nrfx_timer_config_t timer_cfg = NRFX_TIMER_DEFAULT_CONFIG;  
+	timer_cfg.frequency = NRF_TIMER_FREQ_1MHz;
+    //timer_cfg.mode = NRF_TIMER_MODE_TIMER;
+    //timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_16;
+    //timer_cfg.interrupt_priority = NRFX_TIMER_DEFAULT_CONFIG_IRQ_PRIORITY;
+    //timer_cfg.p_context = NULL;
+	nrfx_timer_init(&m_timer, &timer_cfg, timer_handler);
+    uint32_t ticks = nrfx_timer_ms_to_ticks(&m_timer, 3);
+    nrfx_timer_extended_compare(&m_timer, NRF_TIMER_CC_CHANNEL0, ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
+    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, m_counter, true);
+    nrfx_timer_enable(&m_timer);
+	IRQ_DIRECT_CONNECT(TIMER1_IRQn, 0, nrfx_timer_1_irq_handler, 0);
+	irq_enable(TIMER1_IRQn);
 }
 
 void event_handler(struct esb_evt const *event)
@@ -232,7 +275,11 @@ void event_handler(struct esb_evt const *event)
 					}
 				}
 			} else {
-				LOG_INF("RX RECEIVED");
+				//LOG_INF("RX RECEIVED");
+				if (rx_payload.length == 4 && paired_addr[0] == rx_payload.data[0] && paired_addr[1] == rx_payload.data[1]) {
+					uint32_t timer = (rx_payload.data[2] << 8) | rx_payload.data[3];
+					timer_offset(timer);
+				}
 			}
 		}
 		break;
@@ -290,7 +337,7 @@ int esb_initialize(void)
 	config.tx_output_power = 4;
 	// config.retransmit_delay = 600;
 	// config.retransmit_count = 3;
-	// config.tx_mode = ESB_TXMODE_AUTO;
+	config.tx_mode = ESB_TXMODE_MANUAL;
 	// config.payload_length = 32;
 	config.selective_auto_ack = true;
 
@@ -1109,6 +1156,7 @@ void main(void)
 // 0ms delta to read calibration and configure pins (unknown time to read retained data but probably negligible)
 	esb_initialize();
 	tx_payload.noack = false;
+	timer_init();
 // 1ms delta to start ESB
 	while (1)
 	{
