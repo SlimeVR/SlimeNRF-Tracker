@@ -277,6 +277,9 @@ void event_handler(struct esb_evt const *event)
 			} else {
 				//LOG_INF("RX RECEIVED");
 				if (rx_payload.length == 4 && paired_addr[0] == rx_payload.data[0] && paired_addr[1] == rx_payload.data[1]) {
+					int64_t delta = k_uptime_get() - starttimeforthing;
+					uint32_t cc_timer = nrfx_timer_capture(&m_timer, NRF_TIMER_CC_CHANNEL1);
+					LOG_INF("TX to send report: %u", cc_timer);
 					uint32_t timer = (rx_payload.data[2] << 8) | rx_payload.data[3];
 					timer_offset(timer);
 				}
@@ -1047,6 +1050,7 @@ void main(void)
 			addr_prefix[i] = discovery_addr_prefix[i];
 		}
 		esb_initialize();
+	timer_init();
 		tx_payload_pair.noack = false;
 		uint64_t addr = (((uint64_t)(NRF_FICR->DEVICEADDR[1]) << 32) | NRF_FICR->DEVICEADDR[0]) & 0xFFFFFF;
 		uint8_t check = addr & 255;
