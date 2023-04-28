@@ -108,6 +108,8 @@ const struct i2c_dt_spec aux_mag = I2C_DT_SPEC_GET(AUX_MAG_NODE);
 //const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
 const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
 
+const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
+
 bool threads_running = false;
 
 bool main_running = false;
@@ -226,14 +228,22 @@ static const nrfx_timer_t m_timer = NRFX_TIMER_INSTANCE(1);
 
 static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 	if (event_type == NRF_TIMER_EVENT_COMPARE1) {
-		esb_start_tx();
+//		esb_start_tx();
 	}
 }
 
-void timer_offset(uint32_t timer) {
+void timer_offset(int8_t timer) {
 	uint32_t length = nrfx_timer_ms_to_ticks(&m_timer, 3);
-	uint32_t offset = length * paired_addr[1] / 16;
-	uint32_t correction = 3000 + offset - timer;
+	//uint32_t offset = length * paired_addr[1] / 16;
+	//uint32_t correction = length + offset - timer;
+	uint32_t correction;
+	if (timer >= -64 && timer <= 64) {
+		correction = length + timer;
+	} else if (timer > 0) {
+		correction = length + (timer - 62) * 32;
+	} else {
+		correction = length + (timer + 62) * 32;
+	}
 	m_counter = (m_counter + correction) % length;
 	uint32_t new = m_counter;
 	if (new < 1) new = 1;
@@ -248,13 +258,13 @@ void timer_init(void) {
     //timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_16;
     //timer_cfg.interrupt_priority = NRFX_TIMER_DEFAULT_CONFIG_IRQ_PRIORITY;
     //timer_cfg.p_context = NULL;
-	nrfx_timer_init(&m_timer, &timer_cfg, timer_handler);
-    uint32_t ticks = nrfx_timer_ms_to_ticks(&m_timer, 3);
-    nrfx_timer_extended_compare(&m_timer, NRF_TIMER_CC_CHANNEL0, ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
-    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, m_counter, true);
-    nrfx_timer_enable(&m_timer);
-	IRQ_DIRECT_CONNECT(TIMER1_IRQn, 0, nrfx_timer_1_irq_handler, 0);
-	irq_enable(TIMER1_IRQn);
+//	nrfx_timer_init(&m_timer, &timer_cfg, timer_handler);
+//    uint32_t ticks = nrfx_timer_ms_to_ticks(&m_timer, 3);
+//    nrfx_timer_extended_compare(&m_timer, NRF_TIMER_CC_CHANNEL0, ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
+//    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, m_counter, true);
+//    nrfx_timer_enable(&m_timer);
+//	IRQ_DIRECT_CONNECT(TIMER1_IRQn, 0, nrfx_timer_1_irq_handler, 0);
+//	irq_enable(TIMER1_IRQn);
 }
 
 void event_handler(struct esb_evt const *event)
@@ -276,13 +286,15 @@ void event_handler(struct esb_evt const *event)
 				}
 			} else {
 				//LOG_INF("RX RECEIVED");
-				if (rx_payload.length == 4 && paired_addr[0] == rx_payload.data[0] && paired_addr[1] == rx_payload.data[1]) {
-					int64_t delta = k_uptime_get() - starttimeforthing;
-					uint32_t cc_timer = nrfx_timer_capture(&m_timer, NRF_TIMER_CC_CHANNEL1);
-					LOG_INF("TX to send report: %u", cc_timer);
-					uint32_t timer = (rx_payload.data[2] << 8) | rx_payload.data[3];
-					timer_offset(timer);
-				}
+				//if (rx_payload.length == 4 && paired_addr[0] == rx_payload.data[0] && paired_addr[1] == rx_payload.data[1]) {
+				//	uint32_t timer = (rx_payload.data[2] << 8) | rx_payload.data[3];
+				//	timer_offset(timer);
+				//}
+//				if (rx_payload.length == 17 && rx_payload.data[0] == 255) {
+//					uint8_t id = paired_addr[1];
+//					int8_t timer = (int8_t)rx_payload.data[id+1] - 127;
+//					timer_offset(timer);
+//				}
 			}
 		}
 		break;
@@ -340,7 +352,7 @@ int esb_initialize(void)
 	config.tx_output_power = 4;
 	// config.retransmit_delay = 600;
 	// config.retransmit_count = 3;
-	config.tx_mode = ESB_TXMODE_MANUAL;
+//	config.tx_mode = ESB_TXMODE_MANUAL;
 	// config.payload_length = 32;
 	config.selective_auto_ack = true;
 
@@ -384,7 +396,7 @@ void set_LN(void) {
 	// TODO: This becomes part of the sensor
 	aMode = aMode_LN;
 #if (MAG_ENABLED == true)
-	gMode = gMode_LN;
+//	gMode = gMode_LN;
 	MBW = MBW_400Hz;
 	MODR = MODR_200Hz;
 #endif
@@ -395,7 +407,7 @@ void set_LP(void) {
 	// TODO: This becomes part of the sensor
 	aMode = aMode_LP;
 #if (MAG_ENABLED == true)
-	gMode = gMode_SBY;
+//	gMode = gMode_SBY;
 	MBW = MBW_800Hz;
 	MODR = MODR_ONESHOT;
 #endif
@@ -990,14 +1002,29 @@ void wait_for_threads(void) {
 	}
 }
 
+void power_check(void) {
+	bool docked = gpio_pin_get_dt(&dock);
+	batt_pptt = read_batt();
+	if (batt_pptt == 0 && !docked) {
+		gpio_pin_set_dt(&led, 0); // Turn off LED
+		configure_system_off_chgstat();
+	} else if (docked) {
+		gpio_pin_set_dt(&led, 0); // Turn off LED
+		configure_system_off_dock();
+	}
+}
+
 void main(void)
 {
-	// TODO: Need to skip all this junk and check the battery and dock first
 	int32_t reset_reason = NRF_POWER->RESETREAS;
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 	uint8_t reboot_counter = 0;
 
+	gpio_pin_configure_dt(&dock, GPIO_INPUT);
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
+
+	power_check(); // check the battery and dock first before continuing
+
 	gpio_pin_set_dt(&led, 1); // Boot LED
 
 	struct flash_pages_info info;
@@ -1072,6 +1099,7 @@ void main(void)
 			k_msleep(100);
 			gpio_pin_set_dt(&led, 0);
 			k_msleep(900);
+			power_check();
 		}
 		LOG_INF("Paired");
 		nvs_write(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr)); // Write new address and tracker id
@@ -1133,12 +1161,12 @@ void main(void)
 	aRes = icm_getAres(Ascale);
 	gRes = icm_getGres(Gscale);
 
-	const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
+	//const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
 	//const struct gpio_dt_spec chgstat = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chgstat_gpios);
 	//const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
 	//const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
 
-	gpio_pin_configure_dt(&dock, GPIO_INPUT);
+	//gpio_pin_configure_dt(&dock, GPIO_INPUT);
 	//gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
 	//gpio_pin_configure_dt(&int0, GPIO_INPUT);
 	//gpio_pin_configure_dt(&int1, GPIO_INPUT);
