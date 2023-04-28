@@ -562,17 +562,18 @@ void main_imu_thread(void) {
 			uint8_t rawCount[2];
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
-						LOG_INF("packs %u", count);
-			count += 16; // Add two read buffer packets
+//						LOG_INF("packs %u", count);
+			count += 32; // Add a few read buffer packets (4 ms)
 			uint16_t packets = count / 8;								 // Packet size 8 bytes
 			uint8_t rawData[2080];
 			uint16_t stco = 0;
 			uint8_t addr = ICM42688_FIFO_DATA;
 			i2c_write_dt(&main_imu, &addr, 1); // Start read buffer
 			while (count > 0) {
-				i2c_read_dt(&main_imu, &rawData[stco], count > 255 ? 255 : count); // Read 255 at a time (for nRF52832)
-				stco += 255;
-				count = count > 255 ? count - 255 : 0;
+				i2c_read_dt(&main_imu, &rawData[stco], count > 248 ? 248 : count); // Read less than 255 at a time (for nRF52832)
+				stco += 248;
+				count = count > 248 ? count - 248 : 0;
+//						LOG_INF("left %u", count);
 			}
 
     		float a[3];
