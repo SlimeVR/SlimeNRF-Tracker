@@ -96,7 +96,7 @@ uint8_t base_addr_0[4] = {0,0,0,0};
 uint8_t base_addr_1[4] = {0,0,0,0};
 uint8_t addr_prefix[8] = {0,0,0,0,0,0,0,0};
 
-int TICKRATE_MS = 6;
+int tickrate = 6;
 
 unsigned int batt_pptt;
 
@@ -133,12 +133,6 @@ bool aux_data = false;
 #include "ICM42688.h"
 #include "MMC5983MA.h"
 
-// global constants for 9 DoF fusion and AHRS (Attitude and Heading Reference System)
-#define pi 3.141592653589793238462643383279502884f
-#define GyroMeasError pi * (40.0f / 180.0f)		// gyroscope measurement error in rads/s (start at 40 deg/s)
-#define GyroMeasDrift pi * (0.0f / 180.0f)		// gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
-#define beta sqrtf(3.0f / 4.0f) * GyroMeasError // compute beta
-#define zeta sqrtf(3.0f / 4.0f) * GyroMeasDrift // compute zeta, the other free parameter in the Madgwick scheme usually set to a small or zero value
 float lin_ax, lin_ay, lin_az;					// linear acceleration (acceleration with gravity component subtracted)
 float lin_ax2, lin_ay2, lin_az2;					// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
@@ -392,7 +386,7 @@ int powerstate = 0;
 int last_powerstate = 0;
 
 void set_LN(void) {
-	TICKRATE_MS = 6;
+	tickrate = 6;
 	// TODO: This becomes part of the sensor
 	aMode = aMode_LN;
 #if (MAG_ENABLED == true)
@@ -403,7 +397,7 @@ void set_LN(void) {
 }
 
 void set_LP(void) {
-	TICKRATE_MS = 33;
+	tickrate = 33;
 	// TODO: This becomes part of the sensor
 	aMode = aMode_LP;
 #if (MAG_ENABLED == true)
@@ -1296,13 +1290,13 @@ void main(void)
 
 		// Get time elapsed and sleep/yield until next tick
 		int64_t time_delta = k_uptime_get() - time_begin;
-		if (time_delta > TICKRATE_MS)
+		if (time_delta > tickrate)
 		{
 			k_yield();
 		}
 		else
 		{
-			k_msleep(TICKRATE_MS - time_delta);
+			k_msleep(tickrate - time_delta);
 		}
 	}
 }
