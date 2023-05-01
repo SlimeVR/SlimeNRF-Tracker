@@ -66,7 +66,7 @@ static struct nvs_fs fs;
 
 static struct esb_payload rx_payload;
 static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
-														  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+														  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 static struct esb_payload tx_payload_pair = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0);
@@ -98,6 +98,8 @@ uint8_t addr_prefix[8] = {0,0,0,0,0,0,0,0};
 
 int tickrate = 6;
 
+uint8_t batt;
+uint8_t batt_v;
 unsigned int batt_pptt;
 
 const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
@@ -685,22 +687,24 @@ void main_imu_thread(void) {
 				tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay));
 				tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az));
 				tx_payload.data[0] = tracker_id << 4;
-				//tx_payload.data[1] = (uint8_t)(batt_pptt / 100) | (charging ? 128 : 0);
-				tx_payload.data[1] = (uint8_t)(batt_pptt / 100);
-				tx_payload.data[2] = (tx_buf[0] >> 8) & 255;
-				tx_payload.data[3] = tx_buf[0] & 255;
-				tx_payload.data[4] = (tx_buf[1] >> 8) & 255;
-				tx_payload.data[5] = tx_buf[1] & 255;
-				tx_payload.data[6] = (tx_buf[2] >> 8) & 255;
-				tx_payload.data[7] = tx_buf[2] & 255;
-				tx_payload.data[8] = (tx_buf[3] >> 8) & 255;
-				tx_payload.data[9] = tx_buf[3] & 255;
-				tx_payload.data[10] = (tx_buf[4] >> 8) & 255;
-				tx_payload.data[11] = tx_buf[4] & 255;
-				tx_payload.data[12] = (tx_buf[5] >> 8) & 255;
-				tx_payload.data[13] = tx_buf[5] & 255;
-				tx_payload.data[14] = (tx_buf[6] >> 8) & 255;
-				tx_payload.data[15] = tx_buf[6] & 255;
+				//tx_payload.data[1] = batt | (charging ? 128 : 0);
+				tx_payload.data[1] = batt;
+				tx_payload.data[2] = batt_v;
+				tx_payload.data[3] = 0; //reserved for something idk
+				tx_payload.data[4] = (tx_buf[0] >> 8) & 255;
+				tx_payload.data[5] = tx_buf[0] & 255;
+				tx_payload.data[6] = (tx_buf[1] >> 8) & 255;
+				tx_payload.data[7] = tx_buf[1] & 255;
+				tx_payload.data[8] = (tx_buf[2] >> 8) & 255;
+				tx_payload.data[9] = tx_buf[2] & 255;
+				tx_payload.data[10] = (tx_buf[3] >> 8) & 255;
+				tx_payload.data[11] = tx_buf[3] & 255;
+				tx_payload.data[12] = (tx_buf[4] >> 8) & 255;
+				tx_payload.data[13] = tx_buf[4] & 255;
+				tx_payload.data[14] = (tx_buf[5] >> 8) & 255;
+				tx_payload.data[15] = tx_buf[5] & 255;
+				tx_payload.data[16] = (tx_buf[6] >> 8) & 255;
+				tx_payload.data[17] = tx_buf[6] & 255;
 				esb_flush_tx();
 				main_data = true;
 				esb_write_payload(&tx_payload); // Add transmission to queue
@@ -1197,7 +1201,9 @@ void main(void)
 		//charging = gpio_pin_get_dt(&chgstat); // TODO: Charging detect doesn't work (hardware issue)
 		bool docked = gpio_pin_get_dt(&dock);
 
-		batt_pptt = read_batt();
+		int batt_mV;
+		batt_pptt = read_batt_mV(&batt_mV);
+		
 		if (batt_pptt == 0 && !docked)
 		{
 			LOG_INF("Waiting for system off (Low battery)");
@@ -1227,7 +1233,16 @@ void main(void)
 		batt_pptt /= 16;
 		if (batt_pptt + 100 < last_batt_pptt[15]) {last_batt_pptt[15] = batt_pptt + 100;} // Lower bound -100pptt
 		else if (batt_pptt > last_batt_pptt[15]) {last_batt_pptt[15] = batt_pptt;} // Upper bound +0pptt
-		else {batt_pptt = last_batt_pptt[15];} // Effectively 100-10000 -> 1-100
+		else {batt_pptt = last_batt_pptt[15];} // Effectively 100-10000 -> 1-100%
+
+		// format for packet send
+		batt = batt_pptt / 100;
+		if (batt < 1) {batt = 1;} // Clamp to 1%
+		batt_mV /= 10;
+		batt_mV -= 245;
+		if (batt_mV < 0) {batt_v = 0;} // Very dead but it is what it is
+		else if (batt_mV > 255) {batt_v = 255;}
+		else {batt_v = batt_mV;} // 0-255 -> 2.45-5.00V
 
 		if (time_begin > led_time) {
 			if (led_time != 0) {
