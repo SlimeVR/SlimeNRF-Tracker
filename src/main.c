@@ -391,7 +391,7 @@ int last_powerstate = 0;
 void set_LN(void) {
 	tickrate = 6;
 	// TODO: This becomes part of the sensor
-	aMode = aMode_LN;
+//	aMode = aMode_LN;
 #if (MAG_ENABLED == true)
 //	gMode = gMode_LN;
 	MBW = MBW_400Hz;
@@ -402,7 +402,7 @@ void set_LN(void) {
 void set_LP(void) {
 	tickrate = 33;
 	// TODO: This becomes part of the sensor
-	aMode = aMode_LP;
+//	aMode = aMode_LP;
 #if (MAG_ENABLED == true)
 //	gMode = gMode_SBY;
 	MBW = MBW_800Hz;
@@ -591,6 +591,7 @@ void main_imu_thread(void) {
 			}
 #endif
 
+#if (MAG_ENABLED == true)
 			if (reconfig) {
 				switch (powerstate) {
 					case 0:
@@ -602,11 +603,10 @@ void main_imu_thread(void) {
 						LOG_INF("Switch main imus to low power");
 						break;
 				};
-				reconfigure_imu(main_imu); // Reconfigure if needed
-#if (MAG_ENABLED == true)
+				//reconfigure_imu(main_imu); // Reconfigure if needed
 				reconfigure_mag(main_mag); // Reconfigure if needed
-#endif
 			}
+#endif
 
         	FusionVector z = {.array = {0, 0, 0}};
 			if (packets == 2 && powerstate == 1 && MAG_ENABLED == true) {
