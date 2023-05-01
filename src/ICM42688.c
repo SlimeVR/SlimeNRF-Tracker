@@ -112,7 +112,7 @@ void icm_init(struct i2c_dt_spec dev_i2c, uint8_t Ascale, uint8_t Gscale, uint8_
     k_busy_wait(250); // wait >200us (datasheet 14.36)
     i2c_reg_write_byte_dt(&dev_i2c, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
     i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_ACCEL_CONFIG0, 0x44); // set gyro and accel bandwidth to ODR/10
+    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_ACCEL_CONFIG0, 0x4F); // set gyro and accel bandwidth to ODR/10 (gyro low latency)
 //    // interrupt handling
 //    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INT_CONFIG, 0x18 | 0x03 ); // push-pull, pulsed, active HIGH interrupts
 //    uint8_t temp;
