@@ -687,10 +687,10 @@ void main_imu_thread(void) {
 				tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay));
 				tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az));
 				tx_payload.data[0] = tracker_id << 4;
-				//tx_payload.data[1] = batt | (charging ? 128 : 0);
-				tx_payload.data[1] = batt;
-				tx_payload.data[2] = batt_v;
-				tx_payload.data[3] = 0; //reserved for something idk
+				tx_payload.data[1] = 0; //reserved for something idk
+				//tx_payload.data[2] = batt | (charging ? 128 : 0);
+				tx_payload.data[2] = batt;
+				tx_payload.data[3] = batt_v;
 				tx_payload.data[4] = (tx_buf[0] >> 8) & 255;
 				tx_payload.data[5] = tx_buf[0] & 255;
 				tx_payload.data[6] = (tx_buf[1] >> 8) & 255;
