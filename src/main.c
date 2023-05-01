@@ -109,6 +109,9 @@ const struct i2c_dt_spec aux_mag = I2C_DT_SPEC_GET(AUX_MAG_NODE);
 const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
 
 const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
+//const struct gpio_dt_spec chgstat = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chgstat_gpios);
+//const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
+//const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
 
 bool threads_running = false;
 
@@ -1163,12 +1166,6 @@ void main(void)
 	aRes = icm_getAres(Ascale);
 	gRes = icm_getGres(Gscale);
 
-	//const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
-	//const struct gpio_dt_spec chgstat = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chgstat_gpios);
-	//const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
-	//const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
-
-	//gpio_pin_configure_dt(&dock, GPIO_INPUT);
 	//gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
 	//gpio_pin_configure_dt(&int0, GPIO_INPUT);
 	//gpio_pin_configure_dt(&int1, GPIO_INPUT);
