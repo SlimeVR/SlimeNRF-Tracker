@@ -260,7 +260,7 @@ unsigned int read_batt()
 	return battery_level_pptt(batt_mV, levels);
 }
 
-unsigned int read_batt_mV(int *batt_mV)
+unsigned int read_batt_mV(int *out)
 {
 	int rc = battery_measure_enable(true);
 
@@ -269,7 +269,7 @@ unsigned int read_batt_mV(int *batt_mV)
 		return -1;
 	}
 
-	batt_mV = battery_sample();
+	int batt_mV = battery_sample();
 
 	if (batt_mV < 0) {
 		printk("Failed to read battery voltage: %d\n",
@@ -278,5 +278,6 @@ unsigned int read_batt_mV(int *batt_mV)
 
 	battery_measure_enable(false);
 
+	*out = batt_mV;
 	return battery_level_pptt(batt_mV, levels);
 }

@@ -52,6 +52,6 @@ unsigned int battery_level_pptt(unsigned int batt_mV,
 
 unsigned int read_batt(void);
 
-unsigned int read_batt_mV(int *batt_mV);
+unsigned int read_batt_mV(int *out);
 
 #endif /* APPLICATION_BATTERY_H_ */
