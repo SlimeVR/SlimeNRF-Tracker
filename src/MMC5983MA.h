@@ -62,7 +62,6 @@
 
 uint8_t mmc_getChipID(struct i2c_dt_spec dev_i2c);
 void mmc_init(struct i2c_dt_spec dev_i2c, uint8_t MODR, uint8_t MBW, uint8_t MSET);
-void mmc_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2);
 void mmc_reset(struct i2c_dt_spec dev_i2c);
 uint8_t mmc_status(struct i2c_dt_spec dev_i2c);
 void mmc_clearInt(struct i2c_dt_spec dev_i2c);
@@ -71,7 +70,6 @@ void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t * destination);
 uint8_t mmc_readTemperature(struct i2c_dt_spec dev_i2c);
 void mmc_SET(struct i2c_dt_spec dev_i2c);
 void mmc_RESET(struct i2c_dt_spec dev_i2c);
-void mmc_getOffset(struct i2c_dt_spec dev_i2c, float * destination);
 void mmc_powerDown(struct i2c_dt_spec dev_i2c);
 void mmc_powerUp(struct i2c_dt_spec dev_i2c, uint8_t MODR);
 

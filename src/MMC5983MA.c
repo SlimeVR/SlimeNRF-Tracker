@@ -43,84 +43,6 @@ void mmc_init(struct i2c_dt_spec dev_i2c, uint8_t MODR, uint8_t MBW, uint8_t MSE
     i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | 0x08 | MODR);
 }
 
-void mmc_selfTest(struct i2c_dt_spec dev_i2c)
-{
-    uint8_t rawData[6] = {0}; // x/y/z mag register data stored here
-    uint16_t data_set[3] ={0}, data_reset[3] = {0};
-    uint32_t delta_data[3] = {0};
-
-    // clear control registers
-    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x00);
-    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_1, 0x00);
-    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_2, 0x00);
-
-    mmc_SET(dev_i2c); // enable set current
-    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x01); //enable one-time mag measurement
-    k_busy_wait(1000 * 10);
-
-    i2c_burst_read_dt(&dev_i2c, MMC5983MA_XOUT_0, &rawData[0], 6); // Read the 6 raw data registers into data array
-    data_set[0] = (uint16_t) (((uint16_t) rawData[0] << 8) | rawData[1]); // x-axis
-    data_set[1] = (uint16_t) (((uint16_t) rawData[2] << 8) | rawData[3]); // y-axis
-    data_set[2] = (uint16_t) (((uint16_t) rawData[4] << 8) | rawData[5]); // z-axis
-
-    mmc_RESET(dev_i2c); // enable reset current
-    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x01); //enable one-time mag measurement
-    k_busy_wait(1000 * 10);
-
-    i2c_burst_read_dt(&dev_i2c, MMC5983MA_XOUT_0, &rawData[0], 6); // Read the 6 raw data registers into data array
-    data_reset[0] = (uint16_t) (((uint16_t) rawData[0] << 8) | rawData[1]); // x-axis
-    data_reset[1] = (uint16_t) (((uint16_t) rawData[2] << 8) | rawData[3]); // y-axis
-    data_reset[2] = (uint16_t) (((uint16_t) rawData[4] << 8) | rawData[5]); // z-axis
- 
-    for (uint8_t ii = 0; ii < 3; ii++)
-    {
-        if(data_set[ii] > data_reset[ii])
-        {
-            delta_data[ii] = data_set[ii] - data_reset[ii];
-        }
-        else
-        {
-            delta_data[ii] = data_reset[ii] - data_set[ii];
-        }
-    }
-
-    //Serial.print("x-axis self test = "); //Serial.print(delta_data[0]); //Serial.println(", should be >100");
-    //Serial.print("y-axis self test = "); //Serial.print(delta_data[1]); //Serial.println(", should be >100");
-    //Serial.print("z-axis self test = "); //Serial.print(delta_data[2]); //Serial.println(", should be >100");
-}
-
-
-void mmc_getOffset(struct i2c_dt_spec dev_i2c, float * destination)
-{
-    uint8_t rawData[6] = {0}; // x/y/z mag register data stored here
-    uint16_t data_set[3] ={0}, data_reset[3] = {0};
-
-    mmc_powerDown(dev_i2c);
- 
-    mmc_SET(dev_i2c); // enable set current
-    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x01); //enable one-time mag measurement
-    k_msleep(10);
-
-    i2c_burst_read_dt(&dev_i2c, MMC5983MA_XOUT_0, &rawData[0], 6); // Read the 6 raw data registers into data array
-    data_set[0] = (uint16_t) (((uint16_t) rawData[0] << 8) | rawData[1]); // x-axis
-    data_set[1] = (uint16_t) (((uint16_t) rawData[2] << 8) | rawData[3]); // y-axis
-    data_set[2] = (uint16_t) (((uint16_t) rawData[4] << 8) | rawData[5]); // z-axis
-
-    mmc_RESET(dev_i2c); // enable reset current
-    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x01); //enable one-time mag measurement
-    k_msleep(10);
-
-    i2c_burst_read_dt(&dev_i2c, MMC5983MA_XOUT_0, &rawData[0], 6); // Read the 6 raw data registers into data array
-    data_reset[0] = (uint16_t) (((uint16_t) rawData[0] << 8) | rawData[1]); // x-axis
-    data_reset[1] = (uint16_t) (((uint16_t) rawData[2] << 8) | rawData[3]); // y-axis
-    data_reset[2] = (uint16_t) (((uint16_t) rawData[4] << 8) | rawData[5]); // z-axis
- 
-    for (uint8_t ii = 0; ii < 3; ii++)
-    {
-        destination[ii] = ((float)data_set[ii] + (float)data_reset[ii])/2.0f;
-    }
-}
-
 void mmc_SET(struct i2c_dt_spec dev_i2c)
 {
     i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x08);
@@ -164,50 +86,6 @@ uint8_t mmc_readTemperature(struct i2c_dt_spec dev_i2c)
     k_busy_wait(1000 * 10);
     i2c_reg_read_byte_dt(&dev_i2c, MMC5983MA_TOUT, &temp); // Read the raw temperature register
     return temp;
-}
-
-void mmc_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
-{
-    int32_t mag_bias[3] = {0, 0, 0}, mag_scale[3] = {0, 0, 0};
-    int32_t mag_max[3] = {-262143, -262143, -262143}, mag_min[3] = {262143, 262143, 262143};
-    uint32_t mag_temp[3] = {0, 0, 0}, magOffset = 131072;
-    float _mRes = 1.0f/16384.0f; // mag sensitivity if using 18 bit data
-
-    //Serial.println("Calculate mag offset bias: move all around to sample the complete response surface!");
-    //k_busy_wait(1000 * 4000);
-
-    for (int ii = 0; ii < 2000; ii++) // About 20 seconds
-    {
-        mmc_readData(dev_i2c, mag_temp);
-        for (int jj = 0; jj < 3; jj++) {
-            if((int32_t)(mag_temp[jj] - magOffset) > mag_max[jj]) mag_max[jj] = (int32_t)(mag_temp[jj] - magOffset);
-            if((int32_t)(mag_temp[jj] - magOffset) < mag_min[jj]) mag_min[jj] = (int32_t)(mag_temp[jj] - magOffset);
-        }
-        k_msleep(10);
-    }
-
-    // Get hard iron correction
-    mag_bias[0] = (mag_max[0] + mag_min[0])/2; // get average x mag bias in counts
-    mag_bias[1] = (mag_max[1] + mag_min[1])/2; // get average y mag bias in counts
-    mag_bias[2] = (mag_max[2] + mag_min[2])/2; // get average z mag bias in counts
-
-    dest1[0] = (float) (mag_bias[0]) * _mRes; // save mag biases in G for main program
-    dest1[1] = (float) (mag_bias[1]) * _mRes;
-    dest1[2] = (float) (mag_bias[2]) * _mRes;
-
-    // Get soft iron correction estimate
-    mag_scale[0] = (mag_max[0] - mag_min[0])/2; // get average x axis max chord length in counts
-    mag_scale[1] = (mag_max[1] - mag_min[1])/2; // get average y axis max chord length in counts
-    mag_scale[2] = (mag_max[2] - mag_min[2])/2; // get average z axis max chord length in counts
-
-    float avg_rad = mag_scale[0] + mag_scale[1] + mag_scale[2];
-    avg_rad /= 3.0f;
-
-    dest2[0] = avg_rad/((float)mag_scale[0]);
-    dest2[1] = avg_rad/((float)mag_scale[1]);
-    dest2[2] = avg_rad/((float)mag_scale[2]);
-
-    //Serial.println("Mag Calibration done!");
 }
 
 void mmc_powerDown(struct i2c_dt_spec dev_i2c)

@@ -199,10 +199,6 @@ void icm_init(struct i2c_dt_spec dev_i2c, uint8_t Ascale, uint8_t Gscale, uint8_
 void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2);
 void icm_reset(struct i2c_dt_spec dev_i2c);
 uint8_t icm_DRStatus(struct i2c_dt_spec dev_i2c);  
-void icm_selfTest(struct i2c_dt_spec dev_i2c, int16_t * accelDiff, int16_t * gyroDiff, float * ratio);
 void icm_readData(struct i2c_dt_spec dev_i2c, int16_t * destination);
-void icm_setTiltDetect(struct i2c_dt_spec dev_i2c);
-void icm_setWakeonMotion(struct i2c_dt_spec dev_i2c);
-uint16_t icm_APEXStatus(struct i2c_dt_spec dev_i2c);
 
 #endif
