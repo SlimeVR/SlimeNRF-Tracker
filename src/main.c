@@ -396,7 +396,7 @@ void set_LN(void) {
 //	aMode = aMode_LN;
 #if (MAG_ENABLED == true)
 //	gMode = gMode_LN;
-	MBW = MBW_400Hz;
+//	MBW = MBW_400Hz;
 	MODR = MODR_200Hz;
 #endif
 }
@@ -407,7 +407,7 @@ void set_LP(void) {
 //	aMode = aMode_LP;
 #if (MAG_ENABLED == true)
 //	gMode = gMode_SBY;
-	MBW = MBW_800Hz;
+//	MBW = MBW_800Hz;
 	MODR = MODR_ONESHOT;
 #endif
 }
@@ -427,21 +427,7 @@ void reconfigure_mag(const struct i2c_dt_spec mag) {
 
 void configure_system_off_WOM(const struct i2c_dt_spec imu)
 {
-	icm_DRStatus(imu); // clear reset done int flag
-	i2c_reg_write_byte_dt(&imu, ICM42688_INT_SOURCE0, 0x00); // temporary disable interrupts
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR_200Hz); // set accel ODR and FS
-	i2c_reg_write_byte_dt(&imu, ICM42688_PWR_MGMT0, aMode_LP); // set accel and gyro modes
-	i2c_reg_write_byte_dt(&imu, ICM42688_INTF_CONFIG1, 0x00); // set low power clock
-	k_busy_wait(1000);
-	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x04); // select register bank 4
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_X_THR, 0x08); // set wake thresholds // 80 x 3.9 mg is ~312 mg
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Y_THR, 0x08); // set wake thresholds
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_WOM_Z_THR, 0x08); // set wake thresholds
-	k_busy_wait(1000);
-	i2c_reg_write_byte_dt(&imu, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
-	i2c_reg_write_byte_dt(&imu, ICM42688_INT_SOURCE1, 0x07); // enable WOM interrupt
-	k_busy_wait(50000);
-	i2c_reg_write_byte_dt(&imu, ICM42688_SMD_CONFIG, 0x05); // enable WOM feature
+	icm_setup_WOM(imu); // enable WOM feature
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
@@ -497,17 +483,6 @@ bool vec_epsilon(float *a, float *a2) {
 	return fabs(a[0] - a2[0]) < 0.1f && fabs(a[1] - a2[1]) < 0.1f && fabs(a[2] - a2[2]) < 0.1f;
 }
 
-void accel_read(const struct i2c_dt_spec imu, float *a) {
-    uint8_t rawAccel[6];
-    i2c_burst_read_dt(&imu, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6);
-	float raw0 = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
-	float raw1 = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
-	float raw2 = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
-	a[0] = raw0 * aRes;
-	a[1] = raw1 * aRes;
-	a[2] = raw2 * aRes;
-}
-
 void mag_read(const struct i2c_dt_spec mag, float *m) {
 	uint32_t rawMag[3];
 	mmc_readData(main_mag, rawMag);
@@ -528,12 +503,12 @@ void apply_BAinv(float xyz[3], float BAinv[4][3]) {
 bool wait_for_motion(const struct i2c_dt_spec mag, bool motion, int samples) {
 	uint8_t counts = 0;
 	float a[3], last_a[3];
-	accel_read(main_imu, last_a);
+	icm_accel_read(main_imu, last_a);
 	for (int i = 0; i < samples + counts; i++) {
 gpio_pin_toggle_dt(&led); // scuffed led
 		LOG_INF("Accel: %.5f %.5f %.5f", a[0], a[1], a[2]);
 		k_msleep(500);
-		accel_read(main_imu, a);
+		icm_accel_read(main_imu, a);
 		if (vec_epsilon(a, last_a) != motion) {
 			LOG_INF("Pass");
 			counts++;
@@ -576,7 +551,7 @@ void main_imu_thread(void) {
 			}
 
     		float a[3];
-			accel_read(main_imu, a);
+			icm_accel_read(main_imu, a);
 			float ax = a[0] - accelBias[0];
 			float ay = a[1] - accelBias[1];
 			float az = a[2] - accelBias[2];

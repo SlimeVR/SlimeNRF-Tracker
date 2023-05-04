@@ -196,9 +196,10 @@ float icm_getAres(uint8_t Ascale);
 float icm_getGres(uint8_t Gscale);
 uint8_t icm_getChipID(struct i2c_dt_spec dev_i2c);
 void icm_init(struct i2c_dt_spec dev_i2c, uint8_t Ascale, uint8_t Gscale, uint8_t AODR, uint8_t GODR, uint8_t aMode, uint8_t gMode, bool CLKIN);
+void icm_accel_read(struct i2c_dt_spec dev_i2c, float a[3]);
+void icm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3]);
 void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2);
 void icm_reset(struct i2c_dt_spec dev_i2c);
-uint8_t icm_DRStatus(struct i2c_dt_spec dev_i2c);  
-void icm_readData(struct i2c_dt_spec dev_i2c, int16_t * destination);
+void icm_setup_WOM(struct i2c_dt_spec dev_i2c);
 
 #endif
