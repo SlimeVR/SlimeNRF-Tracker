@@ -78,16 +78,6 @@ void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t * destination)
     destination[2] = (uint32_t)(rawData[4] << 10 | rawData[5] << 2 | (rawData[6] & 0x0C) >> 2); // Turn the 18 bits into a unsigned 32-bit value
 }
 
-uint8_t mmc_readTemperature(struct i2c_dt_spec dev_i2c)
-{
-    uint8_t temp;
-    i2c_reg_read_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, &temp); // preserve register contents
-    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, temp | 0x02); //enable one-time temp measurement
-    k_busy_wait(1000 * 10);
-    i2c_reg_read_byte_dt(&dev_i2c, MMC5983MA_TOUT, &temp); // Read the raw temperature register
-    return temp;
-}
-
 void mmc_powerDown(struct i2c_dt_spec dev_i2c)
 {
     i2c_reg_update_byte_dt(&dev_i2c, MMC5983MA_CONTROL_2, 0x07, 0); // clear lowest four bits
@@ -97,4 +87,12 @@ void mmc_powerDown(struct i2c_dt_spec dev_i2c)
 void mmc_powerUp(struct i2c_dt_spec dev_i2c, uint8_t MODR)
 {
     i2c_reg_update_byte_dt(&dev_i2c, MMC5983MA_CONTROL_2, MODR, MODR); // start continuous mode
+}
+
+void mmc_mag_read(struct i2c_dt_spec mag, float m[3]) {
+	uint32_t rawMag[3];
+	mmc_readData(mag, rawMag);
+	m[0] = ((float)rawMag[0] - MMC5983MA_offset) * MMC5983MA_mRes;
+	m[1] = ((float)rawMag[1] - MMC5983MA_offset) * MMC5983MA_mRes;
+	m[2] = ((float)rawMag[2] - MMC5983MA_offset) * MMC5983MA_mRes;
 }

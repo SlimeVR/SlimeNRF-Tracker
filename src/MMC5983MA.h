@@ -60,6 +60,9 @@
 #define MSET_1000  0x06
 #define MSET_2000  0x07
 
+#define MMC5983MA_mRes (1.0f / 16384.0f) // mag sensitivity if using 18 bit data
+#define MMC5983MA_offset 131072.0f // mag range unsigned to signed
+
 uint8_t mmc_getChipID(struct i2c_dt_spec dev_i2c);
 void mmc_init(struct i2c_dt_spec dev_i2c, uint8_t MODR, uint8_t MBW, uint8_t MSET);
 void mmc_reset(struct i2c_dt_spec dev_i2c);
@@ -67,10 +70,10 @@ uint8_t mmc_status(struct i2c_dt_spec dev_i2c);
 void mmc_clearInt(struct i2c_dt_spec dev_i2c);
 void mmc_selfTest(struct i2c_dt_spec dev_i2c);
 void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t * destination);
-uint8_t mmc_readTemperature(struct i2c_dt_spec dev_i2c);
 void mmc_SET(struct i2c_dt_spec dev_i2c);
 void mmc_RESET(struct i2c_dt_spec dev_i2c);
 void mmc_powerDown(struct i2c_dt_spec dev_i2c);
 void mmc_powerUp(struct i2c_dt_spec dev_i2c, uint8_t MODR);
+void mmc_mag_read(struct i2c_dt_spec mag, float m[3]);
 
 #endif

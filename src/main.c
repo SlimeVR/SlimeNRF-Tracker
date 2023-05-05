@@ -184,11 +184,8 @@ uint8_t Ascale = AFS_8G, Gscale = GFS_2000DPS, AODR = AODR_200Hz, GODR = GODR_1k
 #define INTEGRATION_TIME 0.001
 #define INTEGRATION_TIME_LP 0.005
 
-// TODO: move to sensor
-float aRes, gRes;														   // scale resolutions per LSB for the accel and gyro sensor2
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
 float accelBias[3] = {0.0f, 0.0f, 0.0f}, gyroBias[3] = {0.0f, 0.0f, 0.0f}; // offset biases for the accel and gyro
-
 float accelBias2[3] = {0.0f, 0.0f, 0.0f}, gyroBias2[3] = {0.0f, 0.0f, 0.0f}; // offset biases for the accel and gyro
 
 // MMC5983MA definitions
@@ -202,16 +199,9 @@ float accelBias2[3] = {0.0f, 0.0f, 0.0f}, gyroBias2[3] = {0.0f, 0.0f, 0.0f}; // 
 uint8_t MODR = MODR_200Hz, MBW = MBW_400Hz, MSET = MSET_2000;
 
 // TODO: move to sensor
-float mRes = 1.0f / 16384.0f;											   // mag sensitivity if using 18 bit data
 // TODO: make sure these are separate for main vs. aux (and also store/read them!)
 float magBAinv[4][3];
-//float magBias[3] = {0, 0, 0}, magScale[3] = {1, 1, 1}; // Bias corrections for magnetometer
-uint32_t MMC5983MAData[3];												   // Stores the 18-bit unsigned magnetometer sensor output
-#define MMC5983MA_offset 131072.0f // mag range unsigned to signed
-
 float magBAinv2[4][3];
-//float magBias2[3] = {0, 0, 0}, magScale2[3] = {1, 1, 1}; // Bias corrections for magnetometer
-uint32_t MMC5983MAData2[3];												   // Stores the 18-bit unsigned magnetometer sensor output
 
 void q_multiply(float *x, float *y, float *out) {
 	out[0] = x[0]*y[0] - x[1]*y[1] - x[2]*y[2] - x[3]*y[3];
@@ -413,8 +403,6 @@ void set_LP(void) {
 }
 
 void reconfigure_imu(const struct i2c_dt_spec imu) {
-	aRes = icm_getAres(Ascale);
-	gRes = icm_getGres(Gscale);
     i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
     i2c_reg_write_byte_dt(&imu, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
     i2c_reg_write_byte_dt(&imu, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
@@ -481,14 +469,6 @@ bool quat_epsilon_coarse(float *q, float *q2) {
 
 bool vec_epsilon(float *a, float *a2) {
 	return fabs(a[0] - a2[0]) < 0.1f && fabs(a[1] - a2[1]) < 0.1f && fabs(a[2] - a2[2]) < 0.1f;
-}
-
-void mag_read(const struct i2c_dt_spec mag, float *m) {
-	uint32_t rawMag[3];
-	mmc_readData(main_mag, rawMag);
-	m[0] = ((float)rawMag[0] - MMC5983MA_offset) * mRes;
-	m[1] = ((float)rawMag[1] - MMC5983MA_offset) * mRes;
-	m[2] = ((float)rawMag[2] - MMC5983MA_offset) * mRes;
 }
 
 void apply_BAinv(float xyz[3], float BAinv[4][3]) {
@@ -560,7 +540,7 @@ void main_imu_thread(void) {
 			float mx, my, mz;
 			if (last_powerstate == 0) {
 				float m[3];
-				mag_read(main_mag, m);
+				mmc_mag_read(main_mag, m);
 				apply_BAinv(m, magBAinv);
 				mx = m[0];
 				my = m[1];
@@ -743,7 +723,7 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					float m[3];
 					for (int i = 0; i < 200; i++) { // 200 samples in 20s, 100ms per sample
 gpio_pin_toggle_dt(&led); // scuffed led
-						mag_read(main_mag, m);
+						mmc_mag_read(main_mag, m);
 						LOG_INF("Mag: %.5f %.5f %.5f (%d/200)", m[0], m[1], m[2], i+1);
 						magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count);
 						k_msleep(100);
@@ -1138,12 +1118,6 @@ void main(void)
 	for (int i = 0; i < 3; i++) {
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv2[0][i], magBAinv2[1][i], magBAinv2[2][i], magBAinv2[3][i]);
 	}
-
-	// get sensor resolutions for user settings, only need to do this once
-	// TODO: surely these can be defines lol
-	// TODO: this becomes part of the sensor
-	aRes = icm_getAres(Ascale);
-	gRes = icm_getGres(Gscale);
 
 	//gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
 	//gpio_pin_configure_dt(&int0, GPIO_INPUT);
