@@ -591,9 +591,9 @@ void main_imu_thread(void) {
 						continue; // Skip invalid data
 					}
 					// transform and convert to float values
-					float gx = raw0 * gRes - gyroBias[0];
-					float gy = raw1 * gRes - gyroBias[1];
-					float gz = raw2 * gRes - gyroBias[2];
+					float gx = raw0 * (2000.0f/32768.0f) - gyroBias[0]; //gres
+					float gy = raw1 * (2000.0f/32768.0f) - gyroBias[1]; //gres
+					float gz = raw2 * (2000.0f/32768.0f) - gyroBias[2]; //gres
         			FusionVector g = {.array = {gx, -gz, gy}};
         			FusionVector a = {.array = {ax, -az, ay}};
         			g = FusionOffsetUpdate(&offset, g);
@@ -989,6 +989,7 @@ void main(void)
 
 	power_check(); // check the battery and dock first before continuing
 
+	start_time = k_uptime_get(); // Need to get start time for imu startup delta
 	gpio_pin_set_dt(&led, 1); // Boot LED
 
 	struct flash_pages_info info;
