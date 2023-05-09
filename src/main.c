@@ -679,7 +679,8 @@ void main_imu_thread(void) {
 				LOG_INF("Found main imus");
     			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
 				icm_reset(main_imu);												 // software reset ICM42688 to default registers
-				icm_DRStatus(main_imu);												 // clear reset done int flag
+				uint8_t temp;
+				i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
 				icm_init(main_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 #if (MAG_ENABLED == true)
