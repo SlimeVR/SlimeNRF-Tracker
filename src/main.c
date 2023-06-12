@@ -135,6 +135,28 @@ bool aux_data = false;
 #define FIXED_14_TO_DOUBLE(x) (((double)(x)) / (1 << 14))
 #define FIXED_10_TO_DOUBLE(x) (((double)(x)) / (1 << 10))
 
+// only scan/detect new imus on reset event, write to nvs
+
+typedef void (*snrf_error_cb_t)(int error);
+
+struct snrf_sensor { // some stuff for imus and mags, sensor define should also include capabilities (quat/imu/mag/aos, has temp, has fifo, fifo buffer size, has WOM)
+	snrf_error_cb_t init; // this does a lot of stuff automatically, starts fifo
+	snrf_error_cb_t mode_set; // (ln = 0, lp = 1, also apply mode)
+	snrf_error_cb_t quat_read; // if applicable
+	snrf_error_cb_t accel_read; // return scaled floats
+	snrf_error_cb_t gyro_read; // return scaled floats
+	snrf_error_cb_t mag_read; // return scaled floats
+	snrf_error_cb_t temp_read; // return if no temp
+	snrf_error_cb_t fifo_length; // return if no fifo
+	snrf_error_cb_t fifo_read; // (arrays, how much to read)
+	snrf_error_cb_t fifo_parse; // (return if packet empty, otherwise write accel/gyro/mag if applicable)
+	snrf_error_cb_t reset; // includes delay
+	snrf_error_cb_t reset_fast; // not including delay
+	snrf_error_cb_t setup_WOM; // reset then setup WOM, return if not applicable
+	void *config;
+};
+
+
 #include "ICM42688.h"
 #include "MMC5983MA.h"
 
@@ -163,10 +185,13 @@ int8_t last_batt_pptt_i = 0;
 int64_t led_time = 0;
 int64_t led_time_off = 0;
 uint8_t reset_mode = 0;
+uint8_t last_reset = 0;
 bool system_off_main = false;
 bool system_off_aux = false;
 bool reconfig;
 //bool charging = false;
+
+#define LAST_RESET_LIMIT 10
 
 // TODO: move to sensor
 // ICM42688 definitions
@@ -215,28 +240,30 @@ void q_multiply(float *x, float *y, float *out) {
 static volatile uint32_t m_counter = 1;
 static const nrfx_timer_t m_timer = NRFX_TIMER_INSTANCE(1);
 
-static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
-	if (event_type == NRF_TIMER_EVENT_COMPARE1) {
-//		esb_start_tx();
-	}
-}
+bool esb_state = false;
+bool timer_state = false;
 
-void timer_offset(int8_t timer) {
-	uint32_t length = nrfx_timer_ms_to_ticks(&m_timer, 3);
-	//uint32_t offset = length * paired_addr[1] / 16;
-	//uint32_t correction = length + offset - timer;
-	uint32_t correction;
-	if (timer >= -64 && timer <= 64) {
-		correction = length + timer;
-	} else if (timer > 0) {
-		correction = length + (timer - 62) * 32;
-	} else {
-		correction = length + (timer + 62) * 32;
+static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
+	if (event_type == NRF_TIMER_EVENT_COMPARE1 && esb_state == true) {
+		if (last_reset < LAST_RESET_LIMIT) {
+			last_reset++;
+			esb_start_tx();
+		} else {
+			esb_disable();
+			esb_initialize_rx();
+			esb_state = false;
+			nrfx_timer_pause(&m_timer);
+			timer_state = false;
+		}
+	} else if (event_type == NRF_TIMER_EVENT_COMPARE2 && esb_state == true) {
+		esb_disable();
+		esb_initialize_rx();
+		esb_state = false;
+	} else if (event_type == NRF_TIMER_EVENT_COMPARE3 && esb_state == false) {
+		esb_disable();
+		esb_initialize();
+		esb_state = true;
 	}
-	m_counter = (m_counter + correction) % length;
-	uint32_t new = m_counter;
-	if (new < 1) new = 1;
-    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, new, true);
 }
 
 void timer_init(void) {
@@ -247,13 +274,16 @@ void timer_init(void) {
     //timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_16;
     //timer_cfg.interrupt_priority = NRFX_TIMER_DEFAULT_CONFIG_IRQ_PRIORITY;
     //timer_cfg.p_context = NULL;
-//	nrfx_timer_init(&m_timer, &timer_cfg, timer_handler);
-//    uint32_t ticks = nrfx_timer_ms_to_ticks(&m_timer, 3);
-//    nrfx_timer_extended_compare(&m_timer, NRF_TIMER_CC_CHANNEL0, ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
-//    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, m_counter, true);
-//    nrfx_timer_enable(&m_timer);
-//	IRQ_DIRECT_CONNECT(TIMER1_IRQn, 0, nrfx_timer_1_irq_handler, 0);
-//	irq_enable(TIMER1_IRQn);
+	nrfx_timer_init(&m_timer, &timer_cfg, timer_handler);
+    uint32_t ticks = nrfx_timer_ms_to_ticks(&m_timer, 3);
+    nrfx_timer_extended_compare(&m_timer, NRF_TIMER_CC_CHANNEL0, ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
+    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, ticks * (paired_addr[1] + 3) / 21, true); // timeslot to send data
+    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL2, ticks * 19 / 21, true); // switch to rx
+    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL3, ticks * 2 / 21, true); // switch to tx
+    nrfx_timer_enable(&m_timer);
+	IRQ_DIRECT_CONNECT(TIMER1_IRQn, 0, nrfx_timer_1_irq_handler, 0);
+	irq_enable(TIMER1_IRQn);
+	timer_state = true;
 }
 
 void event_handler(struct esb_evt const *event)
@@ -274,16 +304,15 @@ void event_handler(struct esb_evt const *event)
 					}
 				}
 			} else {
-				//LOG_INF("RX RECEIVED");
-				//if (rx_payload.length == 4 && paired_addr[0] == rx_payload.data[0] && paired_addr[1] == rx_payload.data[1]) {
-				//	uint32_t timer = (rx_payload.data[2] << 8) | rx_payload.data[3];
-				//	timer_offset(timer);
-				//}
-//				if (rx_payload.length == 17 && rx_payload.data[0] == 255) {
-//					uint8_t id = paired_addr[1];
-//					int8_t timer = (int8_t)rx_payload.data[id+1] - 127;
-//					timer_offset(timer);
-//				}
+				if (rx_payload.length == 4) {
+					if (timer_state == false) {
+						nrfx_timer_resume(&m_timer);
+						timer_state = true;
+					}
+					nrfx_timer_clear(&m_timer);
+					last_reset = 0;
+					LOG_INF("RX, timer reset");
+				}
 			}
 		}
 		break;
@@ -341,7 +370,57 @@ int esb_initialize(void)
 	config.tx_output_power = 4;
 	// config.retransmit_delay = 600;
 	// config.retransmit_count = 3;
-//	config.tx_mode = ESB_TXMODE_MANUAL;
+	config.tx_mode = ESB_TXMODE_MANUAL;
+	// config.payload_length = 32;
+	config.selective_auto_ack = true;
+
+	// Fast startup mode
+	NRF_RADIO->MODECNF0 |= RADIO_MODECNF0_RU_Fast << RADIO_MODECNF0_RU_Pos;
+	// nrf_radio_modecnf0_set(NRF_RADIO, true, 0);
+
+	err = esb_init(&config);
+
+	if (err)
+	{
+		return err;
+	}
+
+	err = esb_set_base_address_0(base_addr_0);
+	if (err)
+	{
+		return err;
+	}
+
+	err = esb_set_base_address_1(base_addr_1);
+	if (err)
+	{
+		return err;
+	}
+
+	err = esb_set_prefixes(addr_prefix, ARRAY_SIZE(addr_prefix));
+	if (err)
+	{
+		return err;
+	}
+
+	return 0;
+}
+
+int esb_initialize_rx(void)
+{
+	int err;
+
+	struct esb_config config = ESB_DEFAULT_CONFIG;
+
+	// config.protocol = ESB_PROTOCOL_ESB_DPL;
+	config.mode = ESB_MODE_PRX;
+	config.event_handler = event_handler;
+	// config.bitrate = ESB_BITRATE_2MBPS;
+	// config.crc = ESB_CRC_16BIT;
+	config.tx_output_power = 4;
+	// config.retransmit_delay = 600;
+	// config.retransmit_count = 3;
+	// config.tx_mode = ESB_TXMODE_AUTO;
 	// config.payload_length = 32;
 	config.selective_auto_ack = true;
 
@@ -644,6 +723,7 @@ void main_imu_thread(void) {
 				tx_payload.data[0] = 0; //reserved for something idk
 				tx_payload.data[1] = tracker_id << 4;
 				//tx_payload.data[2] = batt | (charging ? 128 : 0);
+				// TODO: Send temperature
 				tx_payload.data[2] = batt;
 				tx_payload.data[3] = batt_v;
 				tx_payload.data[4] = (tx_buf[0] >> 8) & 255;
@@ -673,7 +753,9 @@ void main_imu_thread(void) {
 			}
 			//k_msleep(11);														 // Wait for start up (1ms for ICM, 10ms for MMC -> 10ms)
 			uint8_t ICM42688ID = icm_getChipID(main_imu);						 // Read CHIP_ID register for ICM42688
+				LOG_INF("ICM: %u", ICM42688ID);
 			uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
+				LOG_INF("MMC: %u", MMC5983ID);
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
 			{
 				LOG_INF("Found main imus");
