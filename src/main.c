@@ -155,7 +155,7 @@ struct snrf_sensor { // some stuff for imus and mags, sensor define should also 
 	snrf_error_cb_t setup_WOM; // reset then setup WOM, return if not applicable
 	void *config;
 };
-
+// TODO: continuous mag calibration?
 
 #include "ICM42688.h"
 #include "MMC5983MA.h"
@@ -251,6 +251,7 @@ static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 		} else {
 			esb_disable();
 			esb_initialize_rx();
+			esb_start_rx();
 			esb_state = false;
 			nrfx_timer_pause(&m_timer);
 			timer_state = false;
@@ -258,6 +259,7 @@ static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 	} else if (event_type == NRF_TIMER_EVENT_COMPARE2 && esb_state == true) {
 		esb_disable();
 		esb_initialize_rx();
+		esb_start_rx();
 		esb_state = false;
 	} else if (event_type == NRF_TIMER_EVENT_COMPARE3 && esb_state == false) {
 		esb_disable();
