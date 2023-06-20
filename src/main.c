@@ -1293,7 +1293,7 @@ void main(void)
 			gpio_pin_set_dt(&led, 0);
 		}
 
-		if (docked)
+		if (docked) // TODO: keep sending battery state while plugged and docked?
 		{ // TODO: move to interrupts? (Then you do not need to do the above)
 			LOG_INF("Waiting for system off (Docked)");
 			wait_for_threads();
