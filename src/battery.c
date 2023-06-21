@@ -231,11 +231,10 @@ unsigned int battery_level_pptt(unsigned int batt_mV,
 }
 
 static const struct battery_level_point levels[] = {
-	{ 10000, 4170 },
-	{ 8438, 3975 },
-	{ 4709, 3677 },
-	{ 1512, 3489 },
-	{ 480, 3360 },
+	{ 10000, 4150 },
+	{ 9500, 4075 },
+	{ 3000, 3775 },
+	{ 5000, 3450 },
 	{ 0, 3200 },
 };
 
