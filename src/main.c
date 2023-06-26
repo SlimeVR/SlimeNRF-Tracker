@@ -156,6 +156,7 @@ struct snrf_sensor { // some stuff for imus and mags, sensor define should also 
 	void *config;
 };
 // TODO: continuous mag calibration?
+// TODO: detect no movement and reset the filters to zero velocity? if it doesnt do it already.. maybe this will help with bad performance after 15min
 
 #include "ICM42688.h"
 #include "MMC5983MA.h"
