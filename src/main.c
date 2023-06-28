@@ -1128,7 +1128,7 @@ void main(void)
 			addr_prefix[i] = discovery_addr_prefix[i];
 		}
 		esb_initialize();
-	timer_init();
+//	timer_init();
 		tx_payload_pair.noack = false;
 		uint64_t addr = (((uint64_t)(NRF_FICR->DEVICEADDR[1]) << 32) | NRF_FICR->DEVICEADDR[0]) & 0xFFFFFF;
 		uint8_t check = addr & 255;
@@ -1146,6 +1146,7 @@ void main(void)
 			esb_flush_rx();
 			esb_flush_tx();
 			esb_write_payload(&tx_payload_pair); // Still fails after a while
+			esb_start_tx();
 			gpio_pin_set_dt(&led, 1);
 			k_msleep(100);
 			gpio_pin_set_dt(&led, 0);
