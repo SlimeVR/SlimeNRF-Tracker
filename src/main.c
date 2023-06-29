@@ -249,6 +249,7 @@ static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 		if (last_reset < LAST_RESET_LIMIT) {
 			last_reset++;
 			esb_start_tx();
+//			esb_flush_tx();
 		} else {
 			esb_disable();
 			esb_initialize_rx();
@@ -256,6 +257,7 @@ static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 			esb_state = false;
 			nrfx_timer_pause(&m_timer);
 			timer_state = false;
+			LOG_INF("timer reset elapsed");
 		}
 	} else if (event_type == NRF_TIMER_EVENT_COMPARE2 && esb_state == true) {
 		esb_disable();
@@ -263,6 +265,7 @@ static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 		esb_start_rx();
 		esb_state = false;
 	} else if (event_type == NRF_TIMER_EVENT_COMPARE3 && esb_state == false) {
+		esb_stop_rx();
 		esb_disable();
 		esb_initialize();
 		esb_state = true;
@@ -294,6 +297,7 @@ void event_handler(struct esb_evt const *event)
 	switch (event->evt_id)
 	{
 	case ESB_EVENT_TX_SUCCESS:
+		LOG_INF("TX");
 		break;
 	case ESB_EVENT_TX_FAILED:
 		LOG_INF("TX FAILED");
@@ -314,7 +318,7 @@ void event_handler(struct esb_evt const *event)
 					}
 					nrfx_timer_clear(&m_timer);
 					last_reset = 0;
-					LOG_INF("RX, timer reset");
+					//LOG_INF("RX, timer reset");
 				}
 			}
 		}
@@ -746,6 +750,7 @@ void main_imu_thread(void) {
 				esb_flush_tx();
 				main_data = true;
 				esb_write_payload(&tx_payload); // Add transmission to queue
+LOG_INF("WP");
 			}
 		} else {
 // 5ms delta (???) from entering loop
