@@ -248,7 +248,7 @@ static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 	if (event_type == NRF_TIMER_EVENT_COMPARE1 && esb_state == true) {
 		if (last_reset < LAST_RESET_LIMIT) {
 			last_reset++;
-			if (!main_data) { // scuffed check
+			if (main_data) { // scuffed check
 				esb_write_payload(&tx_payload); // Add transmission to queue
 				esb_start_tx();
 			}
