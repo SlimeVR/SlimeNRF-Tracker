@@ -243,14 +243,16 @@ static const nrfx_timer_t m_timer = NRFX_TIMER_INSTANCE(1);
 
 bool esb_state = false;
 bool timer_state = false;
+bool send_data = false;
 
 static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 	if (event_type == NRF_TIMER_EVENT_COMPARE1 && esb_state == true) {
 		if (last_reset < LAST_RESET_LIMIT) {
 			last_reset++;
-			if (main_data) { // scuffed check
+			if (send_data) { // scuffed check
 				esb_write_payload(&tx_payload); // Add transmission to queue
 				esb_start_tx();
+				send_data = false;
 			}
 //			esb_flush_tx();
 		} else {
@@ -753,6 +755,7 @@ void main_imu_thread(void) {
 //				esb_flush_tx();
 				main_data = true;
 //				esb_write_payload(&tx_payload); // Add transmission to queue
+				send_data = true;
 			}
 		} else {
 // 5ms delta (???) from entering loop
