@@ -381,7 +381,7 @@ int esb_initialize(void)
 	// config.crc = ESB_CRC_16BIT;
 	config.tx_output_power = 4;
 	// config.retransmit_delay = 600;
-	// config.retransmit_count = 3;
+	config.retransmit_count = 0;
 	config.tx_mode = ESB_TXMODE_MANUAL;
 	// config.payload_length = 32;
 	config.selective_auto_ack = true;
