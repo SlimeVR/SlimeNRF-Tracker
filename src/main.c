@@ -248,7 +248,10 @@ static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 	if (event_type == NRF_TIMER_EVENT_COMPARE1 && esb_state == true) {
 		if (last_reset < LAST_RESET_LIMIT) {
 			last_reset++;
-			esb_start_tx();
+			if (!main_data) { // scuffed check
+				esb_write_payload(&tx_payload); // Add transmission to queue
+				esb_start_tx();
+			}
 //			esb_flush_tx();
 		} else {
 			esb_disable();
@@ -283,6 +286,7 @@ void timer_init(void) {
 	nrfx_timer_init(&m_timer, &timer_cfg, timer_handler);
     uint32_t ticks = nrfx_timer_ms_to_ticks(&m_timer, 3);
     nrfx_timer_extended_compare(&m_timer, NRF_TIMER_CC_CHANNEL0, ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
+	LOG_INF("timer at %d", ticks * (paired_addr[1] + 3) / 21);
     nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, ticks * (paired_addr[1] + 3) / 21, true); // timeslot to send data
     nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL2, ticks * 19 / 21, true); // switch to rx
     nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL3, ticks * 2 / 21, true); // switch to tx
@@ -297,7 +301,6 @@ void event_handler(struct esb_evt const *event)
 	switch (event->evt_id)
 	{
 	case ESB_EVENT_TX_SUCCESS:
-		LOG_INF("TX");
 		break;
 	case ESB_EVENT_TX_FAILED:
 		LOG_INF("TX FAILED");
@@ -747,10 +750,9 @@ void main_imu_thread(void) {
 				tx_payload.data[15] = tx_buf[5] & 255;
 				tx_payload.data[16] = (tx_buf[6] >> 8) & 255;
 				tx_payload.data[17] = tx_buf[6] & 255;
-				esb_flush_tx();
+//				esb_flush_tx();
 				main_data = true;
-				esb_write_payload(&tx_payload); // Add transmission to queue
-LOG_INF("WP");
+//				esb_write_payload(&tx_payload); // Add transmission to queue
 			}
 		} else {
 // 5ms delta (???) from entering loop
