@@ -245,6 +245,9 @@ bool esb_state = false;
 bool timer_state = false;
 bool send_data = false;
 
+uint16_t led_clock = 0;
+uint32_t led_clock_offset = 0;
+
 static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 	if (event_type == NRF_TIMER_EVENT_COMPARE1 && esb_state == true) {
 		if (last_reset < LAST_RESET_LIMIT) {
@@ -288,8 +291,8 @@ void timer_init(void) {
 	nrfx_timer_init(&m_timer, &timer_cfg, timer_handler);
     uint32_t ticks = nrfx_timer_ms_to_ticks(&m_timer, 3);
     nrfx_timer_extended_compare(&m_timer, NRF_TIMER_CC_CHANNEL0, ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
-	LOG_INF("timer at %d", ticks * (paired_addr[1] + 3) / 21);
-    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, ticks * (paired_addr[1] + 3) / 21, true); // timeslot to send data
+	LOG_INF("timer at %d", ticks * (paired_addr[1]*2 + 3) / 21); // TODO: temp set max 8
+    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, ticks * (paired_addr[1]*2 + 3) / 21, true); // timeslot to send data  TODO: temp set max 8
     nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL2, ticks * 19 / 21, true); // switch to rx
     nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL3, ticks * 2 / 21, true); // switch to tx
     nrfx_timer_enable(&m_timer);
@@ -323,6 +326,8 @@ void event_handler(struct esb_evt const *event)
 					}
 					nrfx_timer_clear(&m_timer);
 					last_reset = 0;
+					led_clock = (rx_payload.data[0] << 8) + rx_payload.data[1]; // sync led flashes :)
+					led_clock_offset = 0;
 					//LOG_INF("RX, timer reset");
 				}
 			}
@@ -1244,6 +1249,7 @@ void main(void)
 	{
 		// Get start time
 		int64_t time_begin = k_uptime_get();
+		int64_t led_time2 = led_clock * 3 + led_clock_offset; // funny led sync
 
 		//charging = gpio_pin_get_dt(&chgstat); // TODO: Charging detect doesn't work (hardware issue)
 		bool docked = gpio_pin_get_dt(&dock);
@@ -1291,18 +1297,14 @@ void main(void)
 		else if (batt_mV > 255) {batt_v = 255;}
 		else {batt_v = batt_mV;} // 0-255 -> 2.45-5.00V
 
-		if (time_begin > led_time) {
-			if (led_time != 0) {
-				led_time_off = time_begin + 300;
-			}
-			if (batt_pptt < 1000) { // Under 10% battery left
-				led_time += 600;
-			} else {
-				led_time += 10000;
-			}
-			gpio_pin_set_dt(&led, 1);
+		if (batt_pptt < 1000) { // Under 10% battery left
+			gpio_pin_set_dt(&led, led_time2 % 600 > 300 ? 1 : 0);
+		} else if (led_time2 < 1000) { // funny led sync
+			led_time_off = time_begin + 300;
 		} else if (time_begin > led_time_off) {
 			gpio_pin_set_dt(&led, 0);
+		} else {
+			gpio_pin_set_dt(&led, 1);
 		}
 
 		if (docked) // TODO: keep sending battery state while plugged and docked?
@@ -1349,6 +1351,7 @@ void main(void)
 
 		// Get time elapsed and sleep/yield until next tick
 		int64_t time_delta = k_uptime_get() - time_begin;
+		led_clock_offset += time_delta;
 		if (time_delta > tickrate)
 		{
 			k_yield();
