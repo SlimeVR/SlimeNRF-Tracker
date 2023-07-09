@@ -226,7 +226,7 @@ unsigned int battery_level_pptt(unsigned int batt_mV,
 
 	return pb->lvl_pptt
 	       + ((pa->lvl_pptt - pb->lvl_pptt)
-		  * (int32_t)(batt_mV - pb->lvl_mV)
+		  * (batt_mV - pb->lvl_mV)
 		  / (pa->lvl_mV - pb->lvl_mV));
 }
 
@@ -234,7 +234,7 @@ static const struct battery_level_point levels[] = {
 	{ 10000, 4150 },
 	{ 9500, 4075 },
 	{ 3000, 3775 },
-	{ 5000, 3450 },
+	{ 500, 3450 },
 	{ 0, 3200 },
 };
 

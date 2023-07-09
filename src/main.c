@@ -1289,7 +1289,7 @@ void main(void)
 		else {batt_pptt = last_batt_pptt[15];} // Effectively 100-10000 -> 1-100%
 
 		// format for packet send
-		batt = batt_pptt / 1000;
+		batt = batt_pptt / 100;
 		if (batt < 1) {batt = 1;} // Clamp to 1%
 		batt_mV /= 10;
 		batt_mV -= 245;
