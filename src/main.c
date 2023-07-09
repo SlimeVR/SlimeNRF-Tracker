@@ -1075,7 +1075,7 @@ void power_check(void) {
 		configure_system_off_chgstat();
 	} else if (docked) {
 		gpio_pin_set_dt(&led, 0); // Turn off LED
-		configure_system_off_dock();
+		configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
 	}
 }
 
@@ -1289,7 +1289,7 @@ void main(void)
 		else {batt_pptt = last_batt_pptt[15];} // Effectively 100-10000 -> 1-100%
 
 		// format for packet send
-		batt = batt_pptt / 100;
+		batt = batt_pptt / 1000;
 		if (batt < 1) {batt = 1;} // Clamp to 1%
 		batt_mV /= 10;
 		batt_mV -= 245;
