@@ -226,7 +226,7 @@ unsigned int battery_level_pptt(unsigned int batt_mV,
 
 	return pb->lvl_pptt
 	       + ((pa->lvl_pptt - pb->lvl_pptt)
-		  * (batt_mV - pb->lvl_mV)
+		  * (int32_t)(batt_mV - pb->lvl_mV)
 		  / (pa->lvl_mV - pb->lvl_mV));
 }
 

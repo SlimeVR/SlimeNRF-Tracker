@@ -100,7 +100,7 @@ int tickrate = 6;
 
 uint8_t batt;
 uint8_t batt_v;
-unsigned int batt_pptt;
+uint32_t batt_pptt;
 
 const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
 const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
@@ -1256,7 +1256,7 @@ void main(void)
 
 		int batt_mV;
 		batt_pptt = read_batt_mV(&batt_mV);
-		
+
 		if (batt_pptt == 0 && !docked)
 		{
 			LOG_INF("Waiting for system off (Low battery)");
