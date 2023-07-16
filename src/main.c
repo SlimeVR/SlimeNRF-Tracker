@@ -576,15 +576,15 @@ void apply_BAinv(float xyz[3], float BAinv[4][3]) {
 	xyz[2] = BAinv[3][0] * temp[0] + BAinv[3][1] * temp[1] + BAinv[3][2] * temp[2];
 }
 
-bool wait_for_motion(const struct i2c_dt_spec mag, bool motion, int samples) {
+bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples) {
 	uint8_t counts = 0;
 	float a[3], last_a[3];
-	icm_accel_read(main_imu, last_a);
+	icm_accel_read(imu, last_a);
 	for (int i = 0; i < samples + counts; i++) {
 gpio_pin_toggle_dt(&led); // scuffed led
 		LOG_INF("Accel: %.5f %.5f %.5f", a[0], a[1], a[2]);
 		k_msleep(500);
-		icm_accel_read(main_imu, a);
+		icm_accel_read(imu, a);
 		if (vec_epsilon(a, last_a) != motion) {
 			LOG_INF("Pass");
 			counts++;

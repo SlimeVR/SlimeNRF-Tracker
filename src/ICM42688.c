@@ -160,14 +160,14 @@ void icm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3]) {
 // need to make this external
 void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
 {
+    float rawData[3];
     for (int ii = 0; ii < 500; ii++)
     {
-        float rawData[3];
         icm_accel_read(dev_i2c, &rawData[0]);
         dest1[0] += rawData[0];
         dest1[1] += rawData[1];
         dest1[2] += rawData[2];
-        icm_gyro_read(dev_i2c, &rawData[3]);
+        icm_gyro_read(dev_i2c, &rawData[0]);
         dest2[0] += rawData[0];
         dest2[1] += rawData[1];
         dest2[2] += rawData[2];
