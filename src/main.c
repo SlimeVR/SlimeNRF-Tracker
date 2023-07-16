@@ -101,13 +101,14 @@ int tickrate = 6;
 uint8_t batt;
 uint8_t batt_v;
 uint32_t batt_pptt;
+bool batt_low = false;
 
 const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
 const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
 const struct i2c_dt_spec aux_imu = I2C_DT_SPEC_GET(AUX_IMU_NODE);
 const struct i2c_dt_spec aux_mag = I2C_DT_SPEC_GET(AUX_MAG_NODE);
 
-//const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
+const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
 const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
 
 const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
@@ -1226,7 +1227,7 @@ void main(void)
 	//gpio_pin_configure_dt(&int0, GPIO_INPUT);
 	//gpio_pin_configure_dt(&int1, GPIO_INPUT);
 
-	//pwm_set_pulse_dt(&led0, PWM_MSEC(20)); // 10/20 = 50%
+	//pwm_set_pulse_dt(&led0, PWM_MSEC(5)); // 5/20 = 25%
 	//gpio_pin_set_dt(&led, 1);
 
 	// Recover quats if present
@@ -1297,14 +1298,18 @@ void main(void)
 		else if (batt_mV > 255) {batt_v = 255;}
 		else {batt_v = batt_mV;} // 0-255 -> 2.45-5.00V
 
-		if (batt_pptt < 1000) { // Under 10% battery left
-			gpio_pin_set_dt(&led, led_time2 % 600 > 300 ? 1 : 0);
+		if (batt_pptt < 1000 || batt_low) { // Under 10% battery left
+			batt_low = true;
+			pwm_set_pulse_dt(&led0, led_time2 % 600 > 300 ? PWM_MSEC(10) : 0); // 10/20 = 50%
+			//gpio_pin_set_dt(&led, led_time2 % 600 > 300 ? 1 : 0);
 		} else if (led_time2 < 1000) { // funny led sync
 			led_time_off = time_begin + 300;
 		} else if (time_begin > led_time_off) {
-			gpio_pin_set_dt(&led, 0);
+			pwm_set_pulse_dt(&led0, 0);
+			//gpio_pin_set_dt(&led, 0);
 		} else {
-			gpio_pin_set_dt(&led, 1);
+			pwm_set_pulse_dt(&led0, PWM_MSEC(20)); // 20/20 = 100% - this is pretty bright lol
+			//gpio_pin_set_dt(&led, 1);
 		}
 
 		if (docked) // TODO: keep sending battery state while plugged and docked?
