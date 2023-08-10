@@ -321,8 +321,8 @@ int esb_initialize(void)
 	// config.crc = ESB_CRC_16BIT;
 	config.tx_output_power = 4;
 	// config.retransmit_delay = 600;
-	config.retransmit_count = 0;
-	config.tx_mode = ESB_TXMODE_MANUAL;
+	//config.retransmit_count = 0;
+	//config.tx_mode = ESB_TXMODE_MANUAL;
 	// config.payload_length = 32;
 	config.selective_auto_ack = true;
 
@@ -849,9 +849,9 @@ void main_imu_thread(void) {
 				tx_payload.data[15] = tx_buf[5] & 255;
 				tx_payload.data[16] = (tx_buf[6] >> 8) & 255;
 				tx_payload.data[17] = tx_buf[6] & 255;
-//				esb_flush_tx();
+				esb_flush_tx();
 				main_data = true;
-//				esb_write_payload(&tx_payload); // Add transmission to queue
+				esb_write_payload(&tx_payload); // Add transmission to queue
 				send_data = true;
 			}
 		} else {
@@ -1251,13 +1251,12 @@ int main(void)
 // 0ms delta to read calibration and configure pins (unknown time to read retained data but probably negligible)
 	esb_initialize();
 	tx_payload.noack = false;
-	timer_init();
+	//timer_init();
 // 1ms delta to start ESB
 	while (1)
 	{
 		// Get start time
 		int64_t time_begin = k_uptime_get();
-		int64_t led_time2 = led_clock * 3 + led_clock_offset; // funny led sync
 
 		//charging = gpio_pin_get_dt(&chgstat); // TODO: Charging detect doesn't work (hardware issue)
 		bool docked = gpio_pin_get_dt(&dock);
@@ -1301,19 +1300,7 @@ int main(void)
 		else if (batt_mV > 255) {batt_v = 255;}
 		else {batt_v = batt_mV;} // 0-255 -> 2.45-5.00V
 
-		if (batt_pptt < 1000 || batt_low) { // Under 10% battery left
-			batt_low = true;
-			pwm_set_pulse_dt(&pwm_led, led_time2 % 600 > 300 ? PWM_MSEC(10) : 0); // 10/20 = 50%
-			//gpio_pin_set_dt(&led, led_time2 % 600 > 300 ? 1 : 0);
-		} else if (led_time2 < 1000) { // funny led sync
-			led_time_off = time_begin + 300;
-		} else if (time_begin > led_time_off) {
-			pwm_set_pulse_dt(&pwm_led, 0);
-			//gpio_pin_set_dt(&led, 0);
-		} else {
-			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(20)); // 20/20 = 100% - this is pretty bright lol
-			//gpio_pin_set_dt(&led, 1);
-		}
+		pwm_set_pulse_dt(&pwm_led, 0);
 
 		if (docked) // TODO: keep sending battery state while plugged and docked?
 		{ // TODO: move to interrupts? (Then you do not need to do the above)
