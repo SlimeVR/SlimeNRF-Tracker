@@ -127,7 +127,7 @@ bool main_ok = false;
 bool main_data = false;
 
 #define USER_SHUTDOWN_ENABLED true
-#define MAG_ENABLED true
+#define MAG_ENABLED false
 
 // Saturate int to 16 bits
 // Optimized to a single ARM assembler instruction
