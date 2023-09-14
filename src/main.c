@@ -282,21 +282,21 @@ static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 }
 
 void timer_init(void) {
-    nrfx_err_t err;
-    nrfx_timer_config_t timer_cfg = NRFX_TIMER_DEFAULT_CONFIG;  
+	nrfx_err_t err;
+	nrfx_timer_config_t timer_cfg = NRFX_TIMER_DEFAULT_CONFIG;  
 	timer_cfg.frequency = NRF_TIMER_FREQ_1MHz;
-    //timer_cfg.mode = NRF_TIMER_MODE_TIMER;
-    //timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_16;
-    //timer_cfg.interrupt_priority = NRFX_TIMER_DEFAULT_CONFIG_IRQ_PRIORITY;
-    //timer_cfg.p_context = NULL;
+	//timer_cfg.mode = NRF_TIMER_MODE_TIMER;
+	//timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_16;
+	//timer_cfg.interrupt_priority = NRFX_TIMER_DEFAULT_CONFIG_IRQ_PRIORITY;
+	//timer_cfg.p_context = NULL;
 	nrfx_timer_init(&m_timer, &timer_cfg, timer_handler);
-    uint32_t ticks = nrfx_timer_ms_to_ticks(&m_timer, 3);
-    nrfx_timer_extended_compare(&m_timer, NRF_TIMER_CC_CHANNEL0, ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
+	uint32_t ticks = nrfx_timer_ms_to_ticks(&m_timer, 3);
+	nrfx_timer_extended_compare(&m_timer, NRF_TIMER_CC_CHANNEL0, ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
 	LOG_INF("timer at %d", ticks * (paired_addr[1]*2 + 3) / 21); // TODO: temp set max 8
-    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, ticks * (paired_addr[1]*2 + 3) / 21, true); // timeslot to send data  TODO: temp set max 8
-    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL2, ticks * 19 / 21, true); // switch to rx
-    nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL3, ticks * 2 / 21, true); // switch to tx
-    nrfx_timer_enable(&m_timer);
+	nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, ticks * (paired_addr[1]*2 + 3) / 21, true); // timeslot to send data  TODO: temp set max 8
+	nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL2, ticks * 19 / 21, true); // switch to rx
+	nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL3, ticks * 2 / 21, true); // switch to tx
+	nrfx_timer_enable(&m_timer);
 	IRQ_DIRECT_CONNECT(TIMER1_IRQn, 0, nrfx_timer_1_irq_handler, 0);
 	irq_enable(TIMER1_IRQn);
 	timer_state = true;
@@ -500,14 +500,14 @@ void set_LP(void) {
 }
 
 void reconfigure_imu(const struct i2c_dt_spec imu) {
-    i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
-    i2c_reg_write_byte_dt(&imu, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
-    i2c_reg_write_byte_dt(&imu, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
+	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
+	i2c_reg_write_byte_dt(&imu, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
+	i2c_reg_write_byte_dt(&imu, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
 }
 
 void reconfigure_mag(const struct i2c_dt_spec mag) {
-    i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_1, MBW); // set mag bandwidth
-    i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | 0x08 | MODR); // set mag ODR
+	i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_1, MBW); // set mag bandwidth
+	i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | 0x08 | MODR); // set mag ODR
 }
 
 void configure_system_off_WOM(const struct i2c_dt_spec imu)
@@ -571,7 +571,7 @@ bool vec_epsilon(float *a, float *a2) {
 void apply_BAinv(float xyz[3], float BAinv[4][3]) {
 	float temp[3];
 	for (int i = 0; i < 3; i++)
-	    temp[i] = xyz[i] - BAinv[0][i];
+		temp[i] = xyz[i] - BAinv[0][i];
 	xyz[0] = BAinv[1][0] * temp[0] + BAinv[1][1] * temp[1] + BAinv[1][2] * temp[2];
 	xyz[1] = BAinv[2][0] * temp[0] + BAinv[2][1] * temp[1] + BAinv[2][2] * temp[2];
 	xyz[2] = BAinv[3][0] * temp[0] + BAinv[3][1] * temp[1] + BAinv[3][2] * temp[2];
@@ -627,7 +627,7 @@ void main_imu_thread(void) {
 //						LOG_INF("left %u", count);
 			}
 
-    		float a[3];
+			float a[3];
 			icm_accel_read(main_imu, a);
 			float ax = a[0] - accelBias[0];
 			float ay = a[1] - accelBias[1];
@@ -662,15 +662,15 @@ void main_imu_thread(void) {
 			}
 #endif
 
-        	FusionVector z = {.array = {0, 0, 0}};
+			FusionVector z = {.array = {0, 0, 0}};
 			if (packets == 2 && powerstate == 1 && MAG_ENABLED == true) {
 					ahrs.initialising = true;
 					ahrs.rampedGain = 10.0f;
 					ahrs.accelerometerIgnored = false;
 					ahrs.accelerationRejectionTimer = 0;
 					ahrs.accelerationRejectionTimeout = false;
-        			FusionVector a = {.array = {ax, -az, ay}};
-        			FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME_LP);
+					FusionVector a = {.array = {ax, -az, ay}};
+					FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME_LP);
 					FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
 					memcpy(q, quat.array, sizeof(q));
 			} else {
@@ -691,18 +691,18 @@ void main_imu_thread(void) {
 					float gx = raw0 * (2000.0f/32768.0f) - gyroBias[0]; //gres
 					float gy = raw1 * (2000.0f/32768.0f) - gyroBias[1]; //gres
 					float gz = raw2 * (2000.0f/32768.0f) - gyroBias[2]; //gres
-        			FusionVector g = {.array = {gx, -gz, gy}};
-        			FusionVector a = {.array = {ax, -az, ay}};
-        			g = FusionOffsetUpdate(&offset, g);
+					FusionVector g = {.array = {gx, -gz, gy}};
+					FusionVector a = {.array = {ax, -az, ay}};
+					g = FusionOffsetUpdate(&offset, g);
 #if MAG_ENABLED
-        			FusionVector m = {.array = {my, mz, -mx}};
-        			FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME);
+					FusionVector m = {.array = {my, mz, -mx}};
+					FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME);
 #else
 					if (offset.timer < offset.timeout)
 						FusionAhrsUpdate(&ahrs, g, a, z, INTEGRATION_TIME);
 #endif
 				}
-        		const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);
+				const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);
 				lin_ax = earth.array[0];
 				lin_ay = earth.array[1];
 				lin_az = earth.array[2];
@@ -779,7 +779,7 @@ void main_imu_thread(void) {
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
 			{
 				LOG_INF("Found main imus");
-    			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
+				i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
 				icm_reset(main_imu);												 // software reset ICM42688 to default registers
 				uint8_t temp;
 				i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
@@ -843,16 +843,16 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 				}
 				} while (false);
 				// Setup fusion
-			    FusionOffsetInitialise(&offset, 1/INTEGRATION_TIME);
-			    FusionAhrsInitialise(&ahrs);
-			    const FusionAhrsSettings settings = {
-			            .convention = FusionConventionNwu,
-			            .gain = 0.5f,
-			            .accelerationRejection = 10.0f,
-			            .magneticRejection = 20.0f,
-			            .rejectionTimeout = 5 * 1/INTEGRATION_TIME, /* 5 seconds */
-			    };
-			    FusionAhrsSetSettings(&ahrs, &settings);
+				FusionOffsetInitialise(&offset, 1/INTEGRATION_TIME);
+				FusionAhrsInitialise(&ahrs);
+				const FusionAhrsSettings settings = {
+						.convention = FusionConventionNwu,
+						.gain = 0.5f,
+						.accelerationRejection = 10.0f,
+						.magneticRejection = 20.0f,
+						.rejectionTimeout = 5 * 1/INTEGRATION_TIME, /* 5 seconds */
+				};
+				FusionAhrsSetSettings(&ahrs, &settings);
 				memcpy(ahrs.quaternion.array, q, sizeof(q)); // Load existing quat
 			}
 		}
@@ -885,8 +885,8 @@ void aux_imu_thread(void) {
 			uint16_t packets = count / 8;								 // Packet size 8 bytes
 			uint8_t rawData[2080];
 			i2c_burst_read_dt(&aux_imu, ICM42688_FIFO_DATA, &rawData[0], count); // Read buffer
-    		uint8_t rawAccel[6];
-    		i2c_burst_read_dt(&aux_imu, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6); // Read accel only
+			uint8_t rawAccel[6];
+			i2c_burst_read_dt(&aux_imu, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6); // Read accel only
 			float raw0 = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
 			float raw1 = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
 			float raw2 = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
@@ -1012,7 +1012,7 @@ void aux_imu_thread(void) {
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
 			{
 				LOG_INF("Found aux imus");
-    			i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
+				i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
 				icm_reset(aux_imu);												 // software reset ICM42688 to default registers
 				icm_DRStatus(aux_imu);												 // clear reset done int flag
 				icm_init(aux_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
@@ -1265,10 +1265,10 @@ void main(void)
 			wait_for_threads();
 			LOG_INF("Shutdown");
 			// Communicate all imus to shut down
-    		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 			if (aux_ok) {
-    			i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
+				i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
 				i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for aux MMC to finish reset
 			}
 			// Turn off LED
@@ -1319,10 +1319,10 @@ void main(void)
 			wait_for_threads();
 			LOG_INF("Shutdown");
 			// Communicate all imus to shut down
-    		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 			if (aux_ok) {
-    			i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
+				i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
 				i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for aux MMC to finish reset
 			}
 			// Turn off LED
@@ -1345,9 +1345,9 @@ void main(void)
 			LOG_INF("Shutdown");
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
-    		i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 			if (aux_ok) {
-    			i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
+				i2c_reg_write_byte_dt(&aux_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for aux ICM to finish reset
 				i2c_reg_write_byte_dt(&aux_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for aux MMC to finish reset
 			}
 			// Turn off LED
