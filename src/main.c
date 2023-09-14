@@ -698,7 +698,8 @@ void main_imu_thread(void) {
         			FusionVector m = {.array = {my, mz, -mx}};
         			FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME);
 #else
-        			FusionAhrsUpdate(&ahrs, g, a, z, INTEGRATION_TIME);
+					if (offset.timer < offset.timeout)
+						FusionAhrsUpdate(&ahrs, g, a, z, INTEGRATION_TIME);
 #endif
 				}
         		const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);

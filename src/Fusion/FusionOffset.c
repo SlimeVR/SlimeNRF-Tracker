@@ -27,7 +27,7 @@
 /**
  * @brief Threshold in degrees per second.
  */
-#define THRESHOLD (3.0f)
+#define THRESHOLD (0.5f)
 
 //------------------------------------------------------------------------------
 // Functions
