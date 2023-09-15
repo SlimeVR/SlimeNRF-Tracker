@@ -22,12 +22,12 @@
 /**
  * @brief Timeout in seconds.
  */
-#define TIMEOUT (5)
+#define TIMEOUT (2)
 
 /**
  * @brief Threshold in degrees per second.
  */
-#define THRESHOLD (0.5f)
+#define THRESHOLD (3.0f)
 
 //------------------------------------------------------------------------------
 // Functions
@@ -69,7 +69,10 @@ FusionVector FusionOffsetUpdate(FusionOffset *const offset, FusionVector gyrosco
     }
 
     // Adjust offset if timer has elapsed
-    offset->gyroscopeOffset = FusionVectorAdd(offset->gyroscopeOffset, FusionVectorMultiplyScalar(gyroscope, offset->filterCoefficient));
+    if (offset->gyroscopeOffset.axis.x == 0 && offset->gyroscopeOffset.axis.y == 0 && offset->gyroscopeOffset.axis.z == 0)
+        offset->gyroscopeOffset = gyroscope;
+    else
+        offset->gyroscopeOffset = FusionVectorAdd(offset->gyroscopeOffset, FusionVectorMultiplyScalar(gyroscope, offset->filterCoefficient));
     return gyroscope;
 }
 
