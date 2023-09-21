@@ -696,7 +696,10 @@ void main_imu_thread(void) {
 					g = FusionOffsetUpdate(&offset, g);
 #if MAG_ENABLED
 					FusionVector m = {.array = {my, mz, -mx}};
-					FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME);
+					if (offset.timer < offset.timeout)
+						FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME);
+					else
+						FusionAhrsUpdate(&ahrs, z, a, m, INTEGRATION_TIME);
 #else
 					if (offset.timer < offset.timeout)
 						FusionAhrsUpdate(&ahrs, g, a, z, INTEGRATION_TIME);
