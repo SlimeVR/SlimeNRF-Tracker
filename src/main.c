@@ -601,6 +601,19 @@ gpio_pin_toggle_dt(&led); // scuffed led
 	return false;
 }
 
+//					double ata[100] = {0.0}; // init cal
+//					double norm_sum = 0.0;
+//					double sample_count = 0.0;
+//					float m[3];
+//					for (int i = 0; i < 10; i++) {
+//						//integrate into main loop
+//						mmc_mag_read(main_mag, m); // 500us
+//						LOG_INF("Mag: %.5f %.5f %.5f (%d/200)", m[0], m[1], m[2], i+1);
+//						magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count); // 400us
+//						k_msleep(4);
+//					}
+//					magneto_current_calibration(magBAinv, ata, norm_sum, sample_count); // finish (25ms)
+
 // TODO: make threads more abstract, pass in imus n stuff instead
 void main_imu_thread(void) {
 	k_sleep(K_FOREVER);
@@ -608,6 +621,8 @@ void main_imu_thread(void) {
 	while (1) {
 		if (main_ok)
 		{
+			// Reading IMUs will take between 2.5ms (~7 samples, low noise) - 7ms (~33 samples, low power)
+			// Fusing data will take between 100us (~7 samples, low noise) - 500us (~33 samples, low power)
 			// TODO: on any errors set main_ok false and skip (make functions return nonzero)
 			// Read main FIFO
 			uint8_t rawCount[2];
@@ -831,12 +846,12 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					float m[3];
 					for (int i = 0; i < 200; i++) { // 200 samples in 20s, 100ms per sample
 gpio_pin_toggle_dt(&led); // scuffed led
-						mmc_mag_read(main_mag, m);
+						mmc_mag_read(main_mag, m); // 500us
 						LOG_INF("Mag: %.5f %.5f %.5f (%d/200)", m[0], m[1], m[2], i+1);
-						magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count);
+						magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count); // 400us
 						k_msleep(100);
 					}
-					magneto_current_calibration(magBAinv, ata, norm_sum, sample_count);
+					magneto_current_calibration(magBAinv, ata, norm_sum, sample_count); // 25ms
 					nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
 					for (int i = 0; i < 3; i++) {
 						LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
@@ -1095,7 +1110,7 @@ void main(void)
 	gpio_pin_configure_dt(&dock, GPIO_INPUT);
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 
-	power_check(); // check the battery and dock first before continuing
+	power_check(); // check the battery and dock first before continuing (4ms delta to read from ADC)
 
 	start_time = k_uptime_get(); // Need to get start time for imu startup delta
 	gpio_pin_set_dt(&led, 1); // Boot LED
