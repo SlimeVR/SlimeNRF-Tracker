@@ -14,6 +14,8 @@ struct retained_data {
 	bool stored_quats;
 	float q[4];
 	float q2[4];
+	float gOff[3];
+	float gOff2[3];
 
 	/* CRC used to validate the retained data.  This must be
 	 * stored little-endian, and covers everything up to but not

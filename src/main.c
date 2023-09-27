@@ -169,12 +169,21 @@ float q2[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
 float last_q2[4] = {1.0f, 0.0f, 0.0f, 0.0f};	// vector to hold quaternion
 
+float gOff[3] = {0.0f, 0.0f, 0.0f}; // runtime fusion gyro offset
+float gOff2[3] = {0.0f, 0.0f, 0.0f};
+
 float q3[4] = {-0.5f, 0.5f, 0.5f, 0.5f}; // correction quat
 
 FusionOffset offset;
 FusionAhrs ahrs;
 FusionOffset offset2;
 FusionAhrs ahrs2;
+
+int magCal = 0;
+double ata[100] = {0.0}; // init cal
+double norm_sum = 0.0;
+double sample_count = 0.0;
+// magCal2
 
 int tracker_id = 0;
 
@@ -523,6 +532,11 @@ void configure_system_off_WOM(const struct i2c_dt_spec imu)
 		retained.q2[i] = q2[i];
 	}
 	retained.stored_quats = true;
+	// Store fusion gyro offset
+	for (uint8_t i = 0; i < 3; i++){
+		retained.gOff[i] = gOff[i];
+		retained.gOff2[i] = gOff2[i];
+	}
 	retained_update();
 	// Set system off
 	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
@@ -537,6 +551,12 @@ void configure_system_off_chgstat(void){
 	// Configure dock interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	// Store fusion gyro offset
+	for (uint8_t i = 0; i < 3; i++){
+		retained.gOff[i] = gOff[i];
+		retained.gOff2[i] = gOff2[i];
+	}
+	retained_update();
 	// Set system off
 	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
 	k_sleep(K_SECONDS(1));
@@ -546,6 +566,12 @@ void configure_system_off_dock(void){
 	// Configure dock interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
+	// Store fusion gyro offset
+	for (uint8_t i = 0; i < 3; i++){
+		retained.gOff[i] = gOff[i];
+		retained.gOff2[i] = gOff2[i];
+	}
+	retained_update();
 	// Set system off
 	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
 	k_sleep(K_SECONDS(1));
@@ -622,6 +648,7 @@ void main_imu_thread(void) {
 		if (main_ok)
 		{
 			// Reading IMUs will take between 2.5ms (~7 samples, low noise) - 7ms (~33 samples, low power)
+			// Magneto sample will take ~400us
 			// Fusing data will take between 100us (~7 samples, low noise) - 500us (~33 samples, low power)
 			// TODO: on any errors set main_ok false and skip (make functions return nonzero)
 			// Read main FIFO
@@ -653,10 +680,14 @@ void main_imu_thread(void) {
 			if (last_powerstate == 0) {
 				float m[3];
 				mmc_mag_read(main_mag, m);
+				magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count); // 400us
 				apply_BAinv(m, magBAinv);
 				mx = m[0];
 				my = m[1];
 				mz = m[2];
+				magCal |= (ax < 0.8 ? 1 << 0 : 0) | (ax > 0.8 ? 1 << 1 : 0) | // dumb check if all accel axes were reached for cal, assume the user is intentionally doing this
+					(ay < 0.8 ? 1 << 2 : 0) | (ay > 0.8 ? 1 << 3 : 0) |
+					(az < 0.8 ? 1 << 4 : 0) | (az > 0.8 ? 1 << 5 : 0);
 			}
 #endif
 
@@ -830,8 +861,17 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 					LOG_INF("%.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
 					LOG_INF("Finished accel and gyro zero offset calibration");
+					// clear fusion gyro offset
+					for (uint8_t i = 0; i < 3; i++){
+						gOff[i] = 0;
+						gOff2[i] = 0;
+						//retained.gOff[i] = gOff[i]; // retained data will update later any way
+						//retained.gOff2[i] = gOff2[i];
+					}
+					//retained_update();
 gpio_pin_set_dt(&led, 0); // scuffed led
-#if (MAG_ENABLED == true)
+//#if (MAG_ENABLED == true)
+#if false
 					LOG_INF("Gently rotate device in all directions");
 					if (!wait_for_motion(main_imu, true, 20)) { // Wait for accelerometer motion, timeout 10s
 gpio_pin_set_dt(&led, 0); // scuffed led
@@ -874,6 +914,7 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 				};
 				FusionAhrsSetSettings(&ahrs, &settings);
 				memcpy(ahrs.quaternion.array, q, sizeof(q)); // Load existing quat
+				memcpy(offset.gyroscopeOffset.array, gOff, sizeof(gOff)); // Load fusion gyro offset
 			}
 		}
 		main_running = false;
@@ -1262,6 +1303,10 @@ void main(void)
 		retained.stored_quats = false; // Invalidate the retained quaternions
 		retained_update();
 	}
+	for (uint8_t i = 0; i < 3; i++){
+		gOff[i] = retained.gOff[i];
+		gOff2[i] = retained.gOff2[i];
+	}
 // 0ms delta to read calibration and configure pins (unknown time to read retained data but probably negligible)
 	esb_initialize();
 	tx_payload.noack = false;
@@ -1373,6 +1418,19 @@ void main(void)
 			// Turn off LED
 			gpio_pin_set_dt(&led, 0);
 			configure_system_off_WOM(main_imu);
+		}
+
+		// Save magCal while idling
+		if (magCal == 0b111111 && last_powerstate == 1) {
+			wait_for_threads(); // make sure not to interrupt anything (8ms)
+			LOG_INF("Calibrating magnetometer");
+			magneto_current_calibration(magBAinv, ata, norm_sum, sample_count); // 25ms
+			nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
+			for (int i = 0; i < 3; i++) {
+				LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+			}
+			LOG_INF("Finished mag hard/soft iron offset calibration");
+			magCal |= 1 << 7;
 		}
 
 		// Get time elapsed and sleep/yield until next tick
