@@ -485,13 +485,11 @@ void configure_system_off_WOM(const struct i2c_dt_spec imu)
 	// Store the last quats
 	for (uint8_t i = 0; i < 4; i++){
 		retained.q[i] = q[i];
-		retained.q2[i] = q2[i];
 	}
 	retained.stored_quats = true;
 	// Store fusion gyro offset
 	for (uint8_t i = 0; i < 3; i++){
 		retained.gOff[i] = gOff[i];
-		retained.gOff2[i] = gOff2[i];
 	}
 	retained_update();
 	// Set system off
@@ -510,7 +508,6 @@ void configure_system_off_chgstat(void){
 	// Store fusion gyro offset
 	for (uint8_t i = 0; i < 3; i++){
 		retained.gOff[i] = gOff[i];
-		retained.gOff2[i] = gOff2[i];
 	}
 	retained_update();
 	// Set system off
@@ -525,7 +522,6 @@ void configure_system_off_dock(void){
 	// Store fusion gyro offset
 	for (uint8_t i = 0; i < 3; i++){
 		retained.gOff[i] = gOff[i];
-		retained.gOff2[i] = gOff2[i];
 	}
 	retained_update();
 	// Set system off
@@ -802,7 +798,6 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					// clear fusion gyro offset
 					for (uint8_t i = 0; i < 3; i++){
 						gOff[i] = 0;
-						gOff2[i] = 0;
 						//retained.gOff[i] = gOff[i]; // retained data will update later any way
 					}
 					//retained_update();
