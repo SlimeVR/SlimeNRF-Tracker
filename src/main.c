@@ -138,7 +138,7 @@ float gOff[3] = {0.0f, 0.0f, 0.0f}; // runtime fusion gyro offset
 
 float q3[4] = {-0.5f, 0.5f, 0.5f, 0.5f}; // correction quat
 
-FusionOffset offset;
+FusionOffset offset; // could share goff and q with fusionoffset and fusionahrs but init clears the values
 FusionAhrs ahrs;
 
 int magCal = 0;
@@ -651,8 +651,7 @@ void main_imu_thread(void) {
 					ahrs.accelerationRejectionTimeout = false;
 					FusionVector a = {.array = {ax, -az, ay}};
 					FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME_LP);
-					FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
-					memcpy(q, quat.array, sizeof(q));
+					memcpy(q, ahrs.quaternion.array, sizeof(q));
 			} else {
 				for (uint16_t i = 0; i < packets; i++)
 				{
@@ -691,8 +690,8 @@ void main_imu_thread(void) {
 				lin_ax = earth.array[0];
 				lin_ay = earth.array[1];
 				lin_az = earth.array[2];
-				FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
-				memcpy(q, quat.array, sizeof(q));
+				memcpy(q, ahrs.quaternion.array, sizeof(q));
+				memcpy(gOff, offset.gyroscopeOffset.array, sizeof(gOff));
 			}
 
 			if (quat_epsilon_coarse(q, last_q)) { // Probably okay to use the constantly updating last_q
@@ -892,12 +891,6 @@ void main(void)
 
 // TODO: if reset counter is 0 but reset reason was 1 then perform imu scanning (pressed reset once)
 
-	if (reset_mode == 4) { // Reset mode DFU
-		// TODO: DFU
-		LOG_INF("Enter DFU");
-		reset_mode = 0; // Clear reset mode
-	}
-
 	if (reset_mode == 3) { // Reset mode pairing reset
 		LOG_INF("Enter pairing reset");
 		nvs_write(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr)); // Clear paired address
@@ -1008,6 +1001,7 @@ void main(void)
 	for (uint8_t i = 0; i < 3; i++){
 		gOff[i] = retained.gOff[i];
 	}
+	LOG_INF("Recovered fusion gyro offset\nMain: %.2f %.2f %.2f", gOff[0], gOff[1], gOff[2]);
 // 0ms delta to read calibration and configure pins (unknown time to read retained data but probably negligible)
 	esb_initialize();
 	tx_payload.noack = false;
