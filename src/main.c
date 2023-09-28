@@ -634,7 +634,6 @@ void main_imu_thread(void) {
 					magCal_time = k_uptime_get() + 1000;
 					last_magCal = new_magCal;
 				}
-				LOG_INF("mc status: %d", magCal);
 			}
 #endif
 
