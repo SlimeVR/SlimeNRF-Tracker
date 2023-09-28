@@ -786,9 +786,9 @@ void main_imu_thread(void) {
 #if (MAG_ENABLED == true)
 				mmc_SET(main_mag);													 // "deGauss" magnetometer
 				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
-				LOG_INF("Initialized main imus");
 // 0-1ms delta to setup mmc
 #endif
+				LOG_INF("Initialized main imus");
 				main_ok = true;
 				main_running = false;
 				k_sleep(K_FOREVER); // Wait for after calibrations have loaded the first time
