@@ -1113,7 +1113,15 @@ void main(void)
 				LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
 			}
 			LOG_INF("Finished mag hard/soft iron offset calibration");
-			magCal |= 1 << 7;
+			//magCal |= 1 << 7;
+			magCal = 0;
+			// clear data
+			//memset(ata[0], 0, sizeof(ata)); // does this work??
+			for (int i = 0; i < 100; i++) {
+				ata[i] = 0.0;
+			}
+			norm_sum = 0.0;
+			sample_count = 0.0;
 		}
 #endif
 
