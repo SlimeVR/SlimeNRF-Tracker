@@ -797,9 +797,9 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					// clear fusion gyro offset
 					for (uint8_t i = 0; i < 3; i++){
 						gOff[i] = 0;
-						//retained.gOff[i] = gOff[i]; // retained data will update later any way
+						retained.gOff[i] = gOff[i];
 					}
-					//retained_update();
+					retained_update();
 gpio_pin_set_dt(&led, 0); // scuffed led
 					reset_mode = 0; // Clear reset mode
 				}
