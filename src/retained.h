@@ -11,6 +11,11 @@
 
 /* Example of validatable retained data. */
 struct retained_data {
+	uint8_t reboot_counter;
+	uint8_t paired_addr[8];
+	float accelBias[3];
+	float gyroBias[3];
+	float magBAinv[4][3];
 	bool stored_quats;
 	float q[4];
 	float q2[4];

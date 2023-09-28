@@ -109,6 +109,8 @@ const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
 //const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
 //const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
 
+bool nvs_init = false;
+
 bool threads_running = false;
 
 bool main_running = false;
@@ -477,7 +479,6 @@ void reconfigure_mag(const struct i2c_dt_spec mag) {
 
 void configure_system_off_WOM(const struct i2c_dt_spec imu)
 {
-	icm_setup_WOM(imu); // enable WOM feature
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
@@ -493,6 +494,7 @@ void configure_system_off_WOM(const struct i2c_dt_spec imu)
 	}
 	retained_update();
 	// Set system off
+	icm_setup_WOM(imu); // enable WOM feature
 	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
 	k_sleep(K_SECONDS(1));
 }
@@ -576,7 +578,6 @@ gpio_pin_toggle_dt(&led); // scuffed led
 
 // TODO: make threads more abstract, pass in imus n stuff instead
 void main_imu_thread(void) {
-	k_sleep(K_FOREVER);
 	main_running = true;
 	while (1) {
 		if (main_ok)
@@ -772,9 +773,13 @@ void main_imu_thread(void) {
 #if (MAG_ENABLED == true)
 				mmc_SET(main_mag);													 // "deGauss" magnetometer
 				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
+				LOG_INF("Initialized main imus");
 // 0-1ms delta to setup mmc
 #endif
 				main_ok = true;
+				main_running = false;
+				k_sleep(K_FOREVER); // Wait for after calibrations have loaded the first time
+				main_running = true;
 				do {
 				if (reset_mode == 1) { // Reset mode main calibration
 					LOG_INF("Enter main calibration");
@@ -789,8 +794,15 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 					k_msleep(500); // Delay before beginning acquisition
 					LOG_INF("Start accel and gyro calibration");
 					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 3s
+					if (!nvs_init) {
+						nvs_mount(&fs);
+						nvs_init = true;
+					}
 					nvs_write(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
 					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
+					memcpy(retained.accelBias, accelBias, sizeof(accelBias));
+					memcpy(retained.gyroBias, gyroBias, sizeof(gyroBias));
+					retained_update();
 					LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 					LOG_INF("%.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
 					LOG_INF("Finished accel and gyro zero offset calibration");
@@ -805,6 +817,7 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 				}
 				} while (false);
 				// Setup fusion
+				LOG_INF("Init fusion");
 				FusionOffsetInitialise(&offset, 1/INTEGRATION_TIME);
 				FusionAhrsInitialise(&ahrs);
 				const FusionAhrsSettings settings = {
@@ -817,6 +830,7 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 				FusionAhrsSetSettings(&ahrs, &settings);
 				memcpy(ahrs.quaternion.array, q, sizeof(q)); // Load existing quat
 				memcpy(offset.gyroscopeOffset.array, gOff, sizeof(gOff)); // Load fusion gyro offset
+				LOG_INF("Initialized fusion");
 			}
 		}
 		main_running = false;
@@ -843,7 +857,8 @@ void wait_for_threads(void) {
 
 void power_check(void) {
 	bool docked = gpio_pin_get_dt(&dock);
-	batt_pptt = read_batt();
+	int batt_mV;
+	uint32_t batt_pptt = read_batt_mV(&batt_mV);
 	if (batt_pptt == 0 && !docked) {
 		gpio_pin_set_dt(&led, 0); // Turn off LED
 		configure_system_off_chgstat();
@@ -851,6 +866,7 @@ void power_check(void) {
 		gpio_pin_set_dt(&led, 0); // Turn off LED
 		configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
 	}
+	LOG_INF("Battery %u\% (%dmV)", batt_pptt/100, batt_mV);
 }
 
 void main(void)
@@ -867,25 +883,49 @@ void main(void)
 	start_time = k_uptime_get(); // Need to get start time for imu startup delta
 	gpio_pin_set_dt(&led, 1); // Boot LED
 
+	bool ram_retention = retained_validate(); // check ram retention
+	reboot_counter = retained.reboot_counter;
+
+	if (reset_reason & 0x01) { // Count pin resets
+		//nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+		reboot_counter = retained.reboot_counter;
+		reset_mode = reboot_counter;
+		reboot_counter++;
+		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+		retained_update();
+		LOG_INF("Reset Count: %u", reboot_counter);
+		k_msleep(1000); // Wait before clearing counter and continuing
+		reboot_counter = 0;
+		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+		retained_update();
+	}
+// 0ms or 1000ms delta for reboot counter
+
 	struct flash_pages_info info;
 	fs.flash_device = NVS_PARTITION_DEVICE;
 	fs.offset = NVS_PARTITION_OFFSET; // Start NVS FS here
 	flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
 	fs.sector_size = info.size; // Sector size equal to page size
 	fs.sector_count = 4U; // 4 sectors
-	nvs_mount(&fs);
-// 5-6ms delta to initialize NVS
-	if (reset_reason & 0x01) { // Count pin resets
-		nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
-		reset_mode = reboot_counter;
-		reboot_counter++;
-		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
-		LOG_INF("Reset Count: %u", reboot_counter);
-		k_msleep(1000); // Wait before clearing counter and continuing
-		reboot_counter = 0;
-		nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+// 5-6ms delta to initialize NVS (only done when needed)
+
+	// All contents of NVS was stored in RAM to not need initializing NVS often
+	if (!ram_retention) { 
+		LOG_INF("Invalidated RAM");
+		if (!nvs_init) {
+			nvs_mount(&fs);
+			nvs_init = true;
+		}
+		nvs_read(&fs, PAIRED_ID, &retained.paired_addr, sizeof(paired_addr));
+		nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &retained.accelBias, sizeof(accelBias));
+		nvs_read(&fs, MAIN_GYRO_BIAS_ID, &retained.gyroBias, sizeof(gyroBias));
+		nvs_read(&fs, MAIN_MAG_BIAS_ID, &retained.magBAinv, sizeof(magBAinv));
+		retained_update();
+	} else {
+		LOG_INF("Recovered calibration from RAM");
 	}
-// 0ms or 1000ms delta for reboot counter
+
+	memcpy(paired_addr, retained.paired_addr, sizeof(paired_addr));
 
 	gpio_pin_set_dt(&led, 0);
 
@@ -893,11 +933,18 @@ void main(void)
 
 	if (reset_mode == 3) { // Reset mode pairing reset
 		LOG_INF("Enter pairing reset");
+		if (!nvs_init) {
+			nvs_mount(&fs);
+			nvs_init = true;
+		}
 		nvs_write(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr)); // Clear paired address
+		memcpy(retained.paired_addr, paired_addr, sizeof(paired_addr));
+		retained_update();
 		reset_mode = 0; // Clear reset mode
 	} else {
 		// Read paired address from NVS
-		nvs_read(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr));
+		//nvs_read(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr));
+		memcpy(paired_addr, retained.paired_addr, sizeof(paired_addr));
 	}
 
 	clocks_start();
@@ -937,7 +984,13 @@ void main(void)
 			power_check();
 		}
 		LOG_INF("Paired");
+		if (!nvs_init) {
+			nvs_mount(&fs);
+			nvs_init = true;
+		}
 		nvs_write(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr)); // Write new address and tracker id
+		memcpy(retained.paired_addr, paired_addr, sizeof(paired_addr));
+		retained_update();
 		esb_disable();
 	}
 	LOG_INF("Read pairing data");
@@ -970,9 +1023,12 @@ void main(void)
 	}
 
 	// Read calibration from NVS
-	nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
-	nvs_read(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
-	nvs_read(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
+	//nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
+	//nvs_read(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
+	//nvs_read(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
+	memcpy(accelBias, retained.accelBias, sizeof(accelBias));
+	memcpy(gyroBias, retained.gyroBias, sizeof(gyroBias));
+	memcpy(magBAinv, retained.magBAinv, sizeof(magBAinv));
 	LOG_INF("Read calibrations");
 	LOG_INF("Main accel bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 	LOG_INF("Main gyro bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
@@ -989,7 +1045,7 @@ void main(void)
 	//gpio_pin_set_dt(&led, 1);
 
 	// Recover quats if present
-	retained_validate();
+	//retained_validate();
 	if (retained.stored_quats) {
 		for (uint8_t i = 0; i < 4; i++){
 			q[i] = retained.q[i];
@@ -1105,10 +1161,16 @@ void main(void)
 #if (MAG_ENABLED == true)
 		// Save magCal while idling
 		if (magCal == 0b111111 && last_powerstate == 1) {
+			if (!nvs_init) {
+				nvs_mount(&fs);
+				nvs_init = true;
+			}
 			wait_for_threads(); // make sure not to interrupt anything (8ms)
 			LOG_INF("Calibrating magnetometer");
 			magneto_current_calibration(magBAinv, ata, norm_sum, sample_count); // 25ms
 			nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
+			memcpy(retained.magBAinv, magBAinv, sizeof(magBAinv));
+			retained_update();
 			for (int i = 0; i < 3; i++) {
 				LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
 			}
