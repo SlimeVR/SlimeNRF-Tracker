@@ -144,6 +144,8 @@ FusionOffset offset; // could share goff and q with fusionoffset and fusionahrs 
 FusionAhrs ahrs;
 
 int magCal = 0;
+int last_magCal = 0;
+int64_t magCal_time = 0;
 double ata[100] = {0.0}; // init cal
 double norm_sum = 0.0;
 double sample_count = 0.0;
@@ -620,9 +622,19 @@ void main_imu_thread(void) {
 				mx = m[0];
 				my = m[1];
 				mz = m[2];
-				magCal |= (ax < 0.8 ? 1 << 0 : 0) | (ax > 0.8 ? 1 << 1 : 0) | // dumb check if all accel axes were reached for cal, assume the user is intentionally doing this
-					(ay < 0.8 ? 1 << 2 : 0) | (ay > 0.8 ? 1 << 3 : 0) |
-					(az < 0.8 ? 1 << 4 : 0) | (az > 0.8 ? 1 << 5 : 0);
+				int new_magCal = magCal;
+				new_magCal |= (-1.2 < ax && ax < -0.8 ? 1 << 0 : 0) | (1.2 > ax && ax > 0.8 ? 1 << 1 : 0) | // dumb check if all accel axes were reached for cal, assume the user is intentionally doing this
+					(-1.2 < ay && ay < -0.8 ? 1 << 2 : 0) | (1.2 > ay && ay > 0.8 ? 1 << 3 : 0) |
+					(-1.2 < az && az < -0.8 ? 1 << 4 : 0) | (1.2 > az && az > 0.8 ? 1 << 5 : 0);
+				if (new_magCal > magCal && new_magCal == last_magCal) {
+					if (k_uptime_get() > magCal_time) {
+						magCal = new_magCal;
+					}
+				} else {
+					magCal_time = k_uptime_get() + 1000;
+					last_magCal = new_magCal;
+				}
+				LOG_INF("mc status: %d", magCal);
 			}
 #endif
 
@@ -696,8 +708,9 @@ void main_imu_thread(void) {
 			}
 
 			if (quat_epsilon_coarse(q, last_q)) { // Probably okay to use the constantly updating last_q
-				if (k_uptime_get() - last_data_time > 60 * 1000) { // No motion in last 1m
-					LOG_INF("No motion from main imus in 1m");
+				int64_t imu_timeout = CLAMP(last_data_time, 1 * 1000, 15 * 1000); // Ramp timeout from last_data_time
+				if (k_uptime_get() - last_data_time > imu_timeout) { // No motion in last 1s - 10s
+					LOG_INF("No motion from main imus in %llds", imu_timeout/1000);
 					system_off_main = true;
 				} else if (powerstate == 0 && k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
 					LOG_INF("No motion from main imus in 500ms");
@@ -848,7 +861,7 @@ void wait_for_main_imu_thread(void) {
 }
 
 void wait_for_threads(void) {
-	if (threads_running) {
+	if (threads_running || main_running) {
 		while (main_running) {
 			k_usleep(1);
 		}
@@ -1138,14 +1151,6 @@ void main(void)
 			configure_system_off_dock();
 		}
 
-		reconfig = last_powerstate != powerstate ? true : false;
-		last_powerstate = powerstate;
-		main_data = false;
-
-		wait_for_threads();
-		k_wakeup(main_imu_thread_id);
-		threads_running = true;
-
 		if (system_off_main) { // System off on extended no movement
 			LOG_INF("Waiting for system off (No movement)");
 			wait_for_threads();
@@ -1158,6 +1163,14 @@ void main(void)
 			configure_system_off_WOM(main_imu);
 		}
 
+		reconfig = last_powerstate != powerstate ? true : false;
+		last_powerstate = powerstate;
+		main_data = false;
+
+		wait_for_threads();
+		k_wakeup(main_imu_thread_id);
+		threads_running = true;
+
 #if (MAG_ENABLED == true)
 		// Save magCal while idling
 		if (magCal == 0b111111 && last_powerstate == 1) {
@@ -1165,6 +1178,7 @@ void main(void)
 				nvs_mount(&fs);
 				nvs_init = true;
 			}
+			k_usleep(1); // yield to imu thread first
 			wait_for_threads(); // make sure not to interrupt anything (8ms)
 			LOG_INF("Calibrating magnetometer");
 			magneto_current_calibration(magBAinv, ata, norm_sum, sample_count); // 25ms

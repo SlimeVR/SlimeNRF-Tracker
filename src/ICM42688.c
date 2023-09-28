@@ -111,7 +111,7 @@ void icm_setup_WOM(struct i2c_dt_spec dev_i2c)
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INT_SOURCE1, 0x07); // enable WOM interrupt
 	k_busy_wait(50000);
-	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_SMD_CONFIG, 0x05); // enable WOM feature
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_SMD_CONFIG, 0x01); // enable WOM feature
 }
 
 // make i2c stuff external? (portability)
