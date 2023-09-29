@@ -896,7 +896,6 @@ void main(void)
 	gpio_pin_set_dt(&led, 1); // Boot LED
 
 	bool ram_retention = retained_validate(); // check ram retention
-	reboot_counter = retained.reboot_counter;
 
 	if (reset_reason & 0x01) { // Count pin resets
 		//nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
@@ -904,11 +903,13 @@ void main(void)
 		reset_mode = reboot_counter;
 		reboot_counter++;
 		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+		retained.reboot_counter = reboot_counter;
 		retained_update();
 		LOG_INF("Reset Count: %u", reboot_counter);
 		k_msleep(1000); // Wait before clearing counter and continuing
 		reboot_counter = 0;
 		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+		retained.reboot_counter = reboot_counter;
 		retained_update();
 	}
 // 0ms or 1000ms delta for reboot counter
