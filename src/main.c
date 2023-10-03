@@ -445,12 +445,14 @@ int esb_initialize_rx(void)
 
 int powerstate = 0;
 int last_powerstate = 0;
+int mag_level = 0;
+int last_mag_level = -1;
 
 void set_LN(void) {
 	tickrate = 6;
 	// TODO: This becomes part of the sensor
 //	aMode = aMode_LN;
-#if (MAG_ENABLED == true)
+#if MAG_ENABLED
 //	gMode = gMode_LN;
 //	MBW = MBW_400Hz;
 	MODR = MODR_200Hz;
@@ -461,7 +463,7 @@ void set_LP(void) {
 	tickrate = 33;
 	// TODO: This becomes part of the sensor
 //	aMode = aMode_LP;
-#if (MAG_ENABLED == true)
+#if MAG_ENABLED
 //	gMode = gMode_SBY;
 //	MBW = MBW_800Hz;
 	MODR = MODR_ONESHOT;
@@ -475,7 +477,7 @@ void reconfigure_imu(const struct i2c_dt_spec imu) {
 }
 
 void reconfigure_mag(const struct i2c_dt_spec mag) {
-	i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_1, MBW); // set mag bandwidth
+	//i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_1, MBW); // set mag bandwidth
 	i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | 0x08 | MODR); // set mag ODR
 }
 
@@ -612,7 +614,7 @@ void main_imu_thread(void) {
 			float ay = a[1] - accelBias[1];
 			float az = a[2] - accelBias[2];
 
-#if (MAG_ENABLED == true)
+#if MAG_ENABLED
 			float mx, my, mz;
 			if (last_powerstate == 0) {
 				float m[3];
@@ -635,27 +637,50 @@ void main_imu_thread(void) {
 					last_magCal = new_magCal;
 				}
 			}
-#endif
 
-#if (MAG_ENABLED == true)
 			if (reconfig) {
 				switch (powerstate) {
 					case 0:
 						set_LN();
 						LOG_INF("Switch main imus to low noise");
+						last_mag_level = -1;
 						break;
 					case 1:
 						set_LP();
 						LOG_INF("Switch main imus to low power");
+						reconfigure_mag(main_mag);
 						break;
 				};
 				//reconfigure_imu(main_imu); // Reconfigure if needed
-				reconfigure_mag(main_mag); // Reconfigure if needed
+				//reconfigure_mag(main_mag); // Reconfigure if needed
 			}
+			if (last_mag_level != mag_level && powerstate == 0) {
+				switch (mag_level) {
+					case 0:
+						MODR = MODR_20Hz;
+						LOG_INF("Switch mag to 20Hz");
+						break;
+					case 1:
+						MODR = MODR_50Hz;
+						LOG_INF("Switch mag to 50Hz");
+						break;
+					case 2:
+						MODR = MODR_100Hz;
+						LOG_INF("Switch mag to 100Hz");
+						break;
+					case 3:
+						MODR = MODR_200Hz;
+						LOG_INF("Switch mag to 200Hz");
+						break;
+				};
+				reconfigure_mag(main_mag);
+			}
+			last_mag_level = mag_level;
+			mag_level = 0;
 #endif
 
 			FusionVector z = {.array = {0, 0, 0}};
-			if (packets == 2 && powerstate == 1 && MAG_ENABLED == true) {
+			if (packets == 2 && powerstate == 1 && MAG_ENABLED) {
 					ahrs.initialising = true;
 					ahrs.rampedGain = 10.0f;
 					ahrs.accelerometerIgnored = false;
@@ -686,6 +711,15 @@ void main_imu_thread(void) {
 					FusionVector a = {.array = {ax, -az, ay}};
 					g = FusionOffsetUpdate(&offset, g);
 #if MAG_ENABLED
+					float gyro_speed_square = g.array[0]*g.array[0] + g.array[1]*g.array[1] + g.array[2]*g.array[2];
+					// target mag ODR for ~0.25 deg error
+					if (gyro_speed_square > 25*25 && mag_level < 3) // >25dps -> 200hz ODR
+						mag_level = 3;
+					else if (gyro_speed_square > 12*12 && mag_level < 2) // 12-25dps -> 100hz ODR
+						mag_level = 2;
+					else if (gyro_speed_square > 5*5 && mag_level < 1) // 5-12dps -> 50hz ODR
+						mag_level = 1;
+					// <5dps -> 20hz ODR
 					FusionVector m = {.array = {my, mz, -mx}};
 					if (offset.timer < offset.timeout)
 						FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME);
@@ -782,7 +816,7 @@ void main_imu_thread(void) {
 				i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
 				icm_init(main_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
-#if (MAG_ENABLED == true)
+#if MAG_ENABLED
 				mmc_SET(main_mag);													 // "deGauss" magnetometer
 				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
 // 0-1ms delta to setup mmc
@@ -1171,7 +1205,7 @@ void main(void)
 		k_wakeup(main_imu_thread_id);
 		threads_running = true;
 
-#if (MAG_ENABLED == true)
+#if MAG_ENABLED
 		// Save magCal while idling
 		if (magCal == 0b111111 && last_powerstate == 1) {
 			if (!nvs_init) {
