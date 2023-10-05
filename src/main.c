@@ -32,15 +32,14 @@
 #include <zephyr/types.h>
 
 #include <zephyr/init.h>
-#include <zephyr/pm/pm.h>
-#include <zephyr/pm/device.h>
-#include <zephyr/pm/policy.h>
 #include <hal/nrf_gpio.h>
+
+#include <zephyr/sys/poweroff.h>
+#include <zephyr/sys/reboot.h>
 
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/pwm.h>
 
-#include <zephyr/sys/reboot.h>
 #include <zephyr/drivers/flash.h>
 #include <zephyr/storage/flash_map.h>
 #include <zephyr/fs/nvs.h>
@@ -252,8 +251,8 @@ static void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 
 void timer_init(void) {
 	nrfx_err_t err;
-	nrfx_timer_config_t timer_cfg = NRFX_TIMER_DEFAULT_CONFIG;  
-	timer_cfg.frequency = NRF_TIMER_FREQ_1MHz;
+	nrfx_timer_config_t timer_cfg = NRFX_TIMER_DEFAULT_CONFIG(1000000);  
+	//timer_cfg.frequency = NRF_TIMER_FREQ_1MHz;
 	//timer_cfg.mode = NRF_TIMER_MODE_TIMER;
 	//timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_16;
 	//timer_cfg.interrupt_priority = NRFX_TIMER_DEFAULT_CONFIG_IRQ_PRIORITY;
@@ -499,8 +498,7 @@ void configure_system_off_WOM(const struct i2c_dt_spec imu)
 	retained_update();
 	// Set system off
 	icm_setup_WOM(imu); // enable WOM feature
-	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
-	k_sleep(K_SECONDS(1));
+	sys_poweroff();
 }
 
 void configure_system_off_chgstat(void){
@@ -517,8 +515,7 @@ void configure_system_off_chgstat(void){
 	}
 	retained_update();
 	// Set system off
-	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
-	k_sleep(K_SECONDS(1));
+	sys_poweroff();
 }
 
 void configure_system_off_dock(void){
@@ -531,8 +528,7 @@ void configure_system_off_dock(void){
 	}
 	retained_update();
 	// Set system off
-	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
-	k_sleep(K_SECONDS(1));
+	sys_poweroff();
 }
 
 bool quat_epsilon(float *q, float *q2) {
@@ -657,18 +653,22 @@ void main_imu_thread(void) {
 			if (last_mag_level != mag_level && powerstate == 0) {
 				switch (mag_level) {
 					case 0:
+						MODR = MODR_10Hz;
+						LOG_INF("Switch mag to 10Hz");
+						break;
+					case 1:
 						MODR = MODR_20Hz;
 						LOG_INF("Switch mag to 20Hz");
 						break;
-					case 1:
+					case 2:
 						MODR = MODR_50Hz;
 						LOG_INF("Switch mag to 50Hz");
 						break;
-					case 2:
+					case 3:
 						MODR = MODR_100Hz;
 						LOG_INF("Switch mag to 100Hz");
 						break;
-					case 3:
+					case 4:
 						MODR = MODR_200Hz;
 						LOG_INF("Switch mag to 200Hz");
 						break;
@@ -714,12 +714,14 @@ void main_imu_thread(void) {
 					float gyro_speed_square = g.array[0]*g.array[0] + g.array[1]*g.array[1] + g.array[2]*g.array[2];
 					// target mag ODR for ~0.25 deg error
 					if (gyro_speed_square > 25*25 && mag_level < 3) // >25dps -> 200hz ODR
-						mag_level = 3;
+						mag_level = 4;
 					else if (gyro_speed_square > 12*12 && mag_level < 2) // 12-25dps -> 100hz ODR
-						mag_level = 2;
+						mag_level = 3;
 					else if (gyro_speed_square > 5*5 && mag_level < 1) // 5-12dps -> 50hz ODR
+						mag_level = 2;
+					else if (gyro_speed_square > 2*2 && mag_level < 1) // 2-5dps -> 20hz ODR
 						mag_level = 1;
-					// <5dps -> 20hz ODR
+					// <2dps -> 10hz ODR
 					FusionVector m = {.array = {my, mz, -mx}};
 					if (offset.timer < offset.timeout)
 						FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME);
