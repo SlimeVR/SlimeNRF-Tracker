@@ -799,12 +799,15 @@ void main_imu_thread(void) {
 			}
 		} else {
 // 5ms delta (???) from entering loop
+// skip sleep, surely this wont cause issues :D
+/*
 			int64_t time_delta = k_uptime_get() - start_time;
 			if (time_delta < 11)
 			{
 				k_msleep(11 - time_delta);
 			}
 			//k_msleep(11);														 // Wait for start up (1ms for ICM, 10ms for MMC -> 10ms)
+*/
 			uint8_t ICM42688ID = icm_getChipID(main_imu);						 // Read CHIP_ID register for ICM42688
 				LOG_INF("ICM: %u", ICM42688ID);
 			uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
@@ -812,8 +815,9 @@ void main_imu_thread(void) {
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
 			{
 				LOG_INF("Found main imus");
+				i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
 				i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
-				icm_reset(main_imu);												 // software reset ICM42688 to default registers
+				//icm_reset(main_imu);												 // software reset ICM42688 to default registers
 				uint8_t temp;
 				i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
 				icm_init(main_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
