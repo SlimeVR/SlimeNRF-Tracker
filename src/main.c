@@ -627,10 +627,14 @@ void main_imu_thread(void) {
 				if (new_magCal > magCal && new_magCal == last_magCal) {
 					if (k_uptime_get() > magCal_time) {
 						magCal = new_magCal;
+						LOG_INF("Progress magCal: %d", new_magCal);
 					}
 				} else {
 					magCal_time = k_uptime_get() + 1000;
 					last_magCal = new_magCal;
+				}
+				if (magCal == 0b111111) {
+					gpio_pin_set_dt(&led, 1);
 				}
 			}
 
