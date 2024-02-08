@@ -895,7 +895,7 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 	}
 }
 
-K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
+K_THREAD_DEFINE(main_imu_thread_id, 1024, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
 
 void wait_for_main_imu_thread(void) {
 	while (main_running) {
