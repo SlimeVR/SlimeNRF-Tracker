@@ -153,7 +153,7 @@ int tracker_id = 0;
 
 // storing temporary values
 uint16_t tx_buf[7];
-int64_t start_time;
+//int64_t start_time;
 int64_t last_data_time;
 unsigned int last_batt_pptt[16] = {10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001};
 int8_t last_batt_pptt_i = 0;
@@ -936,7 +936,7 @@ int main(void)
 
 	power_check(); // check the battery and dock first before continuing (4ms delta to read from ADC)
 
-	start_time = k_uptime_get(); // Need to get start time for imu startup delta
+//	start_time = k_uptime_get(); // Need to get start time for imu startup delta
 	gpio_pin_set_dt(&led, 1); // Boot LED
 
 	bool ram_retention = retained_validate(); // check ram retention
