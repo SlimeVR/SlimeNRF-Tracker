@@ -895,7 +895,7 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 	}
 }
 
-K_THREAD_DEFINE(main_imu_thread_id, 1024, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
+K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
 
 void wait_for_main_imu_thread(void) {
 	while (main_running) {
@@ -916,9 +916,15 @@ void power_check(void) {
 	int batt_mV;
 	uint32_t batt_pptt = read_batt_mV(&batt_mV);
 	if (batt_pptt == 0 && !docked) {
+		// Communicate all imus to shut down
+		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+		i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 		gpio_pin_set_dt(&led, 0); // Turn off LED
 		configure_system_off_chgstat();
 	} else if (docked) {
+		// Communicate all imus to shut down
+		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+		i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 		gpio_pin_set_dt(&led, 0); // Turn off LED
 		configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
 	}
