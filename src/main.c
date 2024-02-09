@@ -137,7 +137,7 @@ float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
 
 float gOff[3] = {0.0f, 0.0f, 0.0f}; // runtime fusion gyro offset
 
-float q3[4] = {-0.5f, 0.5f, 0.5f, 0.5f}; // correction quat
+float q3[4] = {0.5f, -0.5f, -0.5f, -0.5f}; // correction quat
 
 FusionOffset offset; // could share goff and q with fusionoffset and fusionahrs but init clears the values
 FusionAhrs ahrs;
@@ -773,7 +773,7 @@ void main_imu_thread(void) {
 				tx_buf[1] = INT16_TO_UINT16(TO_FIXED_14(q_offset[1]));
 				tx_buf[2] = INT16_TO_UINT16(TO_FIXED_14(q_offset[2]));
 				tx_buf[3] = INT16_TO_UINT16(TO_FIXED_14(q_offset[3]));
-				tx_buf[4] = INT16_TO_UINT16(TO_FIXED_10(lin_ax));
+				tx_buf[4] = INT16_TO_UINT16(TO_FIXED_10(lin_ax)); //??? maybe something is wrong here?
 				tx_buf[5] = INT16_TO_UINT16(TO_FIXED_10(lin_ay));
 				tx_buf[6] = INT16_TO_UINT16(TO_FIXED_10(lin_az));
 				tx_payload.data[0] = 0; //reserved for something idk
