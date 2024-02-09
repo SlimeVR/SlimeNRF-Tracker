@@ -738,10 +738,10 @@ void main_imu_thread(void) {
 						FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME);
 #endif
 				}
-				const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);
-				lin_ax = earth.array[0];
-				lin_ay = earth.array[1];
-				lin_az = earth.array[2];
+				const FusionVector lin_a = FusionAhrsGetLinearAcceleration(&ahrs); // im going insane
+				lin_ax = lin_a.array[0];
+				lin_ay = lin_a.array[1];
+				lin_az = lin_a.array[2];
 				memcpy(q, ahrs.quaternion.array, sizeof(q));
 				memcpy(gOff, offset.gyroscopeOffset.array, sizeof(gOff));
 			}
