@@ -162,8 +162,6 @@ bool retained_validate(void)
 
 void retained_update(void)
 {
-	uint64_t now = k_uptime_ticks();
-
 	uint32_t crc = crc32_ieee((const uint8_t *)&retained,
 				  RETAINED_CRC_OFFSET);
 

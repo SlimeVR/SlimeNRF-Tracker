@@ -45,6 +45,8 @@ float icm_getAres(uint8_t Ascale) {
             _aRes = 16.0f/32768.0f;
             return _aRes;
             break;
+        default: // invalid..
+            return _aRes;
     }
 }
 
@@ -84,6 +86,8 @@ float icm_getGres(uint8_t Gscale) {
             _gRes = 2000.0f/32768.0f;
             return _gRes;
             break;
+        default: // invalid..
+            return _gRes;
     }
 }
 

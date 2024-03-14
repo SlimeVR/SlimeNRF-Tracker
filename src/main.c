@@ -183,7 +183,7 @@ bool reconfig;
 	  AODR_1kHz, AODR_2kHz, AODR_4kHz, AODR_8kHz, AODR_16kHz, AODR_32kHz
 	  GODR_12_5Hz, GODR_25Hz, GODR_50Hz, GODR_100Hz, GODR_200Hz, GODR_500Hz, GODR_1kHz, GODR_2kHz, GODR_4kHz, GODR_8kHz, GODR_16kHz, GODR_32kHz
 */
-uint8_t Ascale = AFS_8G, Gscale = GFS_2000DPS, AODR = AODR_200Hz, GODR = GODR_1kHz, aMode = aMode_LN, gMode = gMode_LN;
+uint8_t Ascale = AFS_8G, Gscale = GFS_2000DPS, AODR = AODR_200Hz, GODR = GODR_1kHz, aMode = aMode_LN, gMode = gMode_LN; // also change gyro range in fusion!
 #define INTEGRATION_TIME 0.001
 #define INTEGRATION_TIME_LP 0.005
 
@@ -692,8 +692,8 @@ void main_imu_thread(void) {
 					ahrs.initialising = true;
 					ahrs.rampedGain = 10.0f;
 					ahrs.accelerometerIgnored = false;
-					ahrs.accelerationRejectionTimer = 0;
-					ahrs.accelerationRejectionTimeout = false;
+					ahrs.accelerationRecoveryTrigger = 0;
+					ahrs.accelerationRecoveryTimeout = 0;
 					FusionVector a = {.array = {ax, -az, ay}};
 					FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME_LP);
 					memcpy(q, ahrs.quaternion.array, sizeof(q));
@@ -880,12 +880,14 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 				LOG_INF("Init fusion");
 				FusionOffsetInitialise(&offset, 1/INTEGRATION_TIME);
 				FusionAhrsInitialise(&ahrs);
+				// ahrs.initialising = true; // cancel fusion init, maybe only if there is a quat stored? oh well
 				const FusionAhrsSettings settings = {
 						.convention = FusionConventionNwu,
 						.gain = 0.5f,
+						.gyroscopeRange = 2000.0f, // also change gyro range in fusion! (.. does it actually work if its set to the limit?)
 						.accelerationRejection = 10.0f,
 						.magneticRejection = 20.0f,
-						.rejectionTimeout = 5 * 1/INTEGRATION_TIME, /* 5 seconds */
+						.recoveryTriggerPeriod = 5 * 1/INTEGRATION_TIME, // 5 seconds
 				};
 				FusionAhrsSetSettings(&ahrs, &settings);
 				memcpy(ahrs.quaternion.array, q, sizeof(q)); // Load existing quat
