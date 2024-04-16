@@ -118,6 +118,7 @@ bool main_ok = false;
 
 bool main_data = false;
 
+#define USER_SHUTDOWN_ENABLED true
 #define MAG_ENABLED true
 
 #define INT16_TO_UINT16(x) ((uint16_t)32768 + (uint16_t)(x))
@@ -163,7 +164,7 @@ unsigned int last_batt_pptt[16] = {10001,10001,10001,10001,10001,10001,10001,100
 int8_t last_batt_pptt_i = 0;
 int64_t led_time = 0;
 int64_t led_time_off = 0;
-uint8_t reset_mode = 0;
+uint8_t reset_mode = -1;
 uint8_t last_reset = 0;
 bool system_off_main = false;
 bool reconfig;
@@ -942,6 +943,7 @@ int main(void)
 	int32_t reset_reason = NRF_POWER->RESETREAS;
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 	uint8_t reboot_counter = 0;
+	bool booting_from_shutdown = false;
 
 	gpio_pin_configure_dt(&dock, GPIO_INPUT);
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
@@ -956,19 +958,46 @@ int main(void)
 	if (reset_reason & 0x01) { // Count pin resets
 		//nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
 		reboot_counter = retained.reboot_counter;
-		reset_mode = reboot_counter;
+		if (reboot_counter > 200) reboot_counter = 200; // How did you get here
+		booting_from_shutdown = reboot_counter == 0 ? true : false; // 0 means from user shutdown or failed ram validation
+		if (reboot_counter == 0) reboot_counter = 100;
+		reset_mode = reboot_counter - 100;
 		reboot_counter++;
 		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
 		retained.reboot_counter = reboot_counter;
 		retained_update();
 		LOG_INF("Reset Count: %u", reboot_counter);
 		k_msleep(1000); // Wait before clearing counter and continuing
-		reboot_counter = 0;
+		reboot_counter = 100;
 		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
 		retained.reboot_counter = reboot_counter;
 		retained_update();
 	}
 // 0ms or 1000ms delta for reboot counter
+
+#if USER_SHUTDOWN_ENABLED
+	if (reset_mode == 0 && !booting_from_shutdown) { // Reset mode user shutdown
+		reboot_counter = 0;
+		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
+		retained.reboot_counter = reboot_counter;
+		retained_update();
+		bool docked = gpio_pin_get_dt(&dock);
+		if (!docked) { // TODO: should the tracker start again if docking state changes?
+			// Communicate all imus to shut down
+			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+			gpio_pin_set_dt(&led, 0); // Turn off LED
+			configure_system_off_chgstat();
+		} else {
+			// Communicate all imus to shut down
+			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+			gpio_pin_set_dt(&led, 0); // Turn off LED
+			configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
+		}
+	}
+// How long user shutdown take does not matter really ("0ms")
+#endif
 
 	struct flash_pages_info info;
 	fs.flash_device = NVS_PARTITION_DEVICE;
@@ -999,6 +1028,9 @@ int main(void)
 	gpio_pin_set_dt(&led, 0);
 
 // TODO: if reset counter is 0 but reset reason was 1 then perform imu scanning (pressed reset once)
+	if (reset_mode == 0) { // Reset mode scan imus
+	}
+// ?? delta
 
 	if (reset_mode == 3) { // Reset mode pairing reset
 		LOG_INF("Enter pairing reset");
