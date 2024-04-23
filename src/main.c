@@ -967,7 +967,16 @@ int main(void)
 		retained.reboot_counter = reboot_counter;
 		retained_update();
 		LOG_INF("Reset Count: %u", reboot_counter);
-		k_msleep(1000); // Wait before clearing counter and continuing
+		if (booting_from_shutdown) { // 3 flashes
+			k_msleep(200);
+			for (int j = 0; j < 2; j++) {
+				gpio_pin_set_dt(&led, 0);
+				k_msleep(200);
+				gpio_pin_set_dt(&led, 1);
+				k_msleep(200);
+			}
+		} else
+			k_msleep(1000); // Wait before clearing counter and continuing
 		reboot_counter = 100;
 		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
 		retained.reboot_counter = reboot_counter;
@@ -981,6 +990,12 @@ int main(void)
 		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
 		retained.reboot_counter = reboot_counter;
 		retained_update();
+		gpio_pin_set_dt(&led, 0);
+		k_msleep(250);
+		for (int i = 20; i > 0; i--) { // Fade LED pattern
+			pwm_set_pulse_dt(&led0, PWM_MSEC(i));
+			k_msleep(50);
+		}
 		bool docked = gpio_pin_get_dt(&dock);
 		if (!docked) { // TODO: should the tracker start again if docking state changes?
 			// Communicate all imus to shut down
