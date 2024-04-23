@@ -147,6 +147,9 @@ float q3[4] = {0.5f, -0.5f, -0.5f, -0.5f}; // correction quat
 FusionOffset offset; // could share goff and q with fusionoffset and fusionahrs but init clears the values
 FusionAhrs ahrs;
 
+FusionVector gyro_sanity_m;
+int gyro_sanity = 0;
+
 int magCal = 0;
 int last_magCal = 0;
 int64_t magCal_time = 0;
@@ -536,6 +539,7 @@ void configure_system_off_dock(void){
 	sys_poweroff();
 }
 
+// TODO: fix this mess
 bool quat_epsilon(float *q, float *q2) {
 	return fabs(q[0] - q2[0]) < 0.0001f && fabs(q[1] - q2[1]) < 0.0001f && fabs(q[2] - q2[2]) < 0.0001f && fabs(q[3] - q2[3]) < 0.0001f;
 }
@@ -544,8 +548,16 @@ bool quat_epsilon_coarse(float *q, float *q2) {
 	return fabs(q[0] - q2[0]) < 0.0005f && fabs(q[1] - q2[1]) < 0.0005f && fabs(q[2] - q2[2]) < 0.0005f && fabs(q[3] - q2[3]) < 0.0005f;
 }
 
+bool quat_epsilon_coarse2(float *q, float *q2) {
+	return fabs(q[0] - q2[0]) < 0.005f && fabs(q[1] - q2[1]) < 0.005f && fabs(q[2] - q2[2]) < 0.005f && fabs(q[3] - q2[3]) < 0.005f;
+}
+
 bool vec_epsilon(float *a, float *a2) {
 	return fabs(a[0] - a2[0]) < 0.1f && fabs(a[1] - a2[1]) < 0.1f && fabs(a[2] - a2[2]) < 0.1f;
+}
+
+bool vec_epsilon2(float *a, float *a2, float eps) {
+	return fabs(a[0] - a2[0]) < eps && fabs(a[1] - a2[1]) < eps && fabs(a[2] - a2[2]) < eps;
 }
 
 void apply_BAinv(float xyz[3], float BAinv[4][3]) {
@@ -663,23 +675,23 @@ void main_imu_thread(void) {
 				switch (mag_level) {
 					case 0:
 						MODR = MODR_10Hz;
-						LOG_INF("Switch mag to 10Hz");
+						//LOG_INF("Switch mag to 10Hz");
 						break;
 					case 1:
 						MODR = MODR_20Hz;
-						LOG_INF("Switch mag to 20Hz");
+						//LOG_INF("Switch mag to 20Hz");
 						break;
 					case 2:
 						MODR = MODR_50Hz;
-						LOG_INF("Switch mag to 50Hz");
+						//LOG_INF("Switch mag to 50Hz");
 						break;
 					case 3:
 						MODR = MODR_100Hz;
-						LOG_INF("Switch mag to 100Hz");
+						//LOG_INF("Switch mag to 100Hz");
 						break;
 					case 4:
 						MODR = MODR_200Hz;
-						LOG_INF("Switch mag to 200Hz");
+						//LOG_INF("Switch mag to 200Hz");
 						break;
 				};
 				reconfigure_mag(main_mag);
@@ -699,6 +711,9 @@ void main_imu_thread(void) {
 					FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME_LP);
 					memcpy(q, ahrs.quaternion.array, sizeof(q));
 			} else {
+				FusionVector g = {.array = {0, 0, 0}};
+				FusionVector a = {.array = {ax, -az, ay}};
+				FusionVector m = {.array = {my, mz, -mx}};
 				for (uint16_t i = 0; i < packets; i++)
 				{
 					uint16_t index = i * 8; // Packet size 8 bytes
@@ -716,9 +731,11 @@ void main_imu_thread(void) {
 					float gx = raw0 * (2000.0f/32768.0f) - gyroBias[0]; //gres
 					float gy = raw1 * (2000.0f/32768.0f) - gyroBias[1]; //gres
 					float gz = raw2 * (2000.0f/32768.0f) - gyroBias[2]; //gres
-					FusionVector g = {.array = {gx, -gz, gy}};
-					FusionVector a = {.array = {ax, -az, ay}};
-					g = FusionOffsetUpdate(&offset, g);
+					g.axis.x = gx;
+					g.axis.y = -gz;
+					g.axis.z = gy;
+					//FusionVector g = {.array = {gx, -gz, gy}};
+					FusionVector g_off = FusionOffsetUpdate(&offset, g);
 #if MAG_ENABLED
 					float gyro_speed_square = g.array[0]*g.array[0] + g.array[1]*g.array[1] + g.array[2]*g.array[2];
 					// target mag ODR for ~0.25 deg error
@@ -731,9 +748,8 @@ void main_imu_thread(void) {
 					else if (gyro_speed_square > 2*2 && mag_level < 1) // 2-5dps -> 20hz ODR
 						mag_level = 1;
 					// <2dps -> 10hz ODR
-					FusionVector m = {.array = {my, mz, -mx}};
 					if (offset.timer < offset.timeout)
-						FusionAhrsUpdate(&ahrs, g, a, m, INTEGRATION_TIME);
+						FusionAhrsUpdate(&ahrs, g_off, a, m, INTEGRATION_TIME);
 					else
 						FusionAhrsUpdate(&ahrs, z, a, m, INTEGRATION_TIME);
 #else
@@ -743,6 +759,27 @@ void main_imu_thread(void) {
 						FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME);
 #endif
 				}
+
+				if (FusionAhrsGetFlags(&ahrs).magneticRecovery) {
+					if (gyro_sanity == 2 && vec_epsilon2(gyro_sanity_m.array, m.array, 0.01f)) {
+						// For whatever reason the gyro seems unreliable
+						// Reset the offset here so the tracker can probably at least turn off
+						LOG_INF("Gyro seems unreliable!");
+						offset.gyroscopeOffset = g;
+						gyro_sanity = 3;
+					} else if (gyro_sanity % 2 == 0) {
+						LOG_INF("Magnetic recovery");
+						gyro_sanity_m = m;
+						gyro_sanity = 1;
+					}
+				} else if (gyro_sanity == 1) {
+					LOG_INF("Recovered once");
+					gyro_sanity = 2;
+				} else if (gyro_sanity == 3) {
+					LOG_INF("Reset gyro sanity");
+					gyro_sanity = 0;
+				}
+				
 				const FusionVector lin_a = FusionAhrsGetLinearAcceleration(&ahrs); // im going insane
 				lin_ax = lin_a.array[0] * CONST_EARTH_GRAVITY; // Also change to m/s for SlimeVR server
 				lin_ay = lin_a.array[1] * CONST_EARTH_GRAVITY;
@@ -751,7 +788,7 @@ void main_imu_thread(void) {
 				memcpy(gOff, offset.gyroscopeOffset.array, sizeof(gOff));
 			}
 
-			if (quat_epsilon_coarse(q, last_q)) { // Probably okay to use the constantly updating last_q
+			if (gyro_sanity == 0 ? quat_epsilon_coarse(q, last_q) : quat_epsilon_coarse2(q, last_q)) { // Probably okay to use the constantly updating last_q
 				int64_t imu_timeout = CLAMP(last_data_time, 1 * 1000, 15 * 1000); // Ramp timeout from last_data_time
 				if (k_uptime_get() - last_data_time > imu_timeout) { // No motion in last 1s - 10s
 					LOG_INF("No motion from main imus in %llds", imu_timeout/1000);
