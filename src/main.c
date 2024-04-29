@@ -121,10 +121,13 @@ bool main_data = false;
 #define USER_SHUTDOWN_ENABLED true
 #define MAG_ENABLED true
 
-#define INT16_TO_UINT16(x) ((uint16_t)32768 + (uint16_t)(x))
-#define TO_FIXED_14(x) ((int16_t)((x) * (1 << 14)))
+// Saturate int to 16 bits
+// Optimized to a single ARM assembler instruction
+#define SATURATE_INT16(x) ((x) > 32767 ? 32767 : ((x) < -32768 ? -32768 : (x)))
+
+#define TO_FIXED_15(x) ((int16_t)SATURATE_INT16((x) * (1 << 15)))
 #define TO_FIXED_10(x) ((int16_t)((x) * (1 << 10)))
-#define TO_FIXED_7(x) ((int16_t)((x) * (1 << 7)))
+#define TO_FIXED_7(x) ((int16_t)SATURATE_INT16((x) * (1 << 7)))
 #define FIXED_14_TO_DOUBLE(x) (((double)(x)) / (1 << 14))
 #define FIXED_10_TO_DOUBLE(x) (((double)(x)) / (1 << 10))
 #define FIXED_7_TO_DOUBLE(x) (((double)(x)) / (1 << 7))
@@ -811,13 +814,13 @@ void main_imu_thread(void) {
 				}
 				float q_offset[4];
 				q_multiply(q, q3, q_offset);
-				tx_buf[0] = INT16_TO_UINT16(TO_FIXED_14(q_offset[0]));
-				tx_buf[1] = INT16_TO_UINT16(TO_FIXED_14(q_offset[1]));
-				tx_buf[2] = INT16_TO_UINT16(TO_FIXED_14(q_offset[2]));
-				tx_buf[3] = INT16_TO_UINT16(TO_FIXED_14(q_offset[3]));
-				tx_buf[4] = INT16_TO_UINT16(TO_FIXED_7(lin_ax)); //??? maybe something is wrong here?
-				tx_buf[5] = INT16_TO_UINT16(TO_FIXED_7(lin_ay));
-				tx_buf[6] = INT16_TO_UINT16(TO_FIXED_7(lin_az));
+				tx_buf[0] = TO_FIXED_15(q_offset[3]);
+				tx_buf[1] = TO_FIXED_15(q_offset[0]);
+				tx_buf[2] = TO_FIXED_15(q_offset[1]);
+				tx_buf[3] = TO_FIXED_15(q_offset[2]);
+				tx_buf[4] = TO_FIXED_7(lin_ax);
+				tx_buf[5] = TO_FIXED_7(lin_ay);
+				tx_buf[6] = TO_FIXED_7(lin_az);
 				tx_payload.data[0] = 0; //reserved for something idk
 				tx_payload.data[1] = tracker_id << 4;
 				//tx_payload.data[2] = batt | (charging ? 128 : 0);
