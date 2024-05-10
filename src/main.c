@@ -814,10 +814,10 @@ void main_imu_thread(void) {
 				}
 				float q_offset[4];
 				q_multiply(q, q3, q_offset);
-				tx_buf[0] = TO_FIXED_15(q_offset[3]);
-				tx_buf[1] = TO_FIXED_15(q_offset[0]);
-				tx_buf[2] = TO_FIXED_15(q_offset[1]);
-				tx_buf[3] = TO_FIXED_15(q_offset[2]);
+				tx_buf[0] = TO_FIXED_15(q_offset[1]);
+				tx_buf[1] = TO_FIXED_15(q_offset[2]);
+				tx_buf[2] = TO_FIXED_15(q_offset[3]);
+				tx_buf[3] = TO_FIXED_15(q_offset[0]);
 				tx_buf[4] = TO_FIXED_7(lin_ax);
 				tx_buf[5] = TO_FIXED_7(lin_ay);
 				tx_buf[6] = TO_FIXED_7(lin_az);
