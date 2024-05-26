@@ -630,8 +630,8 @@ void main_imu_thread(void) {
 			float ay = a[1] - accelBias[1];
 			float az = a[2] - accelBias[2];
 
-#if MAG_ENABLED
 			float mx = 0, my = 0, mz = 0;
+#if MAG_ENABLED
 			if (last_powerstate == 0) {
 				float m[3];
 				mmc_mag_read(main_mag, m);
