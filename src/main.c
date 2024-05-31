@@ -1078,8 +1078,6 @@ int main(void)
 		LOG_INF("Recovered calibration from RAM");
 	}
 
-	memcpy(paired_addr, retained.paired_addr, sizeof(paired_addr));
-
 	gpio_pin_set_dt(&led, 0);
 
 // TODO: if reset counter is 0 but reset reason was 1 then perform imu scanning (pressed reset once)
