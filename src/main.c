@@ -861,7 +861,7 @@ void main_imu_thread(void) {
 				LOG_INF("ICM: %u", ICM42688ID);
 			uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
 				LOG_INF("MMC: %u", MMC5983ID);
-			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && MMC5983ID == 0x30) // check if all I2C sensors have acknowledged
+			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && (!MAG_ENABLED || MMC5983ID == 0x30)) // check if all I2C sensors have acknowledged
 			{
 				LOG_INF("Found main imus");
 				i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
