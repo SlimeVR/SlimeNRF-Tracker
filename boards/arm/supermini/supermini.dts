@@ -55,9 +55,9 @@
 	battery-divider {
 		compatible = "voltage-divider";
 		status = "okay";
-		io-channels = <&adc 2>;
-		output-ohms = <2000000>;
-		full-ohms = <(806000+2000000)>;
+		io-channels = <&adc 12>; // Measure VDDHDIV5
+		output-ohms = <1>;
+		full-ohms = <5>;
 	};
 
 	zephyr,user {
