@@ -995,6 +995,10 @@ int main(void)
 
 	bool ram_retention = retained_validate(); // check ram retention
 
+	#if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
+	(*((uint32_t*) 0x20007F7C)) = 0x4ee5677e; // DFU_DBL_RESET_MEM = DFU_DBL_RESET_APP, Skip DFU
+	#endif
+
 	if (reset_reason & 0x01) { // Count pin resets
 		//nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
 		reboot_counter = retained.reboot_counter;
@@ -1100,6 +1104,13 @@ int main(void)
 		//nvs_read(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr));
 		memcpy(paired_addr, retained.paired_addr, sizeof(paired_addr));
 	}
+
+	#if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
+	if (reset_mode >= 4) { // DFU_MAGIC_UF2_RESET, Reset mode DFU
+		NRF_POWER->GPREGRET = 0x57;
+		sys_reboot(SYS_REBOOT_COLD);
+	}
+	#endif
 
 	clocks_start();
 
