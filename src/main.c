@@ -37,6 +37,11 @@
 #include <zephyr/sys/poweroff.h>
 #include <zephyr/sys/reboot.h>
 
+#define DFU_DBL_RESET_MEM 0x20007F7C
+#define DFU_DBL_RESET_APP 0x4ee5677e
+
+uint32_t* dbl_reset_mem = ((uint32_t*) DFU_DBL_RESET_MEM);
+
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/pwm.h>
 
@@ -996,7 +1001,7 @@ int main(void)
 	bool ram_retention = retained_validate(); // check ram retention
 
 	#if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
-	(*((uint32_t*) 0x20007F7C)) = 0x4ee5677e; // DFU_DBL_RESET_MEM = DFU_DBL_RESET_APP, Skip DFU
+	(*dbl_reset_mem) = DFU_DBL_RESET_APP; // Skip DFU
 	#endif
 
 	if (reset_reason & 0x01) { // Count pin resets
