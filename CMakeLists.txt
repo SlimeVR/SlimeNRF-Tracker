@@ -13,3 +13,9 @@ FILE(GLOB_RECURSE app_sources src/*.c)
 target_sources(app PRIVATE ${app_sources})
 
 # NORDIC SDK APP END
+
+FILE(GLOB_RECURSE files Fusion/Fusion/*.c)
+target_sources(app PRIVATE ${files})
+
+FILE(GLOB_RECURSE files vqf-c/src/*.c)
+target_sources(app PRIVATE ${files})

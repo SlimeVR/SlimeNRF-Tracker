@@ -8,8 +8,8 @@
 //------------------------------------------------------------------------------
 // Includes
 
-#include "FusionOffset.h"
-#include <math.h> // fabs
+#include "FusionOffset2.h"
+#include <math.h> // fabsf
 
 //------------------------------------------------------------------------------
 // Definitions
@@ -37,7 +37,7 @@
  * @param offset Gyroscope offset algorithm structure.
  * @param sampleRate Sample rate in Hz.
  */
-void FusionOffsetInitialise(FusionOffset *const offset, const unsigned int sampleRate) {
+void FusionOffsetInitialise2(FusionOffset *const offset, const unsigned int sampleRate) {
     offset->filterCoefficient = 2.0f * (float) M_PI * CUTOFF_FREQUENCY * (1.0f / (float) sampleRate);
     offset->timeout = TIMEOUT * sampleRate;
     offset->timer = 0;
@@ -51,13 +51,13 @@ void FusionOffsetInitialise(FusionOffset *const offset, const unsigned int sampl
  * @param gyroscope Gyroscope measurement in degrees per second.
  * @return Corrected gyroscope measurement in degrees per second.
  */
-FusionVector FusionOffsetUpdate(FusionOffset *const offset, FusionVector gyroscope) {
+FusionVector FusionOffsetUpdate2(FusionOffset *const offset, FusionVector gyroscope) {
 
     // Subtract offset from gyroscope measurement
     gyroscope = FusionVectorSubtract(gyroscope, offset->gyroscopeOffset);
 
     // Reset timer if gyroscope not stationary
-    if ((fabs(gyroscope.axis.x) > THRESHOLD) || (fabs(gyroscope.axis.y) > THRESHOLD) || (fabs(gyroscope.axis.z) > THRESHOLD)) {
+    if ((fabsf(gyroscope.axis.x) > THRESHOLD) || (fabsf(gyroscope.axis.y) > THRESHOLD) || (fabsf(gyroscope.axis.z) > THRESHOLD)) {
         offset->timer = 0;
         return gyroscope;
     }

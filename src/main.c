@@ -16,8 +16,10 @@
 
 #include "battery.h"
 
-#include "Fusion/Fusion.h"
-#include "magneto1_4.h"
+#include "../Fusion/Fusion/Fusion.h"
+#include "Fusion/FusionOffset2.h"
+#include "../vqf-c/src/vqf.h"
+#include "magneto/magneto1_4.h"
 
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/clock_control/nrf_clock_control.h>
@@ -141,8 +143,8 @@ bool main_data = false;
 
 // only scan/detect new imus on reset event, write to nvs
 
-#include "ICM42688.h"
-#include "MMC5983MA.h"
+#include "sensor/ICM42688.h"
+#include "sensor/MMC5983MA.h"
 
 float lin_ax, lin_ay, lin_az;					// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
@@ -743,7 +745,7 @@ void main_imu_thread(void) {
 					g.axis.y = -gz;
 					g.axis.z = gy;
 					//FusionVector g = {.array = {gx, -gz, gy}};
-					FusionVector g_off = FusionOffsetUpdate(&offset, g);
+					FusionVector g_off = FusionOffsetUpdate2(&offset, g);
 #if MAG_ENABLED
 					float gyro_speed_square = g.array[0]*g.array[0] + g.array[1]*g.array[1] + g.array[2]*g.array[2];
 					// target mag ODR for ~0.25 deg error
@@ -924,7 +926,7 @@ gpio_pin_set_dt(&led, 0); // scuffed led
 				} while (false);
 				// Setup fusion
 				LOG_INF("Init fusion");
-				FusionOffsetInitialise(&offset, 1/INTEGRATION_TIME);
+				FusionOffsetInitialise2(&offset, 1/INTEGRATION_TIME);
 				FusionAhrsInitialise(&ahrs);
 				// ahrs.initialising = true; // cancel fusion init, maybe only if there is a quat stored? oh well
 				const FusionAhrsSettings settings = {

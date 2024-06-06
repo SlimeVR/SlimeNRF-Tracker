@@ -2,7 +2,17 @@
     "files.associations": {
         "mymathlib_matrix.h": "c",
         "poweroff.h": "c",
-        "icm42688.h": "c"
+        "icm42688.h": "c",
+        "settings.h": "c",
+        "gpio.h": "c",
+        "magneto1_4.h": "c",
+        "clock_control.h": "c",
+        "fusion.h": "c",
+        "nrf_clock_control.h": "c",
+        "irq.h": "c",
+        "fusionoffset.h": "c",
+        "math.h": "c",
+        "fusionmath.h": "c"
     },
     "nrf-connect.toolchain.path": "${nrf-connect.toolchain:2.6.0}",
     "nrf-connect.topdir": "${nrf-connect.sdk:2.6.0}"

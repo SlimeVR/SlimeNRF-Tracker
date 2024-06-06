@@ -1,0 +1,6 @@
+[submodule "vqf-c"]
+	path = vqf-c
+	url = https://github.com/DusKing1/vqf-c/
+[submodule "Fusion"]
+	path = Fusion
+	url = https://github.com/xioTechnologies/Fusion
