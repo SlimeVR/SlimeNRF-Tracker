@@ -107,8 +107,9 @@ bool batt_low = false;
 const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
 const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
 
-const struct pwm_dt_spec led0 = PWM_DT_SPEC_GET(LED0_NODE);
-const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
+const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
+const struct gpio_dt_spec led = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, led_gpios, led0);
+const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET_OR(LED0_NODE, {0});
 
 const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
 //const struct gpio_dt_spec chgstat = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chgstat_gpios);
@@ -985,6 +986,12 @@ void power_check(void) {
 	LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
 }
 
+static struct gpio_callback button_cb_data;
+void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
+{
+	sys_reboot(SYS_REBOOT_COLD); // treat like pin reset but without pin reset reason
+}
+
 int main(void)
 {
 	int32_t reset_reason = NRF_POWER->RESETREAS;
@@ -1005,6 +1012,14 @@ int main(void)
 	#if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
 	(*dbl_reset_mem) = DFU_DBL_RESET_APP; // Skip DFU
 	#endif
+
+	// Alternate button if available to use as "reset key"
+	const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(sw0), gpios, {0});
+	gpio_pin_configure_dt(&button0, GPIO_INPUT);
+	reset_reason |= gpio_pin_get_dt(&button0);
+	gpio_pin_interrupt_configure_dt(&button0, GPIO_INT_EDGE_TO_ACTIVE);
+	gpio_init_callback(&button_cb_data, button_pressed, BIT(button0.pin));
+	gpio_add_callback(button0.port, &button_cb_data);
 
 	if (reset_reason & 0x01) { // Count pin resets
 		//nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
@@ -1044,7 +1059,7 @@ int main(void)
 		gpio_pin_set_dt(&led, 0);
 		k_msleep(250);
 		for (int i = 20; i > 0; i--) { // Fade LED pattern
-			pwm_set_pulse_dt(&led0, PWM_MSEC(i));
+			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(i));
 			k_msleep(50);
 		}
 		bool docked = gpio_pin_get_dt(&dock);
@@ -1213,7 +1228,7 @@ int main(void)
 	//gpio_pin_configure_dt(&int0, GPIO_INPUT);
 	//gpio_pin_configure_dt(&int1, GPIO_INPUT);
 
-	//pwm_set_pulse_dt(&led0, PWM_MSEC(5)); // 5/20 = 25%
+	//pwm_set_pulse_dt(&pwm_led, PWM_MSEC(5)); // 5/20 = 25%
 	//gpio_pin_set_dt(&led, 1);
 
 	// Recover quats if present
@@ -1285,15 +1300,15 @@ int main(void)
 
 		if (batt_pptt < 1000 || batt_low) { // Under 10% battery left
 			batt_low = true;
-			pwm_set_pulse_dt(&led0, led_time2 % 600 > 300 ? PWM_MSEC(10) : 0); // 10/20 = 50%
+			pwm_set_pulse_dt(&pwm_led, led_time2 % 600 > 300 ? PWM_MSEC(10) : 0); // 10/20 = 50%
 			//gpio_pin_set_dt(&led, led_time2 % 600 > 300 ? 1 : 0);
 		} else if (led_time2 < 1000) { // funny led sync
 			led_time_off = time_begin + 300;
 		} else if (time_begin > led_time_off) {
-			pwm_set_pulse_dt(&led0, 0);
+			pwm_set_pulse_dt(&pwm_led, 0);
 			//gpio_pin_set_dt(&led, 0);
 		} else {
-			pwm_set_pulse_dt(&led0, PWM_MSEC(20)); // 20/20 = 100% - this is pretty bright lol
+			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(20)); // 20/20 = 100% - this is pretty bright lol
 			//gpio_pin_set_dt(&led, 1);
 		}
 
