@@ -157,3 +157,7 @@ zephyr_udc0: &usbd {
 &temp {
 	status = "okay";
 };
+
+&nfct {
+	status = "disabled";
+};
