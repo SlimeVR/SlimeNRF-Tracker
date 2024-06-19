@@ -1,6 +1,6 @@
 #include "globals.h"
 
-LOG_MODULE_REGISTER(esb, 4);
+LOG_MODULE_REGISTER(esb_event, 4);
 
 void event_handler(struct esb_evt const *event)
 {
