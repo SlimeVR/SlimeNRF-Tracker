@@ -986,11 +986,13 @@ void power_check(void) {
 	LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
 }
 
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
 static struct gpio_callback button_cb_data;
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	sys_reboot(SYS_REBOOT_COLD); // treat like pin reset but without pin reset reason
 }
+#endif
 
 int main(void)
 {
@@ -1009,17 +1011,18 @@ int main(void)
 
 	bool ram_retention = retained_validate(); // check ram retention
 
-	#if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
+#if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
 	(*dbl_reset_mem) = DFU_DBL_RESET_APP; // Skip DFU
-	#endif
+#endif
 
-	// Alternate button if available to use as "reset key"
-	const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(sw0), gpios, {0});
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+	const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
 	gpio_pin_configure_dt(&button0, GPIO_INPUT);
 	reset_reason |= gpio_pin_get_dt(&button0);
 	gpio_pin_interrupt_configure_dt(&button0, GPIO_INT_EDGE_TO_ACTIVE);
 	gpio_init_callback(&button_cb_data, button_pressed, BIT(button0.pin));
 	gpio_add_callback(button0.port, &button_cb_data);
+#endif
 
 	if (reset_reason & 0x01) { // Count pin resets
 		//nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
@@ -1127,12 +1130,12 @@ int main(void)
 		memcpy(paired_addr, retained.paired_addr, sizeof(paired_addr));
 	}
 
-	#if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
+#if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
 	if (reset_mode >= 4) { // DFU_MAGIC_UF2_RESET, Reset mode DFU
 		NRF_POWER->GPREGRET = 0x57;
 		sys_reboot(SYS_REBOOT_COLD);
 	}
-	#endif
+#endif
 
 	clocks_start();
 
