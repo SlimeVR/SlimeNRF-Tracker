@@ -3,6 +3,7 @@
 
 #include "globals.h"
 
+extern void (*extern_main_imu_suspend)(void);
 void configure_system_off_WOM(const struct i2c_dt_spec imu);
 void configure_system_off_chgstat(void);
 void configure_system_off_dock(void);

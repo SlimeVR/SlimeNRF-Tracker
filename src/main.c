@@ -425,8 +425,14 @@ void wait_for_threads(void) {
 	}
 }
 
+void main_imu_suspend(void) {
+	k_thread_suspend(main_imu_thread_id);
+	LOG_INF("Suspended main imu thread");
+}
+
 int main(void)
 {
+	extern_main_imu_suspend = &main_imu_suspend;
 	int32_t reset_reason = NRF_POWER->RESETREAS;
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 	uint8_t reboot_counter = 0;
