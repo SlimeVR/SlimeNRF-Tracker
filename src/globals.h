@@ -55,8 +55,6 @@ extern uint32_t* dbl_reset_mem;
 
 #include "retained.h"
 
-//LOG_MODULE_REGISTER(main, 4);
-
 extern struct nvs_fs fs;
 
 #define NVS_PARTITION		storage_partition

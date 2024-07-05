@@ -2,6 +2,8 @@
 
 LOG_MODULE_REGISTER(sys, 4);
 
+K_THREAD_DEFINE(led_thread_id, 512, led_thread, NULL, NULL, NULL, 6, 0, 0);
+
 void (*extern_main_imu_suspend)(void);
 
 void configure_system_off_WOM(const struct i2c_dt_spec imu)
@@ -93,3 +95,8 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 	sys_reboot(SYS_REBOOT_COLD); // treat like pin reset but without pin reset reason
 }
 #endif
+
+void led_thread(void)
+{
+	k_msleep(1);
+}
