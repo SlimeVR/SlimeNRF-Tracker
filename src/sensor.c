@@ -45,8 +45,8 @@ bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples) {
 	uint8_t counts = 0;
 	float a[3], last_a[3];
 	icm_accel_read(imu, last_a);
+	set_led(SYS_LED_PATTERN_LONG);
 	for (int i = 0; i < samples + counts; i++) {
-gpio_pin_toggle_dt(&led); // scuffed led
 		LOG_INF("Accel: %.5f %.5f %.5f", a[0], a[1], a[2]);
 		k_msleep(500);
 		icm_accel_read(imu, a);
@@ -54,6 +54,7 @@ gpio_pin_toggle_dt(&led); // scuffed led
 			LOG_INF("Pass");
 			counts++;
 			if (counts == 2) {
+				set_led(SYS_LED_PATTERN_OFF);
 				return true;
 			}
 		} else {
@@ -62,6 +63,7 @@ gpio_pin_toggle_dt(&led); // scuffed led
 		memcpy(last_a, a, sizeof(a));
 	}
 	LOG_INF("Fail");
+	set_led(SYS_LED_PATTERN_OFF);
 	return false;
 }
 
@@ -123,7 +125,7 @@ void main_imu_thread(void) {
 					last_magCal = new_magCal;
 				}
 				if (magCal == 0b111111) {
-					gpio_pin_set_dt(&led, 1);
+					set_led(SYS_LED_PATTERN_ON); // will interfere with things
 				}
 			}
 
@@ -353,14 +355,12 @@ void main_imu_thread(void) {
 				do {
 				if (reset_mode == 1) { // Reset mode main calibration
 					LOG_INF("Enter main calibration");
-gpio_pin_set_dt(&led, 0); // scuffed led
 					// TODO: Add LED flashies
 					LOG_INF("Rest the device on a stable surface");
 					if (!wait_for_motion(main_imu, false, 20)) { // Wait for accelerometer to settle, timeout 10s
-gpio_pin_set_dt(&led, 0); // scuffed led
 						break; // Timeout, calibration failed
 					}
-gpio_pin_set_dt(&led, 1); // scuffed led
+					set_led(SYS_LED_PATTERN_ON); // scuffed led
 					k_msleep(500); // Delay before beginning acquisition
 					LOG_INF("Start accel and gyro calibration");
 					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 3s
@@ -382,7 +382,7 @@ gpio_pin_set_dt(&led, 1); // scuffed led
 						retained.gOff[i] = gOff[i];
 					}
 					retained_update();
-gpio_pin_set_dt(&led, 0); // scuffed led
+					set_led(SYS_LED_PATTERN_OFF); // scuffed led
 					reset_mode = 0; // Clear reset mode
 				}
 				} while (false);

@@ -16,12 +16,11 @@ int main(void)
 	bool booting_from_shutdown = false;
 
 	gpio_pin_configure_dt(&dock, GPIO_INPUT);
-	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 
 	power_check(); // check the battery and dock first before continuing (4ms delta to read from ADC)
 
 //	start_time = k_uptime_get(); // Need to get start time for imu startup delta
-	gpio_pin_set_dt(&led, 1); // Boot LED
+	set_led(SYS_LED_PATTERN_ON); // Boot LED
 
 	bool ram_retention = retained_validate(); // check ram retention
 
@@ -50,16 +49,9 @@ int main(void)
 		retained.reboot_counter = reboot_counter;
 		retained_update();
 		LOG_INF("Reset Count: %u", reboot_counter);
-		if (booting_from_shutdown) { // 3 flashes
-			k_msleep(200);
-			for (int j = 0; j < 2; j++) {
-				gpio_pin_set_dt(&led, 0);
-				k_msleep(200);
-				gpio_pin_set_dt(&led, 1);
-				k_msleep(200);
-			}
-		} else
-			k_msleep(1000); // Wait before clearing counter and continuing
+		if (booting_from_shutdown)
+			set_led(SYS_LED_PATTERN_ONESHOT_POWERON);
+		k_msleep(1000); // Wait before clearing counter and continuing
 		reboot_counter = 100;
 		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
 		retained.reboot_counter = reboot_counter;
@@ -73,24 +65,21 @@ int main(void)
 		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
 		retained.reboot_counter = reboot_counter;
 		retained_update();
-		gpio_pin_set_dt(&led, 0);
-		k_msleep(250);
-		for (int i = 20; i > 0; i--) { // Fade LED pattern
-			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(i));
-			k_msleep(50);
-		}
+		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF);
+		// TODO: scheduled power off
+		k_msleep(1250);
 		bool docked = gpio_pin_get_dt(&dock);
 		if (!docked) { // TODO: should the tracker start again if docking state changes?
 			// Communicate all imus to shut down
 			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
-			gpio_pin_set_dt(&led, 0); // Turn off LED
+			set_led(SYS_LED_PATTERN_OFF); // redundant
 			configure_system_off_chgstat();
 		} else {
 			// Communicate all imus to shut down
 			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
-			gpio_pin_set_dt(&led, 0); // Turn off LED
+			set_led(SYS_LED_PATTERN_OFF); // redundant
 			configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
 		}
 	}
@@ -121,7 +110,7 @@ int main(void)
 		LOG_INF("Recovered calibration from RAM");
 	}
 
-	gpio_pin_set_dt(&led, 0);
+	set_led(SYS_LED_PATTERN_OFF);
 
 // TODO: if reset counter is 0 but reset reason was 1 then perform imu scanning (pressed reset once)
 	if (reset_mode == 0) { // Reset mode scan imus
@@ -172,6 +161,7 @@ int main(void)
 		for (int i = 0; i < 6; i++) {
 			tx_payload_pair.data[i+2] = (addr >> (8 * i)) & 0xFF;
 		}
+		set_led(SYS_LED_PATTERN_SHORT);
 		while (paired_addr[0] != check) {
 			if (paired_addr[0] != 0x00) {
 				LOG_INF("Incorrect check code: %02X", paired_addr[0]);
@@ -181,12 +171,10 @@ int main(void)
 			esb_flush_tx();
 			esb_write_payload(&tx_payload_pair); // Still fails after a while
 			esb_start_tx();
-			gpio_pin_set_dt(&led, 1);
-			k_msleep(100);
-			gpio_pin_set_dt(&led, 0);
-			k_msleep(900);
+			k_msleep(1000);
 			power_check();
 		}
+		set_led(SYS_LED_PATTERN_OFF);
 		LOG_INF("Paired");
 		if (!nvs_init) {
 			nvs_mount(&fs);
@@ -287,7 +275,7 @@ int main(void)
 			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 			// Turn off LED
-			gpio_pin_set_dt(&led, 0);
+			set_led(SYS_LED_PATTERN_OFF);
 			configure_system_off_chgstat();
 		}
 		last_batt_pptt[last_batt_pptt_i] = batt_pptt;
@@ -314,7 +302,7 @@ int main(void)
 		else if (batt_mV > 255) {batt_v = 255;}
 		else {batt_v = batt_mV;} // 0-255 -> 2.45-5.00V
 
-		pwm_set_pulse_dt(&pwm_led, 0);
+//		pwm_set_pulse_dt(&pwm_led, 0);
 
 		if (docked) // TODO: keep sending battery state while plugged and docked?
 		{ // TODO: move to interrupts? (Then you do not need to do the above)
@@ -325,7 +313,7 @@ int main(void)
 			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 			// Turn off LED
-			gpio_pin_set_dt(&led, 0);
+			set_led(SYS_LED_PATTERN_OFF);
 			configure_system_off_dock();
 		}
 
@@ -337,7 +325,7 @@ int main(void)
 			icm_reset(main_imu);
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 			// Turn off LED
-			gpio_pin_set_dt(&led, 0);
+			set_led(SYS_LED_PATTERN_OFF);
 			configure_system_off_WOM(main_imu);
 		}
 

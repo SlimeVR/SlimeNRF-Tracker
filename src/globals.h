@@ -105,10 +105,6 @@ extern bool batt_low;
 extern const struct i2c_dt_spec main_imu;
 extern const struct i2c_dt_spec main_mag;
 
-extern const struct gpio_dt_spec led0;
-extern const struct gpio_dt_spec led;
-extern const struct pwm_dt_spec pwm_led;
-
 extern const struct gpio_dt_spec dock;
 //extern const struct gpio_dt_spec chgstat;
 //extern const struct gpio_dt_spec int0;
