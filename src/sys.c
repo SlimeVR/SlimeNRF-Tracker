@@ -175,14 +175,14 @@ bool ram_validated;
 bool ram_retention;
 bool nvs_init;
 
-inline void sys_retained_init() {
+inline void sys_retained_init(void) {
 	if (!ram_validated) {
 		ram_retention = retained_validate(); // Check ram retention
 		ram_validated = true;
 	}
 }
 
-inline void sys_nvs_init() {
+inline void sys_nvs_init(void) {
 	if (!nvs_init) {
 		struct flash_pages_info info;
 		fs.flash_device = NVS_PARTITION_DEVICE;
@@ -209,13 +209,13 @@ void reboot_counter_write(uint8_t reboot_counter) {
 }
 
 // read from nvs to retained
-void sys_read() {
+void sys_read(void) {
 	sys_retained_init();
 	// All contents of NVS was stored in RAM to not need initializing NVS often
 	if (!ram_retention) { 
 		LOG_INF("Invalidated RAM");
 		sys_nvs_init();
-		nvs_read(&fs, PAIRED_ID, &retained.paired_addr, sizeof(paired_addr));
+		nvs_read(&fs, PAIRED_ID, &retained.paired_addr, sizeof(retained.paired_addr));
 		nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &retained.accelBias, sizeof(retained.accelBias));
 		nvs_read(&fs, MAIN_GYRO_BIAS_ID, &retained.gyroBias, sizeof(retained.gyroBias));
 		nvs_read(&fs, MAIN_MAG_BIAS_ID, &retained.magBAinv, sizeof(retained.magBAinv));

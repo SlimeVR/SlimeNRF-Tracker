@@ -72,17 +72,6 @@ extern struct esb_payload tx_payload_pair;
 #define MAIN_IMU_NODE DT_NODELABEL(icm_0)
 #define MAIN_MAG_NODE DT_NODELABEL(mmc_0)
 
-// this was randomly generated
-extern uint8_t discovery_base_addr_0[4];
-extern uint8_t discovery_base_addr_1[4];
-extern uint8_t discovery_addr_prefix[8];
-
-extern uint8_t paired_addr[8];
-
-extern uint8_t base_addr_0[4];
-extern uint8_t base_addr_1[4];
-extern uint8_t addr_prefix[8];
-
 extern int tickrate;
 
 extern uint8_t batt;

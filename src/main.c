@@ -85,11 +85,8 @@ int main(void)
 
 	if (reset_mode == 3) { // Reset mode pairing reset
 		LOG_INF("Enter pairing reset");
-		sys_write(PAIRED_ID, &retained.paired_addr, paired_addr, sizeof(paired_addr)); // write zeroes (addr not copied yet)
+		esb_reset_pair();
 		reset_mode = 0; // Clear reset mode
-	} else {
-		// Read paired address from retained
-		memcpy(paired_addr, retained.paired_addr, sizeof(paired_addr));
 	}
 
 #if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
@@ -101,71 +98,7 @@ int main(void)
 
 	clocks_start();
 
-	if (paired_addr[0] == 0x00) { // No dongle paired
-		for (int i = 0; i < 4; i++) {
-			base_addr_0[i] = discovery_base_addr_0[i];
-			base_addr_1[i] = discovery_base_addr_1[i];
-		}
-		for (int i = 0; i < 8; i++) {
-			addr_prefix[i] = discovery_addr_prefix[i];
-		}
-		esb_initialize();
-//	timer_init();
-		tx_payload_pair.noack = false;
-		uint64_t addr = (((uint64_t)(NRF_FICR->DEVICEADDR[1]) << 32) | NRF_FICR->DEVICEADDR[0]) & 0xFFFFFF;
-		uint8_t check = addr & 255;
-		if (check == 0) check = 8;
-		LOG_INF("Check Code: %02X", paired_addr[0]);
-		tx_payload_pair.data[0] = check; // Use int from device address to make sure packet is for this device
-		for (int i = 0; i < 6; i++) {
-			tx_payload_pair.data[i+2] = (addr >> (8 * i)) & 0xFF;
-		}
-		set_led(SYS_LED_PATTERN_SHORT);
-		while (paired_addr[0] != check) {
-			if (paired_addr[0] != 0x00) {
-				LOG_INF("Incorrect check code: %02X", paired_addr[0]);
-				paired_addr[0] = 0x00; // Packet not for this device
-			}
-			esb_flush_rx();
-			esb_flush_tx();
-			esb_write_payload(&tx_payload_pair); // Still fails after a while
-			esb_start_tx();
-			k_msleep(1000);
-			power_check();
-		}
-		set_led(SYS_LED_PATTERN_OFF);
-		LOG_INF("Paired");
-		sys_write(PAIRED_ID, retained.paired_addr, paired_addr, sizeof(paired_addr)); // Write new address and tracker id
-		esb_disable();
-	}
-	LOG_INF("Read pairing data");
-	LOG_INF("Check Code: %02X", paired_addr[0]);
-	LOG_INF("Tracker ID: %u", paired_addr[1]);
-	LOG_INF("Address: %02X %02X %02X %02X %02X %02X", paired_addr[2], paired_addr[3], paired_addr[4], paired_addr[5], paired_addr[6], paired_addr[7]);
-
-	tracker_id = paired_addr[1];
-
-	// Recreate dongle address
-	uint8_t buf2[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	for (int i = 0; i < 4; i++) {
-		buf2[i] = paired_addr[i+2];
-		buf2[i+4] = paired_addr[i+2] + paired_addr[6];
-	}
-	for (int i = 0; i < 8; i++) {
-		buf2[i+8] = paired_addr[7] + i;
-	}
-	for (int i = 0; i < 16; i++) {
-		if (buf2[i] == 0x00 || buf2[i] == 0x55 || buf2[i] == 0xAA) {
-			buf2[i] += 8;
-		};
-	}
-	for (int i = 0; i < 4; i++) {
-		base_addr_0[i] = buf2[i];
-		base_addr_1[i] = buf2[i+4];
-	}
-	for (int i = 0; i < 8; i++) {
-		addr_prefix[i] = buf2[i+8];
-	}
+	esb_pair();
 
 	sensor_read_retained();
 
@@ -184,10 +117,12 @@ int main(void)
 	}
 	LOG_INF("Recovered fusion gyro offset\nMain: %.2f %.2f %.2f", gOff[0], gOff[1], gOff[2]);
 // 0ms delta to read calibration and configure pins (unknown time to read retained data but probably negligible)
+
 	esb_initialize();
 	tx_payload.noack = false;
 	//timer_init();
 // 1ms delta to start ESB
+
 	while (1)
 	{
 		// Get start time
