@@ -1,5 +1,14 @@
 #include "globals.h"
 #include "sensor.h"
+#include "battery.h"
+
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/pwm.h>
+#include <zephyr/sys/poweroff.h>
+#include <zephyr/drivers/flash.h>
+#include <zephyr/storage/flash_map.h>
+#include <zephyr/fs/nvs.h>
+#include <hal/nrf_gpio.h>
 
 #include "sys.h"
 

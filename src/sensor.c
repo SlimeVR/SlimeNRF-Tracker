@@ -2,10 +2,35 @@
 #include "sys.h"
 #include "util.h"
 
-#include "sensor.h"
+#include "../Fusion/Fusion/Fusion.h"
+#include "Fusion/FusionOffset2.h"
+//#include "../vqf-c/src/vqf.h"
+#include "magneto/magneto1_4.h"
 
 #include "sensor/ICM42688.h"
 #include "sensor/MMC5983MA.h"
+
+#include "sensor.h"
+
+const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
+const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
+
+float lin_ax, lin_ay, lin_az;					// linear acceleration (acceleration with gravity component subtracted)
+float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
+float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
+
+float gOff[3] = {0.0f, 0.0f, 0.0f}; // runtime fusion gyro offset
+
+FusionOffset offset; // could share goff and q with fusionoffset and fusionahrs but init clears the values
+FusionAhrs ahrs;
+
+FusionVector gyro_sanity_m;
+int gyro_sanity = 0;
+
+// temporary
+uint16_t tx_buf[7];
+
+int64_t last_data_time;
 
 // TODO: move to sensor
 // ICM42688 definitions
@@ -34,6 +59,18 @@ float accelBias[3], gyroBias[3]; // offset biases for the accel and gyro
  * Set/Reset choices are: MSET_1, MSET_25, MSET_75, MSET_100, MSET_250, MSET_500, MSET_1000, MSET_2000, so MSET_100 set/reset occurs every 100th measurement, etc.
  */
 uint8_t MODR, MBW, MSET;
+
+int magCal;
+int last_magCal;
+int64_t magCal_time;
+double ata[100]; // init cal
+double norm_sum;
+double sample_count;
+
+float magBAinv[4][3];
+
+int mag_level;
+int last_mag_level;
 
 LOG_MODULE_REGISTER(sensor, 4);
 

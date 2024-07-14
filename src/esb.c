@@ -1,7 +1,15 @@
 #include "globals.h"
 #include "sys.h"
 
+#include <zephyr/drivers/clock_control.h>
+#include <zephyr/drivers/clock_control/nrf_clock_control.h>
+#include <esb.h>
+
 #include "esb.h"
+
+struct esb_payload rx_payload;
+struct esb_payload tx_payload_pair = ESB_CREATE_PAYLOAD(0,
+														  0, 0, 0, 0, 0, 0, 0, 0);
 
 uint8_t paired_addr[8] = {0,0,0,0,0,0,0,0};
 

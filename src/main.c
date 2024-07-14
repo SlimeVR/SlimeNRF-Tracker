@@ -4,6 +4,15 @@
 //#include "util.h"
 #include "esb.h"
 #include "sensor.h"
+#include "battery.h"
+
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/sys/reboot.h>
+
+#define DFU_DBL_RESET_MEM 0x20007F7C
+#define DFU_DBL_RESET_APP 0x4ee5677e
+
+uint32_t* dbl_reset_mem = ((uint32_t*) DFU_DBL_RESET_MEM);
 
 LOG_MODULE_REGISTER(main, 4);
 
