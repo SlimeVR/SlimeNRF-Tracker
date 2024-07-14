@@ -73,8 +73,8 @@ int main(void)
 // How long user shutdown take does not matter really ("0ms")
 #endif
 
-// 5-6ms delta to initialize NVS (only done when needed)
 	sys_read();
+// 5-6ms delta to initialize NVS (only done when needed)
 
 	set_led(SYS_LED_PATTERN_OFF);
 
@@ -85,10 +85,10 @@ int main(void)
 
 	if (reset_mode == 3) { // Reset mode pairing reset
 		LOG_INF("Enter pairing reset");
-		sys_write(PAIRED_ID, &retained.paired_addr, paired_addr, sizeof(paired_addr));
+		sys_write(PAIRED_ID, &retained.paired_addr, paired_addr, sizeof(paired_addr)); // write zeroes (addr not copied yet)
 		reset_mode = 0; // Clear reset mode
 	} else {
-		// Read paired address from NVS
+		// Read paired address from retained
 		memcpy(paired_addr, retained.paired_addr, sizeof(paired_addr));
 	}
 
