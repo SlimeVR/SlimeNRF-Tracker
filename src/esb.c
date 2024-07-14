@@ -1,6 +1,10 @@
 #include "globals.h"
 #include "sys.h"
 
+#include "esb.h"
+
+uint8_t paired_addr[8] = {0,0,0,0,0,0,0,0};
+
 LOG_MODULE_REGISTER(esb_event, 4);
 
 void event_handler(struct esb_evt const *event)
@@ -79,8 +83,6 @@ int clocks_start(void)
 uint8_t discovery_base_addr_0[4] = {0x62, 0x39, 0x8A, 0xF2};
 uint8_t discovery_base_addr_1[4] = {0x28, 0xFF, 0x50, 0xB8};
 uint8_t discovery_addr_prefix[8] = {0xFE, 0xFF, 0x29, 0x27, 0x09, 0x02, 0xB2, 0xD6};
-
-uint8_t paired_addr[8] = {0,0,0,0,0,0,0,0};
 
 uint8_t base_addr_0[4] = {0,0,0,0};
 uint8_t base_addr_1[4] = {0,0,0,0};

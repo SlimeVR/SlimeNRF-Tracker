@@ -46,8 +46,8 @@ void timer_init(void) {
 	nrfx_timer_init(&m_timer, &timer_cfg, timer_handler);
 	uint32_t ticks = nrfx_timer_ms_to_ticks(&m_timer, 3);
 	nrfx_timer_extended_compare(&m_timer, NRF_TIMER_CC_CHANNEL0, ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
-	LOG_INF("timer at %d", ticks * (paired_addr[1]*2 + 3) / 21); // TODO: temp set max 8
-	nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, ticks * (paired_addr[1]*2 + 3) / 21, true); // timeslot to send data  TODO: temp set max 8
+	LOG_INF("timer at %d", ticks * (tracker_id*2 + 3) / 21); // TODO: temp set max 8
+	nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL1, ticks * (tracker_id*2 + 3) / 21, true); // timeslot to send data  TODO: temp set max 8
 	nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL2, ticks * 19 / 21, true); // switch to rx
 	nrfx_timer_compare(&m_timer, NRF_TIMER_CC_CHANNEL3, ticks * 2 / 21, true); // switch to tx
 	nrfx_timer_enable(&m_timer);
