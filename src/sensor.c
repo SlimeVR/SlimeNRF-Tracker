@@ -39,7 +39,7 @@ LOG_MODULE_REGISTER(sensor, 4);
 
 K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
 
-void sensor_read_retained(void) {
+void sensor_retained_read(void) { // TODO: move some of this to sys?
 	// Read calibration from retained
 	memcpy(accelBias, retained.accelBias, sizeof(accelBias));
 	memcpy(gyroBias, retained.gyroBias, sizeof(gyroBias));
@@ -51,12 +51,91 @@ void sensor_read_retained(void) {
 	for (int i = 0; i < 3; i++) {
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
 	}
+
+	// Recover quats if present
+	if (retained.stored_quats) {
+		for (uint8_t i = 0; i < 4; i++){
+			q[i] = retained.q[i];
+		}
+		LOG_INF("Recovered quaternions\nMain: %.2f %.2f %.2f %.2f", q[0], q[1], q[2], q[3]);
+		retained.stored_quats = false; // Invalidate the retained quaternions
+		retained_update();
+	}
+
+	for (uint8_t i = 0; i < 3; i++){
+		gOff[i] = retained.gOff[i];
+	}
+	LOG_INF("Recovered fusion gyro offset\nMain: %.2f %.2f %.2f", gOff[0], gOff[1], gOff[2]);
+}
+
+void sensor_retained_write_quat(void) { // TODO: move some of this to sys?
+	// Store the last quats
+	for (uint8_t i = 0; i < 4; i++){
+		retained.q[i] = q[i];
+	}
+	retained.stored_quats = true;
+	retained_update();
+}
+
+void sensor_retained_write_gOff(void) { // TODO: move some of this to sys?
+	// Store fusion gyro offset
+	for (uint8_t i = 0; i < 3; i++){
+		retained.gOff[i] = gOff[i];
+	}
+	retained_update();
 }
 
 void sensor_shutdown(void) { // Communicate all imus to shut down
 	i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 	i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 };
+
+void sensor_setup_WOM(void) {
+	icm_setup_WOM(main_imu);
+}
+
+void sensor_calibrate_imu(void) {
+	LOG_INF("Enter main calibration");
+	// TODO: Add LED flashies
+	LOG_INF("Rest the device on a stable surface");
+	if (!wait_for_motion(main_imu, false, 20)) { // Wait for accelerometer to settle, timeout 10s
+		return; // Timeout, calibration failed
+	}
+	set_led(SYS_LED_PATTERN_ON); // scuffed led
+	k_msleep(500); // Delay before beginning acquisition
+	LOG_INF("Start accel and gyro calibration");
+	icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 3s
+	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
+	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
+	LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
+	LOG_INF("%.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	LOG_INF("Finished accel and gyro zero offset calibration");
+	// clear fusion gyro offset
+	for (uint8_t i = 0; i < 3; i++){
+		gOff[i] = 0;
+	}
+	sensor_retained_write_gOff();
+	set_led(SYS_LED_PATTERN_OFF); // scuffed led
+}
+
+void sensor_calibrate_mag(void) {
+	LOG_INF("Calibrating magnetometer");
+	magneto_current_calibration(magBAinv, ata, norm_sum, sample_count); // 25ms
+	sys_write(MAIN_MAG_BIAS_ID, &retained.magBAinv, magBAinv, sizeof(magBAinv));
+	for (int i = 0; i < 3; i++) {
+		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+	}
+	LOG_INF("Finished mag hard/soft iron offset calibration");
+	//magCal |= 1 << 7;
+	magCal = 0;
+	// clear data
+	//memset(ata[0], 0, sizeof(ata)); // does this work??
+	for (int i = 0; i < 100; i++) {
+		ata[i] = 0.0;
+	}
+	norm_sum = 0.0;
+	sample_count = 0.0;
+}
 
 void set_LN(void) {
 	tickrate = 6;
@@ -367,6 +446,16 @@ void main_imu_thread(void) {
 				esb_write_payload(&tx_payload); // Add transmission to queue
 				send_data = true;
 			}
+
+#if MAG_ENABLED
+			// Save magCal while idling
+			if (magCal == 0b111111 && last_powerstate == 1) { // TODO: i guess this is fine
+//				k_usleep(1); // yield to imu thread first
+				k_yield(); // yield to imu thread first
+				wait_for_threads(); // make sure not to interrupt anything (8ms)
+				sensor_calibrate_mag();
+			}
+#endif
 		} else {
 // 5ms delta (???) from entering loop
 // skip sleep, surely this wont cause issues :D
@@ -404,31 +493,10 @@ void main_imu_thread(void) {
 				main_running = true;
 				do {
 				if (reset_mode == 1) { // Reset mode main calibration
-					LOG_INF("Enter main calibration");
-					// TODO: Add LED flashies
-					LOG_INF("Rest the device on a stable surface");
-					if (!wait_for_motion(main_imu, false, 20)) { // Wait for accelerometer to settle, timeout 10s
-						break; // Timeout, calibration failed
-					}
-					set_led(SYS_LED_PATTERN_ON); // scuffed led
-					k_msleep(500); // Delay before beginning acquisition
-					LOG_INF("Start accel and gyro calibration");
-					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 3s
-					sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
-					sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
-					LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
-					LOG_INF("%.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
-					LOG_INF("Finished accel and gyro zero offset calibration");
-					// clear fusion gyro offset
-					for (uint8_t i = 0; i < 3; i++){
-						gOff[i] = 0;
-						retained.gOff[i] = gOff[i];
-					}
-					retained_update();
-					set_led(SYS_LED_PATTERN_OFF); // scuffed led
+					sensor_calibrate_imu();
 					reset_mode = 0; // Clear reset mode
 				}
-				} while (false);
+				} while (false); // TODO: ????? why is this here
 				// Setup fusion
 				LOG_INF("Init fusion");
 				FusionOffsetInitialise2(&offset, 1/INTEGRATION_TIME);

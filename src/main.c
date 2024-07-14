@@ -100,23 +100,8 @@ int main(void)
 
 	esb_pair();
 
-	sensor_read_retained();
-
-	// Recover quats if present
-	// TODO: move this
-	if (retained.stored_quats) {
-		for (uint8_t i = 0; i < 4; i++){
-			q[i] = retained.q[i];
-		}
-		LOG_INF("Recovered quaternions\nMain: %.2f %.2f %.2f %.2f", q[0], q[1], q[2], q[3]);
-		retained.stored_quats = false; // Invalidate the retained quaternions
-		retained_update();
-	}
-	for (uint8_t i = 0; i < 3; i++){
-		gOff[i] = retained.gOff[i];
-	}
-	LOG_INF("Recovered fusion gyro offset\nMain: %.2f %.2f %.2f", gOff[0], gOff[1], gOff[2]);
-// 0ms delta to read calibration and configure pins (unknown time to read retained data but probably negligible)
+	sensor_retained_read();
+// 0ms delta to read calibration and configure pins
 
 	esb_initialize();
 	tx_payload.noack = false;
@@ -188,7 +173,7 @@ int main(void)
 			sensor_shutdown(); // TODO: Wait for icm reset?
 			// Turn off LED
 			set_led(SYS_LED_PATTERN_OFF);
-			configure_system_off_WOM(main_imu);
+			configure_system_off_WOM();
 		}
 
 		reconfig = last_powerstate != powerstate ? true : false;
@@ -198,32 +183,6 @@ int main(void)
 		wait_for_threads();
 		main_imu_wakeup();
 		threads_running = true;
-
-#if MAG_ENABLED
-		// Save magCal while idling
-		if (magCal == 0b111111 && last_powerstate == 1) {
-//			k_usleep(1); // yield to imu thread first
-			k_yield(); // yield to imu thread first
-			wait_for_threads(); // make sure not to interrupt anything (8ms)
-			LOG_INF("Calibrating magnetometer");
-			magneto_current_calibration(magBAinv, ata, norm_sum, sample_count); // 25ms
-			sys_write(MAIN_MAG_BIAS_ID, &retained.magBAinv, magBAinv, sizeof(magBAinv));
-			retained_update();
-			for (int i = 0; i < 3; i++) {
-				LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
-			}
-			LOG_INF("Finished mag hard/soft iron offset calibration");
-			//magCal |= 1 << 7;
-			magCal = 0;
-			// clear data
-			//memset(ata[0], 0, sizeof(ata)); // does this work??
-			for (int i = 0; i < 100; i++) {
-				ata[i] = 0.0;
-			}
-			norm_sum = 0.0;
-			sample_count = 0.0;
-		}
-#endif
 
 		// Get time elapsed and sleep/yield until next tick
 		int64_t time_delta = k_uptime_get() - time_begin;

@@ -3,8 +3,15 @@
 
 #include "globals.h"
 
-void sensor_read_retained(void);
+void sensor_retained_read(void);
+void sensor_retained_write_quat(void);
+void sensor_retained_write_gOff(void);
+
 void sensor_shutdown(void);
+void sensor_setup_WOM(void);
+
+void sensor_calibrate_imu(void);
+void sensor_calibrate_mag(void);
 
 void set_LN(void);
 void set_LP(void);

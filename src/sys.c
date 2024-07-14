@@ -15,26 +15,18 @@ K_THREAD_DEFINE(led_thread_id, 512, led_thread, NULL, NULL, NULL, 6, 0, 0);
 
 void (*extern_main_imu_suspend)(void);
 
-void configure_system_off_WOM(const struct i2c_dt_spec imu)
+void configure_system_off_WOM()
 {
 	(*extern_main_imu_suspend)();
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	// Store the last quats
-	for (uint8_t i = 0; i < 4; i++){
-		retained.q[i] = q[i];
-	}
-	retained.stored_quats = true;
-	// Store fusion gyro offset
-	for (uint8_t i = 0; i < 3; i++){
-		retained.gOff[i] = gOff[i];
-	}
-	retained_update();
+	sensor_retained_write_quat();
+	sensor_retained_write_gOff();
 	LOG_INF("System off (WOM)");
 	// Set system off
-	icm_setup_WOM(imu); // enable WOM feature
+	sensor_setup_WOM(); // enable WOM feature
 	sys_poweroff();
 }
 
@@ -47,11 +39,7 @@ void configure_system_off_chgstat(void){
 	// Configure dock interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	// Store fusion gyro offset
-	for (uint8_t i = 0; i < 3; i++){
-		retained.gOff[i] = gOff[i];
-	}
-	retained_update();
+	sensor_retained_write_gOff();
 	LOG_INF("System off (chgstat)");
 	// Set system off
 	sys_poweroff();
@@ -62,11 +50,7 @@ void configure_system_off_dock(void){
 	// Configure dock interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
-	// Store fusion gyro offset
-	for (uint8_t i = 0; i < 3; i++){
-		retained.gOff[i] = gOff[i];
-	}
-	retained_update();
+	sensor_retained_write_gOff();
 	LOG_INF("System off (dock)");
 	// Set system off
 	sys_poweroff();
