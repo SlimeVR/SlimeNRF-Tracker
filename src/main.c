@@ -22,8 +22,6 @@ int main(void)
 //	start_time = k_uptime_get(); // Need to get start time for imu startup delta
 	set_led(SYS_LED_PATTERN_ON); // Boot LED
 
-	bool ram_retention = retained_validate(); // check ram retention
-
 #if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
 	(*dbl_reset_mem) = DFU_DBL_RESET_APP; // Skip DFU
 #endif
@@ -38,47 +36,36 @@ int main(void)
 #endif
 
 	if (reset_reason & 0x01) { // Count pin resets
-		//nvs_read(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
-		reboot_counter = retained.reboot_counter;
+		reboot_counter = reboot_counter_read();
 		if (reboot_counter > 200) reboot_counter = 200; // How did you get here
 		booting_from_shutdown = reboot_counter == 0 ? true : false; // 0 means from user shutdown or failed ram validation
 		if (reboot_counter == 0) reboot_counter = 100;
 		reset_mode = reboot_counter - 100;
 		reboot_counter++;
-		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
-		retained.reboot_counter = reboot_counter;
-		retained_update();
+		reboot_counter_write(reboot_counter);
 		LOG_INF("Reset Count: %u", reboot_counter);
 		if (booting_from_shutdown)
 			set_led(SYS_LED_PATTERN_ONESHOT_POWERON);
 		k_msleep(1000); // Wait before clearing counter and continuing
 		reboot_counter = 100;
-		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
-		retained.reboot_counter = reboot_counter;
-		retained_update();
+		reboot_counter_write(reboot_counter);
 	}
 // 0ms or 1000ms delta for reboot counter
 
 #if USER_SHUTDOWN_ENABLED
 	if (reset_mode == 0 && !booting_from_shutdown) { // Reset mode user shutdown
 		reboot_counter = 0;
-		//nvs_write(&fs, RBT_CNT_ID, &reboot_counter, sizeof(reboot_counter));
-		retained.reboot_counter = reboot_counter;
-		retained_update();
+		reboot_counter_write(reboot_counter);
 		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF);
 		// TODO: scheduled power off
 		k_msleep(1250);
 		bool docked = gpio_pin_get_dt(&dock);
 		if (!docked) { // TODO: should the tracker start again if docking state changes?
-			// Communicate all imus to shut down
-			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
-			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+			sensor_shutdown();
 			set_led(SYS_LED_PATTERN_OFF); // redundant
 			configure_system_off_chgstat();
 		} else {
-			// Communicate all imus to shut down
-			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
-			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+			sensor_shutdown();
 			set_led(SYS_LED_PATTERN_OFF); // redundant
 			configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
 		}
@@ -86,29 +73,8 @@ int main(void)
 // How long user shutdown take does not matter really ("0ms")
 #endif
 
-	struct flash_pages_info info;
-	fs.flash_device = NVS_PARTITION_DEVICE;
-	fs.offset = NVS_PARTITION_OFFSET; // Start NVS FS here
-	flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
-	fs.sector_size = info.size; // Sector size equal to page size
-	fs.sector_count = 4U; // 4 sectors
 // 5-6ms delta to initialize NVS (only done when needed)
-
-	// All contents of NVS was stored in RAM to not need initializing NVS often
-	if (!ram_retention) { 
-		LOG_INF("Invalidated RAM");
-		if (!nvs_init) {
-			nvs_mount(&fs);
-			nvs_init = true;
-		}
-		nvs_read(&fs, PAIRED_ID, &retained.paired_addr, sizeof(paired_addr));
-		nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &retained.accelBias, sizeof(accelBias));
-		nvs_read(&fs, MAIN_GYRO_BIAS_ID, &retained.gyroBias, sizeof(gyroBias));
-		nvs_read(&fs, MAIN_MAG_BIAS_ID, &retained.magBAinv, sizeof(magBAinv));
-		retained_update();
-	} else {
-		LOG_INF("Recovered calibration from RAM");
-	}
+	sys_read();
 
 	set_led(SYS_LED_PATTERN_OFF);
 
@@ -119,17 +85,10 @@ int main(void)
 
 	if (reset_mode == 3) { // Reset mode pairing reset
 		LOG_INF("Enter pairing reset");
-		if (!nvs_init) {
-			nvs_mount(&fs);
-			nvs_init = true;
-		}
-		nvs_write(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr)); // Clear paired address
-		memcpy(retained.paired_addr, paired_addr, sizeof(paired_addr));
-		retained_update();
+		sys_write(PAIRED_ID, &retained.paired_addr, paired_addr, sizeof(paired_addr));
 		reset_mode = 0; // Clear reset mode
 	} else {
 		// Read paired address from NVS
-		//nvs_read(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr));
 		memcpy(paired_addr, retained.paired_addr, sizeof(paired_addr));
 	}
 
@@ -176,13 +135,7 @@ int main(void)
 		}
 		set_led(SYS_LED_PATTERN_OFF);
 		LOG_INF("Paired");
-		if (!nvs_init) {
-			nvs_mount(&fs);
-			nvs_init = true;
-		}
-		nvs_write(&fs, PAIRED_ID, &paired_addr, sizeof(paired_addr)); // Write new address and tracker id
-		memcpy(retained.paired_addr, paired_addr, sizeof(paired_addr));
-		retained_update();
+		sys_write(PAIRED_ID, retained.paired_addr, paired_addr, sizeof(paired_addr)); // Write new address and tracker id
 		esb_disable();
 	}
 	LOG_INF("Read pairing data");
@@ -214,30 +167,10 @@ int main(void)
 		addr_prefix[i] = buf2[i+8];
 	}
 
-	// Read calibration from NVS
-	//nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
-	//nvs_read(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
-	//nvs_read(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
-	memcpy(accelBias, retained.accelBias, sizeof(accelBias));
-	memcpy(gyroBias, retained.gyroBias, sizeof(gyroBias));
-	memcpy(magBAinv, retained.magBAinv, sizeof(magBAinv));
-	LOG_INF("Read calibrations");
-	LOG_INF("Main accel bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
-	LOG_INF("Main gyro bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
-	LOG_INF("Main mag matrix:");
-	for (int i = 0; i < 3; i++) {
-		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
-	}
-
-	//gpio_pin_configure_dt(&chgstat, GPIO_INPUT);
-	//gpio_pin_configure_dt(&int0, GPIO_INPUT);
-	//gpio_pin_configure_dt(&int1, GPIO_INPUT);
-
-	//pwm_set_pulse_dt(&pwm_led, PWM_MSEC(5)); // 5/20 = 25%
-	//gpio_pin_set_dt(&led, 1);
+	sensor_read_retained();
 
 	// Recover quats if present
-	//retained_validate();
+	// TODO: move this
 	if (retained.stored_quats) {
 		for (uint8_t i = 0; i < 4; i++){
 			q[i] = retained.q[i];
@@ -271,9 +204,7 @@ int main(void)
 			LOG_INF("Waiting for system off (Low battery)");
 			wait_for_threads();
 			LOG_INF("Shutdown");
-			// Communicate all imus to shut down
-			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
-			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+			sensor_shutdown();
 			// Turn off LED
 			set_led(SYS_LED_PATTERN_OFF);
 			configure_system_off_chgstat();
@@ -309,9 +240,7 @@ int main(void)
 			LOG_INF("Waiting for system off (Docked)");
 			wait_for_threads();
 			LOG_INF("Shutdown");
-			// Communicate all imus to shut down
-			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
-			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+			sensor_shutdown();
 			// Turn off LED
 			set_led(SYS_LED_PATTERN_OFF);
 			configure_system_off_dock();
@@ -321,9 +250,7 @@ int main(void)
 			LOG_INF("Waiting for system off (No movement)");
 			wait_for_threads();
 			LOG_INF("Shutdown");
-			// Communicate all imus to shut down
-			icm_reset(main_imu);
-			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+			sensor_shutdown(); // TODO: Wait for icm reset?
 			// Turn off LED
 			set_led(SYS_LED_PATTERN_OFF);
 			configure_system_off_WOM(main_imu);
@@ -340,17 +267,12 @@ int main(void)
 #if MAG_ENABLED
 		// Save magCal while idling
 		if (magCal == 0b111111 && last_powerstate == 1) {
-			if (!nvs_init) {
-				nvs_mount(&fs);
-				nvs_init = true;
-			}
 //			k_usleep(1); // yield to imu thread first
 			k_yield(); // yield to imu thread first
 			wait_for_threads(); // make sure not to interrupt anything (8ms)
 			LOG_INF("Calibrating magnetometer");
 			magneto_current_calibration(magBAinv, ata, norm_sum, sample_count); // 25ms
-			nvs_write(&fs, MAIN_MAG_BIAS_ID, &magBAinv, sizeof(magBAinv));
-			memcpy(retained.magBAinv, magBAinv, sizeof(magBAinv));
+			sys_write(MAIN_MAG_BIAS_ID, &retained.magBAinv, magBAinv, sizeof(magBAinv));
 			retained_update();
 			for (int i = 0; i < 3; i++) {
 				LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);

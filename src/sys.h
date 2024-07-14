@@ -3,6 +3,12 @@
 
 #include "globals.h"
 
+#define RBT_CNT_ID 1
+#define PAIRED_ID 2
+#define MAIN_ACCEL_BIAS_ID 3
+#define MAIN_GYRO_BIAS_ID 4
+#define MAIN_MAG_BIAS_ID 5
+
 // TODO: these patterns are kinda funky
 enum sys_led_pattern {
     SYS_LED_PATTERN_OFF,
@@ -23,5 +29,14 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 
 void set_led(enum sys_led_pattern led_pattern);
 void led_thread(void);
+
+void sys_retained_init(void);
+void sys_nvs_init(void);
+
+uint8_t reboot_counter_read(void);
+void reboot_counter_write(uint8_t reboot_counter);
+
+void sys_read(void);
+void sys_write(uint16_t id, void *ptr, const void *data, size_t len);
 
 #endif

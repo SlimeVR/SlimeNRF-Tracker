@@ -1,5 +1,13 @@
 #include "globals.h"
+#include "sensor.h"
+
 #include "sys.h"
+
+struct nvs_fs fs;
+
+#define NVS_PARTITION		storage_partition
+#define NVS_PARTITION_DEVICE	FIXED_PARTITION_DEVICE(NVS_PARTITION)
+#define NVS_PARTITION_OFFSET	FIXED_PARTITION_OFFSET(NVS_PARTITION)
 
 LOG_MODULE_REGISTER(sys, 4);
 
@@ -71,20 +79,12 @@ void power_check(void) {
 	LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
 	if (batt_pptt == 0 && !docked) {
 		(*extern_main_imu_suspend)();
-		// Communicate all imus to shut down
-		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
-		LOG_INF("imu reset");
-		i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
-		LOG_INF("mag reset");
+		sensor_shutdown();
 		set_led(SYS_LED_PATTERN_OFF); // Turn off LED
 		configure_system_off_chgstat();
 	} else if (docked) {
 		(*extern_main_imu_suspend)();
-		// Communicate all imus to shut down
-		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
-		LOG_INF("imu reset");
-		i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
-		LOG_INF("mag reset");
+		sensor_shutdown();
 		set_led(SYS_LED_PATTERN_OFF); // Turn off LED
 		configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
 	}
@@ -130,15 +130,15 @@ void led_thread(void)
 				gpio_pin_set_dt(&led, 1);
 				k_thread_suspend(led_thread_id);
 				break;
-			case SYS_LED_PATTERN_FAST:
-				led_pattern_state = (led_pattern_state + 1) % 2;
-				gpio_pin_set_dt(&led, led_pattern_state);
-				k_msleep(500);
-				break;
-			case SYS_LED_PATTERN_SLOW:
+			case SYS_LED_PATTERN_SHORT:
 				led_pattern_state = (led_pattern_state + 1) % 2;
 				gpio_pin_set_dt(&led, led_pattern_state);
 				k_msleep(led_pattern_state == 1 ? 100 : 900);
+				break;
+			case SYS_LED_PATTERN_LONG:
+				led_pattern_state = (led_pattern_state + 1) % 2;
+				gpio_pin_set_dt(&led, led_pattern_state);
+				k_msleep(500);
 				break;
 			case SYS_LED_PATTERN_ACTIVE:
 				led_pattern_state = (led_pattern_state + 1) % 2;
@@ -169,4 +169,68 @@ void led_thread(void)
 				k_thread_suspend(led_thread_id);
 		}
 	}
+}
+
+bool ram_validated;
+bool ram_retention;
+bool nvs_init;
+
+inline void sys_retained_init() {
+	if (!ram_validated) {
+		ram_retention = retained_validate(); // Check ram retention
+		ram_validated = true;
+	}
+}
+
+inline void sys_nvs_init() {
+	if (!nvs_init) {
+		struct flash_pages_info info;
+		fs.flash_device = NVS_PARTITION_DEVICE;
+		fs.offset = NVS_PARTITION_OFFSET; // Start NVS FS here
+		flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
+		fs.sector_size = info.size; // Sector size equal to page size
+		fs.sector_count = 4U; // 4 sectors
+		nvs_mount(&fs);
+		nvs_init = true;
+	}
+}
+
+// read from retained
+uint8_t reboot_counter_read(void) {
+	sys_retained_init();
+	return retained.reboot_counter;
+}
+
+// write to retained
+void reboot_counter_write(uint8_t reboot_counter) {
+	sys_retained_init();
+	retained.reboot_counter = reboot_counter;
+	retained_update();
+}
+
+// read from nvs to retained
+void sys_read() {
+	sys_retained_init();
+	// All contents of NVS was stored in RAM to not need initializing NVS often
+	if (!ram_retention) { 
+		LOG_INF("Invalidated RAM");
+		sys_nvs_init();
+		nvs_read(&fs, PAIRED_ID, &retained.paired_addr, sizeof(paired_addr));
+		nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &retained.accelBias, sizeof(retained.accelBias));
+		nvs_read(&fs, MAIN_GYRO_BIAS_ID, &retained.gyroBias, sizeof(retained.gyroBias));
+		nvs_read(&fs, MAIN_MAG_BIAS_ID, &retained.magBAinv, sizeof(retained.magBAinv));
+		retained_update();
+		ram_retention = true;
+	} else {
+		LOG_INF("Recovered calibration from RAM");
+	}
+}
+
+// write to retained and nvs
+void sys_write(uint16_t id, void *retained_ptr, const void *data, size_t len) {
+	sys_retained_init();
+	sys_nvs_init();
+	memcpy(retained_ptr, data, len);
+	nvs_write(&fs, id, data, len);
+	retained_update();
 }

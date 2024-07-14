@@ -4,9 +4,59 @@
 
 #include "sensor.h"
 
+#include "sensor/ICM42688.h"
+#include "sensor/MMC5983MA.h"
+
+// TODO: move to sensor
+// ICM42688 definitions
+
+// TODO: move to sensor
+/* Specify sensor parameters (sample rate is twice the bandwidth)
+ * choices are:
+	  AFS_2G, AFS_4G, AFS_8G, AFS_16G
+	  GFS_15_625DPS, GFS_31_25DPS, GFS_62_5DPS, GFS_125DPS, GFS_250DPS, GFS_500DPS, GFS_1000DPS, GFS_2000DPS
+	  AODR_1_5625Hz, AODR_3_125Hz, AODR_6_25Hz, AODR_50AODR_12_5Hz, AODR_25Hz, AODR_50Hz, AODR_100Hz, AODR_200Hz, AODR_500Hz,
+	  AODR_1kHz, AODR_2kHz, AODR_4kHz, AODR_8kHz, AODR_16kHz, AODR_32kHz
+	  GODR_12_5Hz, GODR_25Hz, GODR_50Hz, GODR_100Hz, GODR_200Hz, GODR_500Hz, GODR_1kHz, GODR_2kHz, GODR_4kHz, GODR_8kHz, GODR_16kHz, GODR_32kHz
+*/
+uint8_t Ascale, Gscale, AODR, GODR, aMode, gMode; // also change gyro range in fusion!
+#define INTEGRATION_TIME 0.001
+#define INTEGRATION_TIME_LP 0.005
+
+float accelBias[3], gyroBias[3]; // offset biases for the accel and gyro
+
+// MMC5983MA definitions
+
+// TODO: move to sensor
+/* Specify sensor parameters (continuous mode sample rate is dependent on bandwidth)
+ * choices are: MODR_ONESHOT, MODR_1Hz, MODR_10Hz, MODR_20Hz, MODR_50 Hz, MODR_100Hz, MODR_200Hz (BW = 0x01), MODR_1000Hz (BW = 0x03)
+ * Bandwidth choices are: MBW_100Hz, MBW_200Hz, MBW_400Hz, MBW_800Hz
+ * Set/Reset choices are: MSET_1, MSET_25, MSET_75, MSET_100, MSET_250, MSET_500, MSET_1000, MSET_2000, so MSET_100 set/reset occurs every 100th measurement, etc.
+ */
+uint8_t MODR, MBW, MSET;
+
 LOG_MODULE_REGISTER(sensor, 4);
 
 K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
+
+void sensor_read_retained(void) {
+	// Read calibration from retained
+	memcpy(accelBias, retained.accelBias, sizeof(accelBias));
+	memcpy(gyroBias, retained.gyroBias, sizeof(gyroBias));
+	memcpy(magBAinv, retained.magBAinv, sizeof(magBAinv));
+	LOG_INF("Read calibrations");
+	LOG_INF("Main accel bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
+	LOG_INF("Main gyro bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	LOG_INF("Main mag matrix:");
+	for (int i = 0; i < 3; i++) {
+		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+	}
+}
+
+void sensor_shutdown(void) { // Communicate all imus to shut down
+	i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+	i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+};
 
 void set_LN(void) {
 	tickrate = 6;
@@ -364,15 +414,8 @@ void main_imu_thread(void) {
 					k_msleep(500); // Delay before beginning acquisition
 					LOG_INF("Start accel and gyro calibration");
 					icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 3s
-					if (!nvs_init) {
-						nvs_mount(&fs);
-						nvs_init = true;
-					}
-					nvs_write(&fs, MAIN_ACCEL_BIAS_ID, &accelBias, sizeof(accelBias));
-					nvs_write(&fs, MAIN_GYRO_BIAS_ID, &gyroBias, sizeof(gyroBias));
-					memcpy(retained.accelBias, accelBias, sizeof(accelBias));
-					memcpy(retained.gyroBias, gyroBias, sizeof(gyroBias));
-					retained_update();
+					sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
+					sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 					LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 					LOG_INF("%.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
 					LOG_INF("Finished accel and gyro zero offset calibration");

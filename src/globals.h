@@ -55,18 +55,6 @@ extern uint32_t* dbl_reset_mem;
 
 #include "retained.h"
 
-extern struct nvs_fs fs;
-
-#define NVS_PARTITION		storage_partition
-#define NVS_PARTITION_DEVICE	FIXED_PARTITION_DEVICE(NVS_PARTITION)
-#define NVS_PARTITION_OFFSET	FIXED_PARTITION_OFFSET(NVS_PARTITION)
-
-#define RBT_CNT_ID 1
-#define PAIRED_ID 2
-#define MAIN_ACCEL_BIAS_ID 3
-#define MAIN_GYRO_BIAS_ID 4
-#define MAIN_MAG_BIAS_ID 5
-
 extern struct esb_payload rx_payload;
 extern struct esb_payload tx_payload;
 
@@ -106,11 +94,6 @@ extern const struct i2c_dt_spec main_imu;
 extern const struct i2c_dt_spec main_mag;
 
 extern const struct gpio_dt_spec dock;
-//extern const struct gpio_dt_spec chgstat;
-//extern const struct gpio_dt_spec int0;
-//extern const struct gpio_dt_spec int1;
-
-extern bool nvs_init;
 
 extern bool threads_running;
 
@@ -123,10 +106,7 @@ extern bool main_data;
 #define USER_SHUTDOWN_ENABLED true
 #define MAG_ENABLED true
 
-// only scan/detect new imus on reset event, write to nvs
-
-#include "sensor/ICM42688.h"
-#include "sensor/MMC5983MA.h"
+// TODO: only scan/detect new imus on reset event, write to nvs
 
 extern float lin_ax, lin_ay, lin_az;					// linear acceleration (acceleration with gravity component subtracted)
 extern float q[4];			// vector to hold quaternion
@@ -166,34 +146,6 @@ extern bool reconfig;
 //extern bool charging;
 
 #define LAST_RESET_LIMIT 10
-
-// TODO: move to sensor
-// ICM42688 definitions
-
-// TODO: move to sensor
-/* Specify sensor parameters (sample rate is twice the bandwidth)
- * choices are:
-	  AFS_2G, AFS_4G, AFS_8G, AFS_16G
-	  GFS_15_625DPS, GFS_31_25DPS, GFS_62_5DPS, GFS_125DPS, GFS_250DPS, GFS_500DPS, GFS_1000DPS, GFS_2000DPS
-	  AODR_1_5625Hz, AODR_3_125Hz, AODR_6_25Hz, AODR_50AODR_12_5Hz, AODR_25Hz, AODR_50Hz, AODR_100Hz, AODR_200Hz, AODR_500Hz,
-	  AODR_1kHz, AODR_2kHz, AODR_4kHz, AODR_8kHz, AODR_16kHz, AODR_32kHz
-	  GODR_12_5Hz, GODR_25Hz, GODR_50Hz, GODR_100Hz, GODR_200Hz, GODR_500Hz, GODR_1kHz, GODR_2kHz, GODR_4kHz, GODR_8kHz, GODR_16kHz, GODR_32kHz
-*/
-extern uint8_t Ascale, Gscale, AODR, GODR, aMode, gMode; // also change gyro range in fusion!
-#define INTEGRATION_TIME 0.001
-#define INTEGRATION_TIME_LP 0.005
-
-extern float accelBias[3], gyroBias[3]; // offset biases for the accel and gyro
-
-// MMC5983MA definitions
-
-// TODO: move to sensor
-/* Specify sensor parameters (continuous mode sample rate is dependent on bandwidth)
- * choices are: MODR_ONESHOT, MODR_1Hz, MODR_10Hz, MODR_20Hz, MODR_50 Hz, MODR_100Hz, MODR_200Hz (BW = 0x01), MODR_1000Hz (BW = 0x03)
- * Bandwidth choices are: MBW_100Hz, MBW_200Hz, MBW_400Hz, MBW_800Hz
- * Set/Reset choices are: MSET_1, MSET_25, MSET_75, MSET_100, MSET_250, MSET_500, MSET_1000, MSET_2000, so MSET_100 set/reset occurs every 100th measurement, etc.
- */
-extern uint8_t MODR, MBW, MSET;
 
 // TODO: move to sensor
 extern float magBAinv[4][3];

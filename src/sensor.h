@@ -3,6 +3,9 @@
 
 #include "globals.h"
 
+void sensor_read_retained(void);
+void sensor_shutdown(void);
+
 void set_LN(void);
 void set_LP(void);
 void reconfigure_imu(const struct i2c_dt_spec imu);

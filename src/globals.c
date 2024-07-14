@@ -54,18 +54,6 @@ uint32_t* dbl_reset_mem = ((uint32_t*) DFU_DBL_RESET_MEM);
 
 //LOG_MODULE_REGISTER(main, 4);
 
-struct nvs_fs fs;
-
-#define NVS_PARTITION		storage_partition
-#define NVS_PARTITION_DEVICE	FIXED_PARTITION_DEVICE(NVS_PARTITION)
-#define NVS_PARTITION_OFFSET	FIXED_PARTITION_OFFSET(NVS_PARTITION)
-
-#define RBT_CNT_ID 1
-#define PAIRED_ID 2
-#define MAIN_ACCEL_BIAS_ID 3
-#define MAIN_GYRO_BIAS_ID 4
-#define MAIN_MAG_BIAS_ID 5
-
 struct esb_payload rx_payload;
 struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -107,11 +95,6 @@ const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
 const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
 
 const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
-//const struct gpio_dt_spec chgstat = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chgstat_gpios);
-//const struct gpio_dt_spec int0 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int0_gpios);
-//const struct gpio_dt_spec int1 = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, int1_gpios);
-
-bool nvs_init = false;
 
 bool threads_running = false;
 
@@ -124,10 +107,7 @@ bool main_data = false;
 #define USER_SHUTDOWN_ENABLED true
 #define MAG_ENABLED true
 
-// only scan/detect new imus on reset event, write to nvs
-
-#include "sensor/ICM42688.h"
-#include "sensor/MMC5983MA.h"
+// TODO: only scan/detect new imus on reset event, write to nvs
 
 float lin_ax, lin_ay, lin_az;					// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
@@ -167,34 +147,6 @@ bool reconfig;
 //bool charging = false;
 
 #define LAST_RESET_LIMIT 10
-
-// TODO: move to sensor
-// ICM42688 definitions
-
-// TODO: move to sensor
-/* Specify sensor parameters (sample rate is twice the bandwidth)
- * choices are:
-	  AFS_2G, AFS_4G, AFS_8G, AFS_16G
-	  GFS_15_625DPS, GFS_31_25DPS, GFS_62_5DPS, GFS_125DPS, GFS_250DPS, GFS_500DPS, GFS_1000DPS, GFS_2000DPS
-	  AODR_1_5625Hz, AODR_3_125Hz, AODR_6_25Hz, AODR_50AODR_12_5Hz, AODR_25Hz, AODR_50Hz, AODR_100Hz, AODR_200Hz, AODR_500Hz,
-	  AODR_1kHz, AODR_2kHz, AODR_4kHz, AODR_8kHz, AODR_16kHz, AODR_32kHz
-	  GODR_12_5Hz, GODR_25Hz, GODR_50Hz, GODR_100Hz, GODR_200Hz, GODR_500Hz, GODR_1kHz, GODR_2kHz, GODR_4kHz, GODR_8kHz, GODR_16kHz, GODR_32kHz
-*/
-uint8_t Ascale = AFS_8G, Gscale = GFS_2000DPS, AODR = AODR_200Hz, GODR = GODR_1kHz, aMode = aMode_LN, gMode = gMode_LN; // also change gyro range in fusion!
-#define INTEGRATION_TIME 0.001
-#define INTEGRATION_TIME_LP 0.005
-
-float accelBias[3] = {0.0f, 0.0f, 0.0f}, gyroBias[3] = {0.0f, 0.0f, 0.0f}; // offset biases for the accel and gyro
-
-// MMC5983MA definitions
-
-// TODO: move to sensor
-/* Specify sensor parameters (continuous mode sample rate is dependent on bandwidth)
- * choices are: MODR_ONESHOT, MODR_1Hz, MODR_10Hz, MODR_20Hz, MODR_50 Hz, MODR_100Hz, MODR_200Hz (BW = 0x01), MODR_1000Hz (BW = 0x03)
- * Bandwidth choices are: MBW_100Hz, MBW_200Hz, MBW_400Hz, MBW_800Hz
- * Set/Reset choices are: MSET_1, MSET_25, MSET_75, MSET_100, MSET_250, MSET_500, MSET_1000, MSET_2000, so MSET_100 set/reset occurs every 100th measurement, etc.
- */
-uint8_t MODR = MODR_200Hz, MBW = MBW_400Hz, MSET = MSET_2000;
 
 // TODO: move to sensor
 float magBAinv[4][3];
