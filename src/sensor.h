@@ -1,8 +1,6 @@
 #ifndef SLIMENRF_SENSOR
 #define SLIMENRF_SENSOR
 
-#include "globals.h"
-
 void sensor_retained_read(void);
 void sensor_retained_write_quat(void);
 void sensor_retained_write_gOff(void);

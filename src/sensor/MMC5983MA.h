@@ -12,9 +12,6 @@
 #ifndef MMC5983MA_h
 #define MMC5983MA_h
 
-#include <zephyr/types.h>
-#include <zephyr/drivers/i2c.h>
-
 //Register map for MMC5983MA'
 //http://www.memsic.com/userfiles/files/DataSheets/Magnetic-Sensors-Datasheets/MMC5983MA_Datasheet.pdf
 #define MMC5983MA_XOUT_0        0x00

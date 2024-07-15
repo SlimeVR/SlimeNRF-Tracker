@@ -1,7 +1,6 @@
 #ifndef SLIMENRF_GLOBALS
 #define SLIMENRF_GLOBALS
 
-#include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <esb.h>
 #include <zephyr/drivers/i2c.h>

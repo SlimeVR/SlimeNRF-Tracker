@@ -12,9 +12,6 @@
 #ifndef ICM42688_h
 #define ICM42688_h
 
-#include <zephyr/types.h>
-#include <zephyr/drivers/i2c.h>
-
 /* ICM42688 registers
 https://media.digikey.com/pdf/Data%20Sheets/TDK%20PDFs/ICM-42688-P_DS_Rev1.2.pdf
 */

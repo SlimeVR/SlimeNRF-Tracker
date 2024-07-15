@@ -1,8 +1,6 @@
 #ifndef SLIMENRF_UTILS
 #define SLIMENRF_UTILS
 
-#include <zephyr/kernel.h>
-
 // Saturate int to 16 bits
 // Optimized to a single ARM assembler instruction
 #define SATURATE_INT16(x) ((x) > 32767 ? 32767 : ((x) < -32768 ? -32768 : (x)))

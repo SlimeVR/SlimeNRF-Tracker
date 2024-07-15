@@ -9,11 +9,9 @@
 
 */
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
 
-#include <zephyr/types.h>
 #include <zephyr/drivers/i2c.h>
+
 #include "ICM42688.h"
 
 float _aRes, _gRes;

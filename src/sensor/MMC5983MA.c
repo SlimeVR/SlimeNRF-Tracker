@@ -9,11 +9,9 @@
 
 */
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
 
-#include <zephyr/types.h>
 #include <zephyr/drivers/i2c.h>
+
 #include "MMC5983MA.h"
 
 uint8_t mmc_getChipID(struct i2c_dt_spec dev_i2c)

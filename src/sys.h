@@ -1,8 +1,6 @@
 #ifndef SLIMENRF_SYS
 #define SLIMENRF_SYS
 
-#include "globals.h"
-
 #define RBT_CNT_ID 1
 #define PAIRED_ID 2
 #define MAIN_ACCEL_BIAS_ID 3
