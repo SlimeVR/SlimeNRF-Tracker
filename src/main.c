@@ -14,7 +14,7 @@
 
 uint32_t* dbl_reset_mem = ((uint32_t*) DFU_DBL_RESET_MEM);
 
-LOG_MODULE_REGISTER(main, 4);
+LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 int main(void)
 {
@@ -54,7 +54,7 @@ int main(void)
 		reset_mode = reboot_counter - 100;
 		reboot_counter++;
 		reboot_counter_write(reboot_counter);
-		LOG_INF("Reset Count: %u", reboot_counter);
+		LOG_INF("Reset count: %u", reboot_counter);
 		if (booting_from_shutdown)
 			set_led(SYS_LED_PATTERN_ONESHOT_POWERON);
 		k_msleep(1000); // Wait before clearing counter and continuing
@@ -66,6 +66,7 @@ int main(void)
 #if USER_SHUTDOWN_ENABLED
 	if (reset_mode == 0 && !booting_from_shutdown) // Reset mode user shutdown
 	{
+		LOG_INF("User shutdown requested");
 		reboot_counter = 0;
 		reboot_counter_write(reboot_counter);
 		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF);
@@ -88,12 +89,18 @@ int main(void)
 // TODO: if reset counter is 0 but reset reason was 1 then perform imu scanning (pressed reset once)
 	if (reset_mode == 0) // Reset mode scan imus
 	{
+		LOG_INF("IMU scan requested");
 	}
 // ?? delta
 
+	if (reset_mode == 1 || reset_mode == 2)
+	{
+		LOG_INF("IMU calibration requested");
+	}
+
 	if (reset_mode == 3) // Reset mode pairing reset
 	{
-		LOG_INF("Enter pairing reset");
+		LOG_INF("Pairing reset requested");
 		esb_reset_pair();
 		reset_mode = 0; // Clear reset mode
 	}
@@ -101,6 +108,7 @@ int main(void)
 #if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
 	if (reset_mode >= 4) // DFU_MAGIC_UF2_RESET, Reset mode DFU
 	{
+		LOG_INF("DFU requested");
 		NRF_POWER->GPREGRET = 0x57;
 		sys_reboot(SYS_REBOOT_COLD);
 	}

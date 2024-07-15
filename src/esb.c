@@ -13,7 +13,7 @@ struct esb_payload tx_payload_pair = ESB_CREATE_PAYLOAD(0,
 
 uint8_t paired_addr[8] = {0,0,0,0,0,0,0,0};
 
-LOG_MODULE_REGISTER(esb_event, 4);
+LOG_MODULE_REGISTER(esb_event, LOG_LEVEL_INF);
 
 void event_handler(struct esb_evt const *event)
 {
@@ -46,7 +46,7 @@ void event_handler(struct esb_evt const *event)
 					last_reset = 0;
 					led_clock = (rx_payload.data[0] << 8) + rx_payload.data[1]; // sync led flashes :)
 					led_clock_offset = 0;
-					//LOG_INF("RX, timer reset");
+					LOG_DBG("RX, timer reset");
 				}
 			}
 		}
@@ -64,7 +64,7 @@ int clocks_start(void)
 	clk_mgr = z_nrf_clock_control_get_onoff(CLOCK_CONTROL_NRF_SUBSYS_HF);
 	if (!clk_mgr)
 	{
-		// LOG_ERR("Unable to get the Clock manager");
+		LOG_ERR("Unable to get the Clock manager");
 		return -ENXIO;
 	}
 
@@ -73,7 +73,7 @@ int clocks_start(void)
 	err = onoff_request(clk_mgr, &clk_cli);
 	if (err < 0)
 	{
-		// LOG_ERR("Clock request failed: %d", err);
+		LOG_ERR("Clock request failed: %d", err);
 		return err;
 	}
 
@@ -82,12 +82,12 @@ int clocks_start(void)
 		err = sys_notify_fetch_result(&clk_cli.notify, &res);
 		if (!err && res)
 		{
-			// LOG_ERR("Clock could not be started: %d", res);
+			LOG_ERR("Clock could not be started: %d", res);
 			return res;
 		}
 	} while (err);
 
-	// LOG_DBG("HF clock started");
+	LOG_DBG("HF clock started");
 	return 0;
 }
 
@@ -237,7 +237,7 @@ void esb_pair(void)
 		uint8_t check = addr & 255;
 		if (check == 0)
 			check = 8;
-		LOG_INF("Check Code: %02X", paired_addr[0]);
+		LOG_INF("Check code: %02X", paired_addr[0]);
 		tx_payload_pair.data[0] = check; // Use int from device address to make sure packet is for this device
 		for (int i = 0; i < 6; i++)
 			tx_payload_pair.data[i+2] = (addr >> (8 * i)) & 0xFF;
@@ -262,7 +262,7 @@ void esb_pair(void)
 		esb_disable();
 	}
 	LOG_INF("Read pairing data");
-	LOG_INF("Check Code: %02X", paired_addr[0]);
+	LOG_INF("Check code: %02X", paired_addr[0]);
 	LOG_INF("Tracker ID: %u", paired_addr[1]);
 	LOG_INF("Address: %02X %02X %02X %02X %02X %02X", paired_addr[2], paired_addr[3], paired_addr[4], paired_addr[5], paired_addr[6], paired_addr[7]);
 
@@ -275,4 +275,5 @@ void esb_reset_pair(void)
 {
 	uint8_t empty_addr[8] = {0};
 	sys_write(PAIRED_ID, &retained.paired_addr, empty_addr, sizeof(paired_addr)); // write zeroes
+	LOG_INF("Pairing data reset");
 }

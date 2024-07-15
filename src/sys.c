@@ -18,12 +18,13 @@ struct nvs_fs fs;
 #define NVS_PARTITION_DEVICE	FIXED_PARTITION_DEVICE(NVS_PARTITION)
 #define NVS_PARTITION_OFFSET	FIXED_PARTITION_OFFSET(NVS_PARTITION)
 
-LOG_MODULE_REGISTER(sys, 4);
+LOG_MODULE_REGISTER(sys, LOG_LEVEL_INF);
 
 K_THREAD_DEFINE(led_thread_id, 512, led_thread, NULL, NULL, NULL, 6, 0, 0);
 
 void configure_system_off_WOM()
 {
+	LOG_INF("System off requested (WOM)");
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
@@ -33,14 +34,15 @@ void configure_system_off_WOM()
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
 	sensor_retained_write_quat();
 	sensor_retained_write_gOff();
-	LOG_INF("System off (WOM)");
 	// Set system off
 	sensor_setup_WOM(); // enable WOM feature
+	LOG_INF("Powering off nRF");
 	sys_poweroff();
 }
 
 void configure_system_off_chgstat(void)
 {
+	LOG_INF("System off requested (chgstat)");
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
@@ -52,13 +54,14 @@ void configure_system_off_chgstat(void)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
 	sensor_retained_write_gOff();
-	LOG_INF("System off (chgstat)");
 	// Set system off
+	LOG_INF("Powering off nRF");
 	sys_poweroff();
 }
 
 void configure_system_off_dock(void)
 {
+	LOG_INF("System off requested (dock)");
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
@@ -66,8 +69,8 @@ void configure_system_off_dock(void)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
 	sensor_retained_write_gOff();
-	LOG_INF("System off (dock)");
 	// Set system off
+	LOG_INF("Powering off nRF");
 	sys_poweroff();
 }
 
@@ -225,7 +228,7 @@ void sys_read(void)
 	}
 	else
 	{
-		LOG_INF("Recovered calibration from RAM");
+		LOG_INF("Validated RAM");
 	}
 }
 

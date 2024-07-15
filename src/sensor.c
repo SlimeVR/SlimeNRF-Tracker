@@ -72,7 +72,7 @@ float magBAinv[4][3];
 int mag_level;
 int last_mag_level;
 
-LOG_MODULE_REGISTER(sensor, 4);
+LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
 K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
 
@@ -82,10 +82,9 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 	memcpy(accelBias, retained.accelBias, sizeof(accelBias));
 	memcpy(gyroBias, retained.gyroBias, sizeof(gyroBias));
 	memcpy(magBAinv, retained.magBAinv, sizeof(magBAinv));
-	LOG_INF("Read calibrations");
-	LOG_INF("Main accel bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
-	LOG_INF("Main gyro bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
-	LOG_INF("Main mag matrix:");
+	LOG_INF("Main accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
+	LOG_INF("Main gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	LOG_INF("Main magnetometer matrix:");
 	for (int i = 0; i < 3; i++)
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
 
@@ -101,7 +100,7 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 
 	for (uint8_t i = 0; i < 3; i++)
 		gOff[i] = retained.gOff[i];
-	LOG_INF("Recovered fusion gyro offset\nMain: %.2f %.2f %.2f", gOff[0], gOff[1], gOff[2]);
+	LOG_INF("Recovered fusion gyroscope offset\nMain: %.2f %.2f %.2f", gOff[0], gOff[1], gOff[2]);
 }
 
 void sensor_retained_write_quat(void) // TODO: move some of this to sys?
@@ -134,20 +133,20 @@ void sensor_setup_WOM(void)
 
 void sensor_calibrate_imu(void)
 {
-	LOG_INF("Enter main calibration");
+	LOG_INF("Calibrating main accelerometer and gyroscope zero rate offset");
 	// TODO: Add LED flashies
 	LOG_INF("Rest the device on a stable surface");
 	if (!wait_for_motion(main_imu, false, 20)) // Wait for accelerometer to settle, timeout 10s
 		return; // Timeout, calibration failed
 	set_led(SYS_LED_PATTERN_ON); // scuffed led
 	k_msleep(500); // Delay before beginning acquisition
-	LOG_INF("Start accel and gyro calibration");
+	LOG_INF("Reading data");
 	icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 3s
 	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 	LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 	LOG_INF("%.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
-	LOG_INF("Finished accel and gyro zero offset calibration");
+	LOG_INF("Finished calibration");
 	// clear fusion gyro offset
 	for (uint8_t i = 0; i < 3; i++)
 		gOff[i] = 0;
@@ -157,12 +156,12 @@ void sensor_calibrate_imu(void)
 
 void sensor_calibrate_mag(void)
 {
-	LOG_INF("Calibrating magnetometer");
+	LOG_INF("Calibrating magnetometer hard/soft iron offset");
 	magneto_current_calibration(magBAinv, ata, norm_sum, sample_count); // 25ms
 	sys_write(MAIN_MAG_BIAS_ID, &retained.magBAinv, magBAinv, sizeof(magBAinv));
 	for (int i = 0; i < 3; i++)
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
-	LOG_INF("Finished mag hard/soft iron offset calibration");
+	LOG_INF("Finished calibration");
 	//magCal |= 1 << 7;
 	magCal = 0;
 	// clear data
@@ -218,12 +217,12 @@ bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples)
 	set_led(SYS_LED_PATTERN_LONG);
 	for (int i = 0; i < samples + counts; i++)
 	{
-		LOG_INF("Accel: %.5f %.5f %.5f", a[0], a[1], a[2]);
+		LOG_INF("Accelerometer: %.5f %.5f %.5f", a[0], a[1], a[2]);
 		k_msleep(500);
 		icm_accel_read(imu, a);
 		if (vec_epsilon(a, last_a) != motion)
 		{
-			LOG_INF("Pass");
+			LOG_INF("No motion detected");
 			counts++;
 			if (counts == 2)
 			{
@@ -237,7 +236,7 @@ bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples)
 		}
 		memcpy(last_a, a, sizeof(a));
 	}
-	LOG_INF("Fail");
+	LOG_INF("Motion detected");
 	set_led(SYS_LED_PATTERN_OFF);
 	return false;
 }
@@ -258,7 +257,7 @@ void main_imu_thread(void)
 			uint8_t rawCount[2];
 			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
-//						LOG_INF("packs %u", count);
+			LOG_DBG("IMU packet count: %u", count);
 			count += 32; // Add a few read buffer packets (4 ms)
 			uint16_t packets = count / 8;								 // Packet size 8 bytes
 			uint8_t rawData[2080];
@@ -270,7 +269,7 @@ void main_imu_thread(void)
 				i2c_read_dt(&main_imu, &rawData[stco], count > 248 ? 248 : count); // Read less than 255 at a time (for nRF52832)
 				stco += 248;
 				count = count > 248 ? count - 248 : 0;
-//						LOG_INF("left %u", count);
+				LOG_DBG("IMU packets left: %u", count);
 			}
 
 			float a[3];
@@ -299,7 +298,7 @@ void main_imu_thread(void)
 					if (k_uptime_get() > magCal_time)
 					{
 						magCal = new_magCal;
-						LOG_INF("Progress magCal: %d", new_magCal);
+						LOG_INF("Magnetometer calibration progress: %d", new_magCal);
 					}
 				}
 				else
@@ -317,12 +316,12 @@ void main_imu_thread(void)
 				{
 				case 0:
 					set_LN();
-					LOG_INF("Switch main imus to low noise");
+					LOG_INF("Switching main IMUs to low noise");
 					last_mag_level = -1;
 					break;
 				case 1:
 					set_LP();
-					LOG_INF("Switch main imus to low power");
+					LOG_INF("Switching main IMUs to low power");
 					reconfigure_mag(main_mag);
 					break;
 				};
@@ -335,23 +334,23 @@ void main_imu_thread(void)
 				{
 				case 0:
 					MODR = MODR_10Hz;
-					//LOG_INF("Switch mag to 10Hz");
+					LOG_DBG("Switching magnetometer ODR to 10Hz");
 					break;
 				case 1:
 					MODR = MODR_20Hz;
-					//LOG_INF("Switch mag to 20Hz");
+					LOG_DBG("Switching magnetometer ODR to 20Hz");
 					break;
 				case 2:
 					MODR = MODR_50Hz;
-					//LOG_INF("Switch mag to 50Hz");
+					LOG_DBG("Switching magnetometer ODR to 50Hz");
 					break;
 				case 3:
 					MODR = MODR_100Hz;
-					//LOG_INF("Switch mag to 100Hz");
+					LOG_DBG("Switching magnetometer ODR to 100Hz");
 					break;
 				case 4:
 					MODR = MODR_200Hz;
-					//LOG_INF("Switch mag to 200Hz");
+					LOG_DBG("Switching magnetometer ODR to 200Hz");
 					break;
 				};
 				reconfigure_mag(main_mag);
@@ -427,25 +426,26 @@ void main_imu_thread(void)
 					{
 						// For whatever reason the gyro seems unreliable
 						// Reset the offset here so the tracker can probably at least turn off
-						LOG_INF("Gyro seems unreliable!");
+						// TODO: the gyroscope might output garbage, the data should be ignored entirely
+						LOG_WRN("Gyroscope may be unreliable");
 						offset.gyroscopeOffset = g;
 						gyro_sanity = 3;
 					}
 					else if (gyro_sanity % 2 == 0)
 					{
-						LOG_INF("Magnetic recovery");
+						LOG_WRN("Fusion magnetic recovery active");
 						gyro_sanity_m = m;
 						gyro_sanity = 1;
 					}
 				}
 				else if (gyro_sanity == 1) 
 				{
-					LOG_INF("Recovered once");
+					LOG_DBG("Fusion recovered once");
 					gyro_sanity = 2;
 				}
 				else if (gyro_sanity == 3)
 				{
-					LOG_INF("Reset gyro sanity");
+					LOG_DBG("Gyroscope sanity reset");
 					gyro_sanity = 0;
 				}
 				
@@ -462,12 +462,12 @@ void main_imu_thread(void)
 				int64_t imu_timeout = CLAMP(last_data_time, 1 * 1000, 15 * 1000); // Ramp timeout from last_data_time
 				if (k_uptime_get() - last_data_time > imu_timeout) // No motion in last 1s - 10s
 				{
-					LOG_INF("No motion from main imus in %llds", imu_timeout/1000);
+					LOG_INF("No motion from main IMUs in %llds", imu_timeout/1000);
 					system_off_main = true;
 				}
 				else if (powerstate == 0 && k_uptime_get() - last_data_time > 500) // No motion in last 500ms
 				{
-					LOG_INF("No motion from main imus in 500ms");
+					LOG_INF("No motion from main IMUs in 500ms");
 					powerstate = 1;
 				}
 			}
@@ -545,7 +545,7 @@ void main_imu_thread(void)
 			LOG_INF("MMC: %u", MMC5983ID);
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && (!MAG_ENABLED || MMC5983ID == 0x30)) // check if all I2C sensors have acknowledged
 			{
-				LOG_INF("Found main imus");
+				LOG_INF("Found main IMUs");
 				i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
 				i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
 				//icm_reset(main_imu);												 // software reset ICM42688 to default registers
@@ -558,7 +558,7 @@ void main_imu_thread(void)
 				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
 // 0-1ms delta to setup mmc
 #endif
-				LOG_INF("Initialized main imus");
+				LOG_INF("Initialized main IMUs");
 				main_ok = true;
 				main_running = false;
 				k_sleep(K_FOREVER); // Wait for after calibrations have loaded the first time
@@ -572,7 +572,7 @@ void main_imu_thread(void)
 					}
 				} while (false); // TODO: ????? why is this here
 				// Setup fusion
-				LOG_INF("Init fusion");
+				LOG_INF("Initialize fusion");
 				FusionOffsetInitialise2(&offset, 1/INTEGRATION_TIME);
 				FusionAhrsInitialise(&ahrs);
 				// ahrs.initialising = true; // cancel fusion init, maybe only if there is a quat stored? oh well
@@ -606,7 +606,7 @@ void wait_for_threads(void)
 void main_imu_suspend(void)
 {
 	k_thread_suspend(main_imu_thread_id);
-	LOG_INF("Suspended main imu thread");
+	LOG_INF("Suspended main IMU thread");
 }
 
 void main_imu_wakeup(void)
