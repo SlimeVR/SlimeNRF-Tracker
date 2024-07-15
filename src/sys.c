@@ -39,7 +39,8 @@ void configure_system_off_WOM()
 	sys_poweroff();
 }
 
-void configure_system_off_chgstat(void){
+void configure_system_off_chgstat(void)
+{
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
@@ -56,7 +57,8 @@ void configure_system_off_chgstat(void){
 	sys_poweroff();
 }
 
-void configure_system_off_dock(void){
+void configure_system_off_dock(void)
+{
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
@@ -69,7 +71,8 @@ void configure_system_off_dock(void){
 	sys_poweroff();
 }
 
-void power_check(void) {
+void power_check(void)
+{
 	bool docked = gpio_pin_get_dt(&dock);
 	int batt_mV;
 	uint32_t batt_pptt = read_batt_mV(&batt_mV);
@@ -116,47 +119,47 @@ void led_thread(void)
 	{
 		switch (current_led_pattern)
 		{
-			case SYS_LED_PATTERN_ON:
-				gpio_pin_set_dt(&led, 1);
+		case SYS_LED_PATTERN_ON:
+			gpio_pin_set_dt(&led, 1);
+			k_thread_suspend(led_thread_id);
+			break;
+		case SYS_LED_PATTERN_SHORT:
+			led_pattern_state = (led_pattern_state + 1) % 2;
+			gpio_pin_set_dt(&led, led_pattern_state);
+			k_msleep(led_pattern_state == 1 ? 100 : 900);
+			break;
+		case SYS_LED_PATTERN_LONG:
+			led_pattern_state = (led_pattern_state + 1) % 2;
+			gpio_pin_set_dt(&led, led_pattern_state);
+			k_msleep(500);
+			break;
+		case SYS_LED_PATTERN_ACTIVE:
+			led_pattern_state = (led_pattern_state + 1) % 2;
+			gpio_pin_set_dt(&led, led_pattern_state);
+			k_msleep(led_pattern_state == 1 ? 300 : 9700);
+			break;
+		case SYS_LED_PATTERN_ONESHOT_POWERON:
+			led_pattern_state++;
+			gpio_pin_set_dt(&led, led_pattern_state % 2);
+			if (led_pattern_state == 6)
 				k_thread_suspend(led_thread_id);
-				break;
-			case SYS_LED_PATTERN_SHORT:
-				led_pattern_state = (led_pattern_state + 1) % 2;
-				gpio_pin_set_dt(&led, led_pattern_state);
-				k_msleep(led_pattern_state == 1 ? 100 : 900);
-				break;
-			case SYS_LED_PATTERN_LONG:
-				led_pattern_state = (led_pattern_state + 1) % 2;
-				gpio_pin_set_dt(&led, led_pattern_state);
-				k_msleep(500);
-				break;
-			case SYS_LED_PATTERN_ACTIVE:
-				led_pattern_state = (led_pattern_state + 1) % 2;
-				gpio_pin_set_dt(&led, led_pattern_state);
-				k_msleep(led_pattern_state == 1 ? 300 : 9700);
-				break;
-			case SYS_LED_PATTERN_ONESHOT_POWERON:
-				led_pattern_state++;
-				gpio_pin_set_dt(&led, led_pattern_state % 2);
-				if (led_pattern_state == 6)
-					k_thread_suspend(led_thread_id);
-				else
-					k_msleep(200);
-				break;
-			case SYS_LED_PATTERN_ONESHOT_POWEROFF:
-				if (led_pattern_state++ > 0 && led_pattern_state < 22)
-					pwm_set_pulse_dt(&pwm_led, PWM_MSEC(22 - led_pattern_state));
-				else
-					gpio_pin_set_dt(&led, 0);
-				if (led_pattern_state == 22)
-					k_thread_suspend(led_thread_id);
-				else if (led_pattern_state == 1)
-					k_msleep(250);
-				else
-					k_msleep(50);
-				break;
-			default:
+			else
+				k_msleep(200);
+			break;
+		case SYS_LED_PATTERN_ONESHOT_POWEROFF:
+			if (led_pattern_state++ > 0 && led_pattern_state < 22)
+				pwm_set_pulse_dt(&pwm_led, PWM_MSEC(22 - led_pattern_state));
+			else
+				gpio_pin_set_dt(&led, 0);
+			if (led_pattern_state == 22)
 				k_thread_suspend(led_thread_id);
+			else if (led_pattern_state == 1)
+				k_msleep(250);
+			else
+				k_msleep(50);
+			break;
+		default:
+			k_thread_suspend(led_thread_id);
 		}
 	}
 }
@@ -165,15 +168,19 @@ bool ram_validated;
 bool ram_retention;
 bool nvs_init;
 
-inline void sys_retained_init(void) {
-	if (!ram_validated) {
+inline void sys_retained_init(void)
+{
+	if (!ram_validated)
+	{
 		ram_retention = retained_validate(); // Check ram retention
 		ram_validated = true;
 	}
 }
 
-inline void sys_nvs_init(void) {
-	if (!nvs_init) {
+inline void sys_nvs_init(void)
+{
+	if (!nvs_init)
+	{
 		struct flash_pages_info info;
 		fs.flash_device = NVS_PARTITION_DEVICE;
 		fs.offset = NVS_PARTITION_OFFSET; // Start NVS FS here
@@ -186,23 +193,27 @@ inline void sys_nvs_init(void) {
 }
 
 // read from retained
-uint8_t reboot_counter_read(void) {
+uint8_t reboot_counter_read(void)
+{
 	sys_retained_init();
 	return retained.reboot_counter;
 }
 
 // write to retained
-void reboot_counter_write(uint8_t reboot_counter) {
+void reboot_counter_write(uint8_t reboot_counter)
+{
 	sys_retained_init();
 	retained.reboot_counter = reboot_counter;
 	retained_update();
 }
 
 // read from nvs to retained
-void sys_read(void) {
+void sys_read(void)
+{
 	sys_retained_init();
 	// All contents of NVS was stored in RAM to not need initializing NVS often
-	if (!ram_retention) { 
+	if (!ram_retention)
+	{ 
 		LOG_INF("Invalidated RAM");
 		sys_nvs_init();
 		nvs_read(&fs, PAIRED_ID, &retained.paired_addr, sizeof(retained.paired_addr));
@@ -211,13 +222,16 @@ void sys_read(void) {
 		nvs_read(&fs, MAIN_MAG_BIAS_ID, &retained.magBAinv, sizeof(retained.magBAinv));
 		retained_update();
 		ram_retention = true;
-	} else {
+	}
+	else
+	{
 		LOG_INF("Recovered calibration from RAM");
 	}
 }
 
 // write to retained and nvs
-void sys_write(uint16_t id, void *retained_ptr, const void *data, size_t len) {
+void sys_write(uint16_t id, void *retained_ptr, const void *data, size_t len)
+{
 	sys_retained_init();
 	sys_nvs_init();
 	memcpy(retained_ptr, data, len);

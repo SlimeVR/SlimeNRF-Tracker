@@ -25,16 +25,20 @@ void event_handler(struct esb_evt const *event)
 		LOG_INF("TX FAILED");
 		break;
 	case ESB_EVENT_RX_RECEIVED:
-		if (esb_read_rx_payload(&rx_payload) == 0) {
-			if (paired_addr[0] == 0x00) {
-				if (rx_payload.length == 8) {
-					for (int i = 0; i < 8; i++) {
+		if (esb_read_rx_payload(&rx_payload) == 0)
+		{
+			if (paired_addr[0] == 0x00)
+			{
+				if (rx_payload.length == 8)
+					for (int i = 0; i < 8; i++)
 						paired_addr[i] = rx_payload.data[i];
-					}
-				}
-			} else {
-				if (rx_payload.length == 4) {
-					if (timer_state == false) {
+			}
+			else
+			{
+				if (rx_payload.length == 4)
+				{
+					if (timer_state == false)
+					{
 						nrfx_timer_resume(&m_timer);
 						timer_state = true;
 					}
@@ -122,27 +126,19 @@ int esb_initialize(void)
 	err = esb_init(&config);
 
 	if (err)
-	{
 		return err;
-	}
 
 	err = esb_set_base_address_0(base_addr_0);
 	if (err)
-	{
 		return err;
-	}
 
 	err = esb_set_base_address_1(base_addr_1);
 	if (err)
-	{
 		return err;
-	}
 
 	err = esb_set_prefixes(addr_prefix, ARRAY_SIZE(addr_prefix));
 	if (err)
-	{
 		return err;
-	}
 
 	return 0;
 }
@@ -172,86 +168,84 @@ int esb_initialize_rx(void)
 	err = esb_init(&config);
 
 	if (err)
-	{
 		return err;
-	}
 
 	err = esb_set_base_address_0(base_addr_0);
 	if (err)
-	{
 		return err;
-	}
 
 	err = esb_set_base_address_1(base_addr_1);
 	if (err)
-	{
 		return err;
-	}
 
 	err = esb_set_prefixes(addr_prefix, ARRAY_SIZE(addr_prefix));
 	if (err)
-	{
 		return err;
-	}
 
 	return 0;
 }
 
-inline void esb_set_addr_discovery(void) {
-	for (int i = 0; i < 4; i++) {
+inline void esb_set_addr_discovery(void)
+{
+	for (int i = 0; i < 4; i++)
+	{
 		base_addr_0[i] = discovery_base_addr_0[i];
 		base_addr_1[i] = discovery_base_addr_1[i];
 	}
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 8; i++)
 		addr_prefix[i] = discovery_addr_prefix[i];
-	}
 }
 
-inline void esb_set_addr_paired(void) {
+inline void esb_set_addr_paired(void)
+{
 	// Recreate dongle address
 	uint8_t buf2[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 4; i++)
+	{
 		buf2[i] = paired_addr[i+2];
 		buf2[i+4] = paired_addr[i+2] + paired_addr[6];
 	}
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 8; i++)
 		buf2[i+8] = paired_addr[7] + i;
-	}
-	for (int i = 0; i < 16; i++) {
-		if (buf2[i] == 0x00 || buf2[i] == 0x55 || buf2[i] == 0xAA) {
+	for (int i = 0; i < 16; i++)
+	{
+		if (buf2[i] == 0x00 || buf2[i] == 0x55 || buf2[i] == 0xAA)
 			buf2[i] += 8;
-		};
 	}
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 4; i++)
+	{
 		base_addr_0[i] = buf2[i];
 		base_addr_1[i] = buf2[i+4];
 	}
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 8; i++)
 		addr_prefix[i] = buf2[i+8];
-	}
 }
 
-void esb_pair(void) {
+void esb_pair(void)
+{
 	// Read paired address from retained
 	// TODO: should pairing data stay within esb?
 	memcpy(paired_addr, retained.paired_addr, sizeof(paired_addr));
 
-	if (paired_addr[0] == 0x00) { // No dongle paired
+	if (paired_addr[0] == 0x00) // No dongle paired
+	{
 		esb_set_addr_discovery();
 		esb_initialize();
 //	timer_init(); // TODO: shouldn't be here!!!
 		tx_payload_pair.noack = false;
 		uint64_t addr = (((uint64_t)(NRF_FICR->DEVICEADDR[1]) << 32) | NRF_FICR->DEVICEADDR[0]) & 0xFFFFFF;
 		uint8_t check = addr & 255;
-		if (check == 0) check = 8;
+		if (check == 0)
+			check = 8;
 		LOG_INF("Check Code: %02X", paired_addr[0]);
 		tx_payload_pair.data[0] = check; // Use int from device address to make sure packet is for this device
-		for (int i = 0; i < 6; i++) {
+		for (int i = 0; i < 6; i++)
 			tx_payload_pair.data[i+2] = (addr >> (8 * i)) & 0xFF;
-		}
 		set_led(SYS_LED_PATTERN_SHORT);
-		while (paired_addr[0] != check) {
-			if (paired_addr[0] != 0x00) {
+		while (paired_addr[0] != check)
+		{
+			if (paired_addr[0] != 0x00)
+			{
 				LOG_INF("Incorrect check code: %02X", paired_addr[0]);
 				paired_addr[0] = 0x00; // Packet not for this device
 			}
@@ -277,7 +271,8 @@ void esb_pair(void) {
 	esb_set_addr_paired();
 }
 
-void esb_reset_pair(void) {
+void esb_reset_pair(void)
+{
 	uint8_t empty_addr[8] = {0};
 	sys_write(PAIRED_ID, &retained.paired_addr, empty_addr, sizeof(paired_addr)); // write zeroes
 }

@@ -3,17 +3,23 @@
 
 LOG_MODULE_REGISTER(timer, 4);
 
-void timer_handler(nrf_timer_event_t event_type, void *p_context) {
-	if (event_type == NRF_TIMER_EVENT_COMPARE1 && esb_state == true) {
-		if (last_reset < LAST_RESET_LIMIT) {
+void timer_handler(nrf_timer_event_t event_type, void *p_context)
+{
+	if (event_type == NRF_TIMER_EVENT_COMPARE1 && esb_state == true)
+	{
+		if (last_reset < LAST_RESET_LIMIT)
+		{
 			last_reset++;
-			if (send_data) { // scuffed check
+			if (send_data)
+			{ // scuffed check
 				esb_write_payload(&tx_payload); // Add transmission to queue
 				esb_start_tx();
 				send_data = false;
 			}
 //			esb_flush_tx();
-		} else {
+		}
+		else
+		{
 			esb_disable();
 			esb_initialize_rx();
 			esb_start_rx();
@@ -22,12 +28,16 @@ void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 			timer_state = false;
 			LOG_INF("timer reset elapsed");
 		}
-	} else if (event_type == NRF_TIMER_EVENT_COMPARE2 && esb_state == true) {
+	}
+	else if (event_type == NRF_TIMER_EVENT_COMPARE2 && esb_state == true)
+	{
 		esb_disable();
 		esb_initialize_rx();
 		esb_start_rx();
 		esb_state = false;
-	} else if (event_type == NRF_TIMER_EVENT_COMPARE3 && esb_state == false) {
+	}
+	else if (event_type == NRF_TIMER_EVENT_COMPARE3 && esb_state == false)
+	{
 		esb_stop_rx();
 		esb_disable();
 		esb_initialize();
@@ -35,7 +45,8 @@ void timer_handler(nrf_timer_event_t event_type, void *p_context) {
 	}
 }
 
-void timer_init(void) {
+void timer_init(void)
+{
 //	nrfx_err_t err;
 	nrfx_timer_config_t timer_cfg = NRFX_TIMER_DEFAULT_CONFIG(1000000);  
 	//timer_cfg.frequency = NRF_TIMER_FREQ_1MHz;

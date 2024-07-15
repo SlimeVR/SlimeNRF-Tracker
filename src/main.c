@@ -43,11 +43,14 @@ int main(void)
 	gpio_add_callback(button0.port, &button_cb_data);
 #endif
 
-	if (reset_reason & 0x01) { // Count pin resets
+	if (reset_reason & 0x01) // Count pin resets
+	{
 		reboot_counter = reboot_counter_read();
-		if (reboot_counter > 200) reboot_counter = 200; // How did you get here
+		if (reboot_counter > 200)
+			reboot_counter = 200; // How did you get here
 		booting_from_shutdown = reboot_counter == 0 ? true : false; // 0 means from user shutdown or failed ram validation
-		if (reboot_counter == 0) reboot_counter = 100;
+		if (reboot_counter == 0)
+			reboot_counter = 100;
 		reset_mode = reboot_counter - 100;
 		reboot_counter++;
 		reboot_counter_write(reboot_counter);
@@ -61,7 +64,8 @@ int main(void)
 // 0ms or 1000ms delta for reboot counter
 
 #if USER_SHUTDOWN_ENABLED
-	if (reset_mode == 0 && !booting_from_shutdown) { // Reset mode user shutdown
+	if (reset_mode == 0 && !booting_from_shutdown) // Reset mode user shutdown
+	{
 		reboot_counter = 0;
 		reboot_counter_write(reboot_counter);
 		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF);
@@ -82,18 +86,21 @@ int main(void)
 	set_led(SYS_LED_PATTERN_OFF);
 
 // TODO: if reset counter is 0 but reset reason was 1 then perform imu scanning (pressed reset once)
-	if (reset_mode == 0) { // Reset mode scan imus
+	if (reset_mode == 0) // Reset mode scan imus
+	{
 	}
 // ?? delta
 
-	if (reset_mode == 3) { // Reset mode pairing reset
+	if (reset_mode == 3) // Reset mode pairing reset
+	{
 		LOG_INF("Enter pairing reset");
 		esb_reset_pair();
 		reset_mode = 0; // Clear reset mode
 	}
 
 #if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
-	if (reset_mode >= 4) { // DFU_MAGIC_UF2_RESET, Reset mode DFU
+	if (reset_mode >= 4) // DFU_MAGIC_UF2_RESET, Reset mode DFU
+	{
 		NRF_POWER->GPREGRET = 0x57;
 		sys_reboot(SYS_REBOOT_COLD);
 	}
@@ -127,26 +134,33 @@ int main(void)
 		last_batt_pptt[last_batt_pptt_i] = batt_pptt;
 		last_batt_pptt_i++;
 		last_batt_pptt_i %= 15;
-		for (uint8_t i = 0; i < 15; i++) {  // Average battery readings across 16 samples
-			if (last_batt_pptt[i] == 10001) {
+		for (uint8_t i = 0; i < 15; i++)
+		{ // Average battery readings across 16 samples
+			if (last_batt_pptt[i] == 10001)
 				batt_pptt += batt_pptt / (i + 1);
-			} else {
+			else
 				batt_pptt += last_batt_pptt[i];
-			}
 		}
 		batt_pptt /= 16;
-		if (batt_pptt + 100 < last_batt_pptt[15]) {last_batt_pptt[15] = batt_pptt + 100;} // Lower bound -100pptt
-		else if (batt_pptt > last_batt_pptt[15]) {last_batt_pptt[15] = batt_pptt;} // Upper bound +0pptt
-		else {batt_pptt = last_batt_pptt[15];} // Effectively 100-10000 -> 1-100%
+		if (batt_pptt + 100 < last_batt_pptt[15]) // Lower bound -100pptt
+			last_batt_pptt[15] = batt_pptt + 100;
+		else if (batt_pptt > last_batt_pptt[15]) // Upper bound +0pptt
+			last_batt_pptt[15] = batt_pptt;
+		else // Effectively 100-10000 -> 1-100%
+			batt_pptt = last_batt_pptt[15];
 
 		// format for packet send
 		batt = batt_pptt / 100;
-		if (batt < 1) {batt = 1;} // Clamp to 1%
+		if (batt < 1) // Clamp to 1% (because server sees 0% as "no battery")
+			batt = 1;
 		batt_mV /= 10;
 		batt_mV -= 245;
-		if (batt_mV < 0) {batt_v = 0;} // Very dead but it is what it is
-		else if (batt_mV > 255) {batt_v = 255;}
-		else {batt_v = batt_mV;} // 0-255 -> 2.45-5.00V
+		if (batt_mV < 0) // Very dead but it is what it is
+			batt_v = 0;
+		else if (batt_mV > 255)
+			batt_v = 255;
+		else
+			batt_v = batt_mV; // 0-255 -> 2.45-5.00V
 
 //		pwm_set_pulse_dt(&pwm_led, 0);
 
@@ -169,12 +183,8 @@ int main(void)
 		int64_t time_delta = k_uptime_get() - time_begin;
 		led_clock_offset += time_delta;
 		if (time_delta > tickrate)
-		{
 			k_yield();
-		}
 		else
-		{
 			k_msleep(tickrate - time_delta);
-		}
 	}
 }

@@ -76,7 +76,8 @@ LOG_MODULE_REGISTER(sensor, 4);
 
 K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
 
-void sensor_retained_read(void) { // TODO: move some of this to sys?
+void sensor_retained_read(void) // TODO: move some of this to sys?
+{
 	// Read calibration from retained
 	memcpy(accelBias, retained.accelBias, sizeof(accelBias));
 	memcpy(gyroBias, retained.gyroBias, sizeof(gyroBias));
@@ -85,59 +86,59 @@ void sensor_retained_read(void) { // TODO: move some of this to sys?
 	LOG_INF("Main accel bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 	LOG_INF("Main gyro bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
 	LOG_INF("Main mag matrix:");
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 3; i++)
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
-	}
 
 	// Recover quats if present
-	if (retained.stored_quats) {
-		for (uint8_t i = 0; i < 4; i++){
+	if (retained.stored_quats)
+	{
+		for (uint8_t i = 0; i < 4; i++)
 			q[i] = retained.q[i];
-		}
 		LOG_INF("Recovered quaternions\nMain: %.2f %.2f %.2f %.2f", q[0], q[1], q[2], q[3]);
 		retained.stored_quats = false; // Invalidate the retained quaternions
 		retained_update();
 	}
 
-	for (uint8_t i = 0; i < 3; i++){
+	for (uint8_t i = 0; i < 3; i++)
 		gOff[i] = retained.gOff[i];
-	}
 	LOG_INF("Recovered fusion gyro offset\nMain: %.2f %.2f %.2f", gOff[0], gOff[1], gOff[2]);
 }
 
-void sensor_retained_write_quat(void) { // TODO: move some of this to sys?
+void sensor_retained_write_quat(void) // TODO: move some of this to sys?
+{
 	// Store the last quats
-	for (uint8_t i = 0; i < 4; i++){
+	for (uint8_t i = 0; i < 4; i++)
 		retained.q[i] = q[i];
-	}
 	retained.stored_quats = true;
 	retained_update();
 }
 
-void sensor_retained_write_gOff(void) { // TODO: move some of this to sys?
+void sensor_retained_write_gOff(void) // TODO: move some of this to sys?
+{
 	// Store fusion gyro offset
-	for (uint8_t i = 0; i < 3; i++){
+	for (uint8_t i = 0; i < 3; i++)
 		retained.gOff[i] = gOff[i];
-	}
 	retained_update();
 }
 
-void sensor_shutdown(void) { // Communicate all imus to shut down
+void sensor_shutdown(void) // Communicate all imus to shut down
+{
 	i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 	i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 };
 
-void sensor_setup_WOM(void) {
+void sensor_setup_WOM(void)
+{
 	icm_setup_WOM(main_imu);
 }
 
-void sensor_calibrate_imu(void) {
+void sensor_calibrate_imu(void)
+{
 	LOG_INF("Enter main calibration");
 	// TODO: Add LED flashies
 	LOG_INF("Rest the device on a stable surface");
-	if (!wait_for_motion(main_imu, false, 20)) { // Wait for accelerometer to settle, timeout 10s
+	if (!wait_for_motion(main_imu, false, 20)) // Wait for accelerometer to settle, timeout 10s
 		return; // Timeout, calibration failed
-	}
 	set_led(SYS_LED_PATTERN_ON); // scuffed led
 	k_msleep(500); // Delay before beginning acquisition
 	LOG_INF("Start accel and gyro calibration");
@@ -148,33 +149,32 @@ void sensor_calibrate_imu(void) {
 	LOG_INF("%.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
 	LOG_INF("Finished accel and gyro zero offset calibration");
 	// clear fusion gyro offset
-	for (uint8_t i = 0; i < 3; i++){
+	for (uint8_t i = 0; i < 3; i++)
 		gOff[i] = 0;
-	}
 	sensor_retained_write_gOff();
 	set_led(SYS_LED_PATTERN_OFF); // scuffed led
 }
 
-void sensor_calibrate_mag(void) {
+void sensor_calibrate_mag(void)
+{
 	LOG_INF("Calibrating magnetometer");
 	magneto_current_calibration(magBAinv, ata, norm_sum, sample_count); // 25ms
 	sys_write(MAIN_MAG_BIAS_ID, &retained.magBAinv, magBAinv, sizeof(magBAinv));
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 3; i++)
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
-	}
 	LOG_INF("Finished mag hard/soft iron offset calibration");
 	//magCal |= 1 << 7;
 	magCal = 0;
 	// clear data
 	//memset(ata[0], 0, sizeof(ata)); // does this work??
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < 100; i++)
 		ata[i] = 0.0;
-	}
 	norm_sum = 0.0;
 	sample_count = 0.0;
 }
 
-void set_LN(void) {
+void set_LN(void)
+{
 	tickrate = 6;
 	// TODO: This becomes part of the sensor
 //	aMode = aMode_LN;
@@ -185,7 +185,8 @@ void set_LN(void) {
 #endif
 }
 
-void set_LP(void) {
+void set_LP(void)
+{
 	tickrate = 33;
 	// TODO: This becomes part of the sensor
 //	aMode = aMode_LP;
@@ -196,34 +197,42 @@ void set_LP(void) {
 #endif
 }
 
-void reconfigure_imu(const struct i2c_dt_spec imu) {
+void reconfigure_imu(const struct i2c_dt_spec imu)
+{
 	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
 	i2c_reg_write_byte_dt(&imu, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
 	i2c_reg_write_byte_dt(&imu, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
 }
 
-void reconfigure_mag(const struct i2c_dt_spec mag) {
+void reconfigure_mag(const struct i2c_dt_spec mag)
+{
 	//i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_1, MBW); // set mag bandwidth
 	i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | 0x08 | MODR); // set mag ODR
 }
 
-bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples) {
+bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples)
+{
 	uint8_t counts = 0;
 	float a[3], last_a[3];
 	icm_accel_read(imu, last_a);
 	set_led(SYS_LED_PATTERN_LONG);
-	for (int i = 0; i < samples + counts; i++) {
+	for (int i = 0; i < samples + counts; i++)
+	{
 		LOG_INF("Accel: %.5f %.5f %.5f", a[0], a[1], a[2]);
 		k_msleep(500);
 		icm_accel_read(imu, a);
-		if (vec_epsilon(a, last_a) != motion) {
+		if (vec_epsilon(a, last_a) != motion)
+		{
 			LOG_INF("Pass");
 			counts++;
-			if (counts == 2) {
+			if (counts == 2)
+			{
 				set_led(SYS_LED_PATTERN_OFF);
 				return true;
 			}
-		} else {
+		}
+		else
+		{
 			counts = 0;
 		}
 		memcpy(last_a, a, sizeof(a));
@@ -234,9 +243,11 @@ bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples) {
 }
 
 // TODO: make threads more abstract, pass in imus n stuff instead
-void main_imu_thread(void) {
+void main_imu_thread(void)
+{
 	main_running = true;
-	while (1) {
+	while (1)
+	{
 		if (main_ok)
 		{
 			// Reading IMUs will take between 2.5ms (~7 samples, low noise) - 7ms (~33 samples, low power)
@@ -254,7 +265,8 @@ void main_imu_thread(void) {
 			uint16_t stco = 0;
 			uint8_t addr = ICM42688_FIFO_DATA;
 			i2c_write_dt(&main_imu, &addr, 1); // Start read buffer
-			while (count > 0) {
+			while (count > 0)
+			{
 				i2c_read_dt(&main_imu, &rawData[stco], count > 248 ? 248 : count); // Read less than 255 at a time (for nRF52832)
 				stco += 248;
 				count = count > 248 ? count - 248 : 0;
@@ -269,7 +281,8 @@ void main_imu_thread(void) {
 
 			float mx = 0, my = 0, mz = 0;
 #if MAG_ENABLED
-			if (last_powerstate == 0) {
+			if (last_powerstate == 0)
+			{
 				float m[3];
 				mmc_mag_read(main_mag, m);
 				magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count); // 400us
@@ -281,58 +294,65 @@ void main_imu_thread(void) {
 				new_magCal |= (-1.2 < ax && ax < -0.8 ? 1 << 0 : 0) | (1.2 > ax && ax > 0.8 ? 1 << 1 : 0) | // dumb check if all accel axes were reached for cal, assume the user is intentionally doing this
 					(-1.2 < ay && ay < -0.8 ? 1 << 2 : 0) | (1.2 > ay && ay > 0.8 ? 1 << 3 : 0) |
 					(-1.2 < az && az < -0.8 ? 1 << 4 : 0) | (1.2 > az && az > 0.8 ? 1 << 5 : 0);
-				if (new_magCal > magCal && new_magCal == last_magCal) {
-					if (k_uptime_get() > magCal_time) {
+				if (new_magCal > magCal && new_magCal == last_magCal)
+				{
+					if (k_uptime_get() > magCal_time)
+					{
 						magCal = new_magCal;
 						LOG_INF("Progress magCal: %d", new_magCal);
 					}
-				} else {
+				}
+				else
+				{
 					magCal_time = k_uptime_get() + 1000;
 					last_magCal = new_magCal;
 				}
-				if (magCal == 0b111111) {
-					set_led(SYS_LED_PATTERN_ON); // will interfere with things
-				}
+				if (magCal == 0b111111)
+					set_led(SYS_LED_PATTERN_ON); // TODO: will interfere with things
 			}
 
-			if (reconfig) {
-				switch (powerstate) {
-					case 0:
-						set_LN();
-						LOG_INF("Switch main imus to low noise");
-						last_mag_level = -1;
-						break;
-					case 1:
-						set_LP();
-						LOG_INF("Switch main imus to low power");
-						reconfigure_mag(main_mag);
-						break;
+			if (reconfig)
+			{
+				switch (powerstate)
+				{
+				case 0:
+					set_LN();
+					LOG_INF("Switch main imus to low noise");
+					last_mag_level = -1;
+					break;
+				case 1:
+					set_LP();
+					LOG_INF("Switch main imus to low power");
+					reconfigure_mag(main_mag);
+					break;
 				};
 				//reconfigure_imu(main_imu); // Reconfigure if needed
 				//reconfigure_mag(main_mag); // Reconfigure if needed
 			}
-			if (last_mag_level != mag_level && powerstate == 0) {
-				switch (mag_level) {
-					case 0:
-						MODR = MODR_10Hz;
-						//LOG_INF("Switch mag to 10Hz");
-						break;
-					case 1:
-						MODR = MODR_20Hz;
-						//LOG_INF("Switch mag to 20Hz");
-						break;
-					case 2:
-						MODR = MODR_50Hz;
-						//LOG_INF("Switch mag to 50Hz");
-						break;
-					case 3:
-						MODR = MODR_100Hz;
-						//LOG_INF("Switch mag to 100Hz");
-						break;
-					case 4:
-						MODR = MODR_200Hz;
-						//LOG_INF("Switch mag to 200Hz");
-						break;
+			if (last_mag_level != mag_level && powerstate == 0)
+			{
+				switch (mag_level)
+				{
+				case 0:
+					MODR = MODR_10Hz;
+					//LOG_INF("Switch mag to 10Hz");
+					break;
+				case 1:
+					MODR = MODR_20Hz;
+					//LOG_INF("Switch mag to 20Hz");
+					break;
+				case 2:
+					MODR = MODR_50Hz;
+					//LOG_INF("Switch mag to 50Hz");
+					break;
+				case 3:
+					MODR = MODR_100Hz;
+					//LOG_INF("Switch mag to 100Hz");
+					break;
+				case 4:
+					MODR = MODR_200Hz;
+					//LOG_INF("Switch mag to 200Hz");
+					break;
 				};
 				reconfigure_mag(main_mag);
 			}
@@ -341,32 +361,33 @@ void main_imu_thread(void) {
 #endif
 
 			FusionVector z = {.array = {0, 0, 0}};
-			if (packets == 2 && powerstate == 1 && MAG_ENABLED) {
-					ahrs.initialising = true;
-					ahrs.rampedGain = 10.0f;
-					ahrs.accelerometerIgnored = false;
-					ahrs.accelerationRecoveryTrigger = 0;
-					ahrs.accelerationRecoveryTimeout = 0;
-					FusionVector a = {.array = {ax, -az, ay}};
-					FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME_LP);
-					memcpy(q, ahrs.quaternion.array, sizeof(q));
-			} else {
+			if (packets == 2 && powerstate == 1 && MAG_ENABLED)
+			{
+				ahrs.initialising = true;
+				ahrs.rampedGain = 10.0f;
+				ahrs.accelerometerIgnored = false;
+				ahrs.accelerationRecoveryTrigger = 0;
+				ahrs.accelerationRecoveryTimeout = 0;
+				FusionVector a = {.array = {ax, -az, ay}};
+				FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME_LP);
+				memcpy(q, ahrs.quaternion.array, sizeof(q));
+			}
+			else
+			{
 				FusionVector g = {.array = {0, 0, 0}};
 				FusionVector a = {.array = {ax, -az, ay}};
 				FusionVector m = {.array = {my, mz, -mx}};
 				for (uint16_t i = 0; i < packets; i++)
 				{
 					uint16_t index = i * 8; // Packet size 8 bytes
-					if ((rawData[index] & 0x80) == 0x80) {
+					if ((rawData[index] & 0x80) == 0x80)
 						continue; // Skip empty packets
-					}
 					// combine into 16 bit values
 					float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]); // gx
 					float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]); // gy
 					float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]); // gz
-					if (raw0 < -32766 || raw1 < -32766 || raw2 < -32766) {
+					if (raw0 < -32766 || raw1 < -32766 || raw2 < -32766)
 						continue; // Skip invalid data
-					}
 					// transform and convert to float values
 					float gx = raw0 * (2000.0f/32768.0f) - gyroBias[0]; //gres
 					float gy = raw1 * (2000.0f/32768.0f) - gyroBias[1]; //gres
@@ -400,22 +421,30 @@ void main_imu_thread(void) {
 #endif
 				}
 
-				if (FusionAhrsGetFlags(&ahrs).magneticRecovery) {
-					if (gyro_sanity == 2 && vec_epsilon2(gyro_sanity_m.array, m.array, 0.01f)) {
+				if (FusionAhrsGetFlags(&ahrs).magneticRecovery)
+				{
+					if (gyro_sanity == 2 && vec_epsilon2(gyro_sanity_m.array, m.array, 0.01f))
+					{
 						// For whatever reason the gyro seems unreliable
 						// Reset the offset here so the tracker can probably at least turn off
 						LOG_INF("Gyro seems unreliable!");
 						offset.gyroscopeOffset = g;
 						gyro_sanity = 3;
-					} else if (gyro_sanity % 2 == 0) {
+					}
+					else if (gyro_sanity % 2 == 0)
+					{
 						LOG_INF("Magnetic recovery");
 						gyro_sanity_m = m;
 						gyro_sanity = 1;
 					}
-				} else if (gyro_sanity == 1) {
+				}
+				else if (gyro_sanity == 1) 
+				{
 					LOG_INF("Recovered once");
 					gyro_sanity = 2;
-				} else if (gyro_sanity == 3) {
+				}
+				else if (gyro_sanity == 3)
+				{
 					LOG_INF("Reset gyro sanity");
 					gyro_sanity = 0;
 				}
@@ -428,27 +457,32 @@ void main_imu_thread(void) {
 				memcpy(gOff, offset.gyroscopeOffset.array, sizeof(gOff));
 			}
 
-			if (gyro_sanity == 0 ? quat_epsilon_coarse(q, last_q) : quat_epsilon_coarse2(q, last_q)) { // Probably okay to use the constantly updating last_q
+			if (gyro_sanity == 0 ? quat_epsilon_coarse(q, last_q) : quat_epsilon_coarse2(q, last_q)) // Probably okay to use the constantly updating last_q
+			{
 				int64_t imu_timeout = CLAMP(last_data_time, 1 * 1000, 15 * 1000); // Ramp timeout from last_data_time
-				if (k_uptime_get() - last_data_time > imu_timeout) { // No motion in last 1s - 10s
+				if (k_uptime_get() - last_data_time > imu_timeout) // No motion in last 1s - 10s
+				{
 					LOG_INF("No motion from main imus in %llds", imu_timeout/1000);
 					system_off_main = true;
-				} else if (powerstate == 0 && k_uptime_get() - last_data_time > 500) { // No motion in last 500ms
+				}
+				else if (powerstate == 0 && k_uptime_get() - last_data_time > 500) // No motion in last 500ms
+				{
 					LOG_INF("No motion from main imus in 500ms");
 					powerstate = 1;
 				}
-			} else {
+			}
+			else
+			{
 				last_data_time = k_uptime_get();
 				powerstate = 0;
 			}
 
-			if (!(quat_epsilon(q, last_q))) {
-				for (uint8_t i = 0; i < 4; i++) {
+			if (!(quat_epsilon(q, last_q)))
+			{
+				for (uint8_t i = 0; i < 4; i++)
 					last_q[i] = q[i];
-				}
-				for (uint16_t i = 0; i < 16; i++) {
+				for (uint16_t i = 0; i < 16; i++)
 					tx_payload.data[i] = 0;
-				}
 				float q_offset[4];
 				q_multiply(q, q3, q_offset);
 				tx_buf[0] = TO_FIXED_15(q_offset[1]);
@@ -486,28 +520,29 @@ void main_imu_thread(void) {
 
 #if MAG_ENABLED
 			// Save magCal while idling
-			if (magCal == 0b111111 && last_powerstate == 1) { // TODO: i guess this is fine
+			if (magCal == 0b111111 && last_powerstate == 1) // TODO: i guess this is fine
+			{
 //				k_usleep(1); // yield to imu thread first
 				k_yield(); // yield to imu thread first
 				wait_for_threads(); // make sure not to interrupt anything (8ms)
 				sensor_calibrate_mag();
 			}
 #endif
-		} else {
+		}
+		else
+		{
 // 5ms delta (???) from entering loop
 // skip sleep, surely this wont cause issues :D
 /*
 			int64_t time_delta = k_uptime_get() - start_time;
 			if (time_delta < 11)
-			{
 				k_msleep(11 - time_delta);
-			}
 			//k_msleep(11);														 // Wait for start up (1ms for ICM, 10ms for MMC -> 10ms)
 */
 			uint8_t ICM42688ID = icm_getChipID(main_imu);						 // Read CHIP_ID register for ICM42688
-				LOG_INF("ICM: %u", ICM42688ID);
+			LOG_INF("ICM: %u", ICM42688ID);
 			uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
-				LOG_INF("MMC: %u", MMC5983ID);
+			LOG_INF("MMC: %u", MMC5983ID);
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && (!MAG_ENABLED || MMC5983ID == 0x30)) // check if all I2C sensors have acknowledged
 			{
 				LOG_INF("Found main imus");
@@ -528,11 +563,13 @@ void main_imu_thread(void) {
 				main_running = false;
 				k_sleep(K_FOREVER); // Wait for after calibrations have loaded the first time
 				main_running = true;
-				do {
-				if (reset_mode == 1) { // Reset mode main calibration
-					sensor_calibrate_imu();
-					reset_mode = 0; // Clear reset mode
-				}
+				do
+				{
+					if (reset_mode == 1) // Reset mode main calibration
+					{
+						sensor_calibrate_imu();
+						reset_mode = 0; // Clear reset mode
+					}
 				} while (false); // TODO: ????? why is this here
 				// Setup fusion
 				LOG_INF("Init fusion");
@@ -559,19 +596,20 @@ void main_imu_thread(void) {
 	}
 }
 
-void wait_for_threads(void) {
-	if (threads_running || main_running) {
-		while (main_running) {
+void wait_for_threads(void)
+{
+	if (threads_running || main_running)
+		while (main_running)
 			k_usleep(1);
-		}
-	}
 }
 
-void main_imu_suspend(void) {
+void main_imu_suspend(void)
+{
 	k_thread_suspend(main_imu_thread_id);
 	LOG_INF("Suspended main imu thread");
 }
 
-void main_imu_wakeup(void) {
+void main_imu_wakeup(void)
+{
 	k_wakeup(main_imu_thread_id);
 }

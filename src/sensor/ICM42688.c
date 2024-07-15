@@ -20,88 +20,88 @@ float _aRes, _gRes;
 
 uint8_t icm_getChipID(struct i2c_dt_spec dev_i2c)
 {
-    uint8_t temp;
-    i2c_reg_read_byte_dt(&dev_i2c, ICM42688_WHO_AM_I, &temp);
-    return temp;
+	uint8_t temp;
+	i2c_reg_read_byte_dt(&dev_i2c, ICM42688_WHO_AM_I, &temp);
+	return temp;
 }
 
-float icm_getAres(uint8_t Ascale) {
-    switch (Ascale)
-    {
-        // Possible accelerometer scales (and their register bit settings) are:
-        case AFS_2G:
-            _aRes = 2.0f/32768.0f;
-            return _aRes;
-            break;
-        case AFS_4G:
-            _aRes = 4.0f/32768.0f;
-            return _aRes;
-            break;
-        case AFS_8G:
-            _aRes = 8.0f/32768.0f;
-            return _aRes;
-            break;
-        case AFS_16G:
-            _aRes = 16.0f/32768.0f;
-            return _aRes;
-            break;
-        default: // invalid..
-            return _aRes;
-    }
+float icm_getAres(uint8_t Ascale)
+{
+	switch (Ascale)
+	{ // Possible accelerometer scales (and their register bit settings) are:
+	case AFS_2G:
+		_aRes = 2.0f/32768.0f;
+		return _aRes;
+		break;
+	case AFS_4G:
+		_aRes = 4.0f/32768.0f;
+		return _aRes;
+		break;
+	case AFS_8G:
+		_aRes = 8.0f/32768.0f;
+		return _aRes;
+		break;
+	case AFS_16G:
+		_aRes = 16.0f/32768.0f;
+		return _aRes;
+		break;
+	default: // invalid..
+		return _aRes;
+	}
 }
 
-float icm_getGres(uint8_t Gscale) {
-    switch (Gscale)
-    {
-        // Possible gyro scales (and their register bit settings) are:
-        case GFS_15_625DPS:
-            _gRes = 15.625f/32768.0f;
-            return _gRes;
-            break;
-        case GFS_31_25DPS:
-            _gRes = 31.25f/32768.0f;
-            return _gRes;
-            break;
-        case GFS_62_50DPS:
-            _gRes = 62.5f/32768.0f;
-            return _gRes;
-            break;
-        case GFS_125DPS:
-            _gRes = 125.0f/32768.0f;
-            return _gRes;
-            break;
-        case GFS_250DPS:
-            _gRes = 250.0f/32768.0f;
-            return _gRes;
-            break;
-        case GFS_500DPS:
-            _gRes = 500.0f/32768.0f;
-            return _gRes;
-            break;
-        case GFS_1000DPS:
-            _gRes = 1000.0f/32768.0f;
-            return _gRes;
-            break;
-        case GFS_2000DPS:
-            _gRes = 2000.0f/32768.0f;
-            return _gRes;
-            break;
-        default: // invalid..
-            return _gRes;
-    }
+float icm_getGres(uint8_t Gscale)
+{
+	switch (Gscale)
+	{ // Possible gyro scales (and their register bit settings) are:
+	case GFS_15_625DPS:
+		_gRes = 15.625f/32768.0f;
+		return _gRes;
+		break;
+	case GFS_31_25DPS:
+		_gRes = 31.25f/32768.0f;
+		return _gRes;
+		break;
+	case GFS_62_50DPS:
+		_gRes = 62.5f/32768.0f;
+		return _gRes;
+		break;
+	case GFS_125DPS:
+		_gRes = 125.0f/32768.0f;
+		return _gRes;
+		break;
+	case GFS_250DPS:
+		_gRes = 250.0f/32768.0f;
+		return _gRes;
+		break;
+	case GFS_500DPS:
+		_gRes = 500.0f/32768.0f;
+		return _gRes;
+		break;
+	case GFS_1000DPS:
+		_gRes = 1000.0f/32768.0f;
+		return _gRes;
+		break;
+	case GFS_2000DPS:
+		_gRes = 2000.0f/32768.0f;
+		return _gRes;
+		break;
+	default: // invalid..
+		return _gRes;
+	}
 }
 
 void icm_reset(struct i2c_dt_spec dev_i2c)
 {
-    // reset device
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_DEVICE_CONFIG, 0x01); // Set bit 0 to 1 to reset ICM42688
-    k_msleep(2); // Wait 1 ms for all registers to reset
+	// reset device
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_DEVICE_CONFIG, 0x01); // Set bit 0 to 1 to reset ICM42688
+	k_msleep(2); // Wait 1 ms for all registers to reset
 }
 
 void icm_setup_WOM(struct i2c_dt_spec dev_i2c)
 {
-    uint8_t temp;
-    i2c_reg_read_byte_dt(&dev_i2c, ICM42688_INT_STATUS, &temp); // clear reset done int flag
+	uint8_t temp;
+	i2c_reg_read_byte_dt(&dev_i2c, ICM42688_INT_STATUS, &temp); // clear reset done int flag
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INT_SOURCE0, 0x00); // temporary disable interrupts
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_ACCEL_CONFIG0, AFS_8G << 5 | AODR_200Hz); // set accel ODR and FS
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_PWR_MGMT0, aMode_LP); // set accel and gyro modes
@@ -122,27 +122,28 @@ void icm_setup_WOM(struct i2c_dt_spec dev_i2c)
 // make busy wait and msleep external? (portability)
 void icm_init(struct i2c_dt_spec dev_i2c, uint8_t Ascale, uint8_t Gscale, uint8_t AODR, uint8_t GODR, uint8_t aMode, uint8_t gMode, bool CLKIN)
 {
-    icm_getAres(Ascale);
-    icm_getGres(Gscale);
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INT_SOURCE0, 0x00); // temporary disable interrupts
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
-    k_busy_wait(250); // wait >200us (datasheet 14.36)
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_ACCEL_CONFIG0, 0x44); // set gyro and accel bandwidth to ODR/10
-//    k_msleep(50); // 10ms Accel, 30ms Gyro startup
-    k_msleep(1); // fuck i dont wanna wait that long
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FIFO_CONFIG, 0x00); // FIFO bypass mode
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FSYNC_CONFIG, 0x00); // disable FSYNC
-    i2c_reg_update_byte_dt(&dev_i2c, ICM42688_TMST_CONFIG, 0x02, 0x00); // disable FSYNC
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FIFO_CONFIG1, 0x02); // enable FIFO gyro only
-    i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FIFO_CONFIG, 1<<6); // begin FIFO stream
+	icm_getAres(Ascale);
+	icm_getGres(Gscale);
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INT_SOURCE0, 0x00); // temporary disable interrupts
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
+	k_busy_wait(250); // wait >200us (datasheet 14.36)
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_ACCEL_CONFIG0, 0x44); // set gyro and accel bandwidth to ODR/10
+//	k_msleep(50); // 10ms Accel, 30ms Gyro startup
+	k_msleep(1); // fuck i dont wanna wait that long
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FIFO_CONFIG, 0x00); // FIFO bypass mode
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FSYNC_CONFIG, 0x00); // disable FSYNC
+	i2c_reg_update_byte_dt(&dev_i2c, ICM42688_TMST_CONFIG, 0x02, 0x00); // disable FSYNC
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FIFO_CONFIG1, 0x02); // enable FIFO gyro only
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FIFO_CONFIG, 1<<6); // begin FIFO stream
 }
 
-void icm_accel_read(struct i2c_dt_spec dev_i2c, float a[3]) {
-    uint8_t rawAccel[6];
-    i2c_burst_read_dt(&dev_i2c, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6);
+void icm_accel_read(struct i2c_dt_spec dev_i2c, float a[3])
+{
+	uint8_t rawAccel[6];
+	i2c_burst_read_dt(&dev_i2c, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6);
 	float raw0 = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
 	float raw1 = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
 	float raw2 = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
@@ -151,9 +152,10 @@ void icm_accel_read(struct i2c_dt_spec dev_i2c, float a[3]) {
 	a[2] = raw2 * _aRes;
 }
 
-void icm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3]) {
-    uint8_t rawGyro[6];
-    i2c_burst_read_dt(&dev_i2c, ICM42688_GYRO_DATA_X1, &rawGyro[0], 6);
+void icm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3])
+{
+	uint8_t rawGyro[6];
+	i2c_burst_read_dt(&dev_i2c, ICM42688_GYRO_DATA_X1, &rawGyro[0], 6);
 	float raw0 = (int16_t)((((int16_t)rawGyro[0]) << 8) | rawGyro[1]);
 	float raw1 = (int16_t)((((int16_t)rawGyro[2]) << 8) | rawGyro[3]);
 	float raw2 = (int16_t)((((int16_t)rawGyro[4]) << 8) | rawGyro[5]);
@@ -165,31 +167,31 @@ void icm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3]) {
 // need to make this external
 void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
 {
-    float rawData[3];
-    for (int ii = 0; ii < 500; ii++)
-    {
-        icm_accel_read(dev_i2c, &rawData[0]);
-        dest1[0] += rawData[0];
-        dest1[1] += rawData[1];
-        dest1[2] += rawData[2];
-        icm_gyro_read(dev_i2c, &rawData[0]);
-        dest2[0] += rawData[0];
-        dest2[1] += rawData[1];
-        dest2[2] += rawData[2];
-        k_msleep(5);
-    }
+	float rawData[3];
+	for (int ii = 0; ii < 500; ii++)
+	{
+		icm_accel_read(dev_i2c, &rawData[0]);
+		dest1[0] += rawData[0];
+		dest1[1] += rawData[1];
+		dest1[2] += rawData[2];
+		icm_gyro_read(dev_i2c, &rawData[0]);
+		dest2[0] += rawData[0];
+		dest2[1] += rawData[1];
+		dest2[2] += rawData[2];
+		k_msleep(5);
+	}
 
-    dest1[0] /= 500.0f;
-    dest1[1] /= 500.0f;
-    dest1[2] /= 500.0f;
-    dest2[0] /= 500.0f;
-    dest2[1] /= 500.0f;
-    dest2[2] /= 500.0f;
+	dest1[0] /= 500.0f;
+	dest1[1] /= 500.0f;
+	dest1[2] /= 500.0f;
+	dest2[0] /= 500.0f;
+	dest2[1] /= 500.0f;
+	dest2[2] /= 500.0f;
 // need better accel calibration
-    if(dest1[0] > 0.8f) {dest1[0] -= 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
-    if(dest1[0] < -0.8f) {dest1[0] += 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
-    if(dest1[1] > 0.8f) {dest1[1] -= 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
-    if(dest1[1] < -0.8f) {dest1[1] += 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
-    if(dest1[2] > 0.8f) {dest1[2] -= 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
-    if(dest1[2] < -0.8f) {dest1[2] += 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
+	if(dest1[0] > 0.8f) {dest1[0] -= 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
+	if(dest1[0] < -0.8f) {dest1[0] += 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
+	if(dest1[1] > 0.8f) {dest1[1] -= 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
+	if(dest1[1] < -0.8f) {dest1[1] += 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
+	if(dest1[2] > 0.8f) {dest1[2] -= 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
+	if(dest1[2] < -0.8f) {dest1[2] += 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
 }
