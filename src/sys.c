@@ -22,11 +22,11 @@ LOG_MODULE_REGISTER(sys, 4);
 
 K_THREAD_DEFINE(led_thread_id, 512, led_thread, NULL, NULL, NULL, 6, 0, 0);
 
-void (*extern_main_imu_suspend)(void);
-
 void configure_system_off_WOM()
 {
-	(*extern_main_imu_suspend)();
+	main_imu_suspend();
+	sensor_shutdown();
+	set_led(SYS_LED_PATTERN_OFF);
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
@@ -40,7 +40,9 @@ void configure_system_off_WOM()
 }
 
 void configure_system_off_chgstat(void){
-	(*extern_main_imu_suspend)();
+	main_imu_suspend();
+	sensor_shutdown();
+	set_led(SYS_LED_PATTERN_OFF);
 //	// Configure chgstat interrupt
 //	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
 //	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_PULLUP);
@@ -55,7 +57,9 @@ void configure_system_off_chgstat(void){
 }
 
 void configure_system_off_dock(void){
-	(*extern_main_imu_suspend)();
+	main_imu_suspend();
+	sensor_shutdown();
+	set_led(SYS_LED_PATTERN_OFF);
 	// Configure dock interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
@@ -70,17 +74,10 @@ void power_check(void) {
 	int batt_mV;
 	uint32_t batt_pptt = read_batt_mV(&batt_mV);
 	LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
-	if (batt_pptt == 0 && !docked) {
-		(*extern_main_imu_suspend)();
-		sensor_shutdown();
-		set_led(SYS_LED_PATTERN_OFF); // Turn off LED
+	if (batt_pptt == 0 && !docked)
 		configure_system_off_chgstat();
-	} else if (docked) {
-		(*extern_main_imu_suspend)();
-		sensor_shutdown();
-		set_led(SYS_LED_PATTERN_OFF); // Turn off LED
+	else if (docked)
 		configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
-	}
 }
 
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"

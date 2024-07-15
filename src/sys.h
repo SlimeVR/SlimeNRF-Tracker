@@ -20,7 +20,6 @@ enum sys_led_pattern {
     SYS_LED_PATTERN_ONESHOT_POWEROFF, // 250ms off, 1000ms fade to off
 };
 
-extern void (*extern_main_imu_suspend)(void);
 void configure_system_off_WOM(void);
 void configure_system_off_chgstat(void);
 void configure_system_off_dock(void);

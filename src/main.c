@@ -18,7 +18,6 @@ LOG_MODULE_REGISTER(main, 4);
 
 int main(void)
 {
-	extern_main_imu_suspend = &main_imu_suspend;
 	int32_t reset_reason = NRF_POWER->RESETREAS;
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 	uint8_t reboot_counter = 0;
@@ -69,15 +68,10 @@ int main(void)
 		// TODO: scheduled power off
 		k_msleep(1250);
 		bool docked = gpio_pin_get_dt(&dock);
-		if (!docked) { // TODO: should the tracker start again if docking state changes?
-			sensor_shutdown();
-			set_led(SYS_LED_PATTERN_OFF); // redundant
+		if (!docked) // TODO: should the tracker start again if docking state changes?
 			configure_system_off_chgstat();
-		} else {
-			sensor_shutdown();
-			set_led(SYS_LED_PATTERN_OFF); // redundant
+		else
 			configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
-		}
 	}
 // How long user shutdown take does not matter really ("0ms")
 #endif
@@ -129,15 +123,7 @@ int main(void)
 		batt_pptt = read_batt_mV(&batt_mV);
 
 		if (batt_pptt == 0 && !docked)
-		{
-			LOG_INF("Waiting for system off (Low battery)");
-			wait_for_threads();
-			LOG_INF("Shutdown");
-			sensor_shutdown();
-			// Turn off LED
-			set_led(SYS_LED_PATTERN_OFF);
 			configure_system_off_chgstat();
-		}
 		last_batt_pptt[last_batt_pptt_i] = batt_pptt;
 		last_batt_pptt_i++;
 		last_batt_pptt_i %= 15;
@@ -165,31 +151,17 @@ int main(void)
 //		pwm_set_pulse_dt(&pwm_led, 0);
 
 		if (docked) // TODO: keep sending battery state while plugged and docked?
-		{ // TODO: move to interrupts? (Then you do not need to do the above)
-			LOG_INF("Waiting for system off (Docked)");
-			wait_for_threads();
-			LOG_INF("Shutdown");
-			sensor_shutdown();
-			// Turn off LED
-			set_led(SYS_LED_PATTERN_OFF);
+		// TODO: move to interrupts? (Then you do not need to do the above)
 			configure_system_off_dock();
-		}
 
-		if (system_off_main) { // System off on extended no movement
-			LOG_INF("Waiting for system off (No movement)");
-			wait_for_threads();
-			LOG_INF("Shutdown");
-			sensor_shutdown(); // TODO: Wait for icm reset?
-			// Turn off LED
-			set_led(SYS_LED_PATTERN_OFF);
+		if (system_off_main) // System off on extended no movement
 			configure_system_off_WOM();
-		}
 
 		reconfig = last_powerstate != powerstate ? true : false;
 		last_powerstate = powerstate;
 		main_data = false;
 
-		wait_for_threads();
+		wait_for_threads(); // TODO:
 		main_imu_wakeup();
 		threads_running = true;
 
