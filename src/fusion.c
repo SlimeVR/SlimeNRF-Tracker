@@ -3,7 +3,6 @@
 
 #include "../Fusion/Fusion/Fusion.h"
 #include "Fusion/FusionOffset2.h"
-//#include "../vqf-c/src/vqf.h"
 
 FusionOffset offset; // could share goff and q with fusionoffset and fusionahrs but init clears the values
 FusionAhrs ahrs;
