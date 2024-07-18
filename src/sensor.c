@@ -95,6 +95,9 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 	LOG_INF("Recovered fusion gyroscope offset\nMain: %.2f %.2f %.2f", gOff[0], gOff[1], gOff[2]);
 }
 
+// TODO: Always store quat(maybe) and just check if the fusion needs converge fast! (initialize)
+// TODO: for vqf the state stores both quaternion and goff, so really for both fusion and vqf the entire state should be stored in retained
+// they can take up the same memory, just check if it is a vqf or fusion state
 void sensor_retained_write_quat(void) // TODO: move some of this to sys?
 {
 	if (!sensor_fusion_init)
