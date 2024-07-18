@@ -70,7 +70,7 @@ float magBAinv[4][3];
 int mag_level;
 int last_mag_level;
 
-bool fusion_init;
+bool sensor_fusion_init;
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
@@ -105,7 +105,7 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 
 void sensor_retained_write_quat(void) // TODO: move some of this to sys?
 {
-	if (!fusion_init)
+	if (!sensor_fusion_init)
 		return;
 	// Store the last quats
 	for (uint8_t i = 0; i < 4; i++)
@@ -116,7 +116,7 @@ void sensor_retained_write_quat(void) // TODO: move some of this to sys?
 
 void sensor_retained_write_gOff(void) // TODO: move some of this to sys?
 {
-	if (!fusion_init)
+	if (!sensor_fusion_init)
 		return;
 	// Store fusion gyro offset
 	for (uint8_t i = 0; i < 3; i++)
@@ -245,10 +245,62 @@ bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples)
 	return false;
 }
 
+void main_imu_init(void)
+{
+	// TODO: on any errors set main_ok false and skip (make functions return nonzero)
+// 5ms delta (???) from entering loop
+// skip sleep, surely this wont cause issues :D
+/*
+	int64_t time_delta = k_uptime_get() - start_time;
+	if (time_delta < 11)
+		k_msleep(11 - time_delta);
+	//k_msleep(11);														 // Wait for start up (1ms for ICM, 10ms for MMC -> 10ms)
+*/
+	uint8_t ICM42688ID = icm_getChipID(main_imu);						 // Read CHIP_ID register for ICM42688
+	LOG_INF("ICM: %u", ICM42688ID);
+	uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
+	LOG_INF("MMC: %u", MMC5983ID);
+	if (!((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && (!MAG_ENABLED || MMC5983ID == 0x30))) // check if all I2C sensors have acknowledged
+		return;
+	LOG_INF("Found main IMUs");
+	i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
+	i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
+	//icm_reset(main_imu);												 // software reset ICM42688 to default registers
+	uint8_t temp;
+	i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
+	icm_init(main_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
+// 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
+#if MAG_ENABLED
+	mmc_SET(main_mag);													 // "deGauss" magnetometer
+	mmc_init(main_mag, MODR, MBW, MSET);								 // configure
+// 0-1ms delta to setup mmc
+#endif
+	LOG_INF("Initialized main IMUs");
+	main_ok = true;
+	main_running = false;
+	k_sleep(K_FOREVER); // Wait for after calibrations have loaded the first time
+	main_running = true;
+	do
+	{
+		if (reset_mode == 1) // Reset mode main calibration
+		{
+			sensor_calibrate_imu();
+			reset_mode = 0; // Clear reset mode
+		}
+	} while (false); // TODO: ????? why is this here
+	// Setup fusion
+	LOG_INF("Initialize fusion");
+	sensor_retained_read();
+	fusion_init(q, gOff, 1/INTEGRATION_TIME);
+	LOG_INF("Initialized fusion");
+	sensor_fusion_init = true;
+}
+
 // TODO: make threads more abstract, pass in imus n stuff instead
 void main_imu_thread(void)
 {
 	main_running = true;
+	main_imu_init(); // Initialize IMUs and Fusion
 	while (1)
 	{
 		if (main_ok)
@@ -499,68 +551,6 @@ void main_imu_thread(void)
 				sensor_calibrate_mag();
 			}
 #endif
-		}
-		else
-		{
-// 5ms delta (???) from entering loop
-// skip sleep, surely this wont cause issues :D
-/*
-			int64_t time_delta = k_uptime_get() - start_time;
-			if (time_delta < 11)
-				k_msleep(11 - time_delta);
-			//k_msleep(11);														 // Wait for start up (1ms for ICM, 10ms for MMC -> 10ms)
-*/
-			uint8_t ICM42688ID = icm_getChipID(main_imu);						 // Read CHIP_ID register for ICM42688
-			LOG_INF("ICM: %u", ICM42688ID);
-			uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
-			LOG_INF("MMC: %u", MMC5983ID);
-			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && (!MAG_ENABLED || MMC5983ID == 0x30)) // check if all I2C sensors have acknowledged
-			{
-				LOG_INF("Found main IMUs");
-				i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
-				i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
-				//icm_reset(main_imu);												 // software reset ICM42688 to default registers
-				uint8_t temp;
-				i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
-				icm_init(main_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
-// 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
-#if MAG_ENABLED
-				mmc_SET(main_mag);													 // "deGauss" magnetometer
-				mmc_init(main_mag, MODR, MBW, MSET);								 // configure
-// 0-1ms delta to setup mmc
-#endif
-				LOG_INF("Initialized main IMUs");
-				main_ok = true;
-				main_running = false;
-				k_sleep(K_FOREVER); // Wait for after calibrations have loaded the first time
-				main_running = true;
-				do
-				{
-					if (reset_mode == 1) // Reset mode main calibration
-					{
-						sensor_calibrate_imu();
-						reset_mode = 0; // Clear reset mode
-					}
-				} while (false); // TODO: ????? why is this here
-				// Setup fusion
-				LOG_INF("Initialize fusion");
-				FusionOffsetInitialise2(&offset, 1/INTEGRATION_TIME);
-				FusionAhrsInitialise(&ahrs);
-				// ahrs.initialising = true; // cancel fusion init, maybe only if there is a quat stored? oh well
-				const FusionAhrsSettings settings = {
-						.convention = FusionConventionNwu,
-						.gain = 0.5f,
-						.gyroscopeRange = 2000.0f, // also change gyro range in fusion! (.. does it actually work if its set to the limit?)
-						.accelerationRejection = 10.0f,
-						.magneticRejection = 20.0f,
-						.recoveryTriggerPeriod = 5 * 1/INTEGRATION_TIME, // 5 seconds
-				};
-				FusionAhrsSetSettings(&ahrs, &settings);
-				sensor_retained_read();
-				memcpy(ahrs.quaternion.array, q, sizeof(q)); // Load existing quat
-				memcpy(offset.gyroscopeOffset.array, gOff, sizeof(gOff)); // Load fusion gyro offset
-				LOG_INF("Initialized fusion");
-			}
 		}
 		main_running = false;
 		k_sleep(K_FOREVER);
