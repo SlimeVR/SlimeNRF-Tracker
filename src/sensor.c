@@ -3,9 +3,7 @@
 #include "util.h"
 #include "connection.h"
 
-#include "../Fusion/Fusion/Fusion.h"
-#include "Fusion/FusionOffset2.h"
-//#include "../vqf-c/src/vqf.h"
+#include "fusion.h"
 #include "magneto/magneto1_4.h"
 
 #include "sensor/ICM42688.h"
@@ -21,12 +19,6 @@ float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
 
 float gOff[3] = {0}; // runtime fusion gyro offset
-
-FusionOffset offset; // could share goff and q with fusionoffset and fusionahrs but init clears the values
-FusionAhrs ahrs;
-
-FusionVector gyro_sanity_m;
-int gyro_sanity = 0;
 
 int64_t last_data_time;
 
@@ -328,11 +320,11 @@ void main_imu_thread(void)
 				LOG_DBG("IMU packets left: %u", count);
 			}
 
-			float a[3];
-			icm_accel_read(main_imu, a);
-			float ax = a[0] - accelBias[0];
-			float ay = a[1] - accelBias[1];
-			float az = a[2] - accelBias[2];
+			float raw_a[3];
+			icm_accel_read(main_imu, raw_a);
+			float ax = raw_a[0] - accelBias[0];
+			float ay = raw_a[1] - accelBias[1];
+			float az = raw_a[2] - accelBias[2];
 
 			float mx = 0, my = 0, mz = 0;
 #if MAG_ENABLED
@@ -384,6 +376,7 @@ void main_imu_thread(void)
 				//reconfigure_imu(main_imu); // Reconfigure if needed
 				//reconfigure_mag(main_mag); // Reconfigure if needed
 			}
+
 			if (last_mag_level != mag_level && powerstate == 0)
 			{
 				switch (mag_level)
@@ -415,25 +408,19 @@ void main_imu_thread(void)
 			mag_level = 0;
 #endif
 
-			FusionVector z = {.array = {0, 0, 0}};
+			float a[] = {ax, -az, ay};
 			if (packets == 2 && powerstate == 1 && MAG_ENABLED)
 			{ // Fuse accelerometer only
-				ahrs.initialising = true;
-				ahrs.rampedGain = 10.0f;
-				ahrs.accelerometerIgnored = false;
-				ahrs.accelerationRecoveryTrigger = 0;
-				ahrs.accelerationRecoveryTimeout = 0;
-				FusionVector a = {.array = {ax, -az, ay}};
-				FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME_LP);
-				memcpy(q, ahrs.quaternion.array, sizeof(q));
+			// TODO: FUSION UPDATE, ACCEL ONLY
+				fusion_update_accel(a, INTEGRATION_TIME_LP);
 			}
 			else
 			{ // Fuse all data
-				FusionVector g = {.array = {0, 0, 0}};
-				FusionVector a = {.array = {ax, -az, ay}};
-				FusionVector m = {.array = {my, mz, -mx}};
+				float g[3] = {0};
+				float m[] = {my, mz, -mx};
 				for (uint16_t i = 0; i < packets; i++)
 				{
+					// TODO: Packet processing on specific sensor!
 					uint16_t index = i * 8; // Packet size 8 bytes
 					if ((rawData[index] & 0x80) == 0x80)
 						continue; // Skip empty packets
@@ -447,13 +434,22 @@ void main_imu_thread(void)
 					float gx = raw0 * (2000.0f/32768.0f) - gyroBias[0]; //gres
 					float gy = raw1 * (2000.0f/32768.0f) - gyroBias[1]; //gres
 					float gz = raw2 * (2000.0f/32768.0f) - gyroBias[2]; //gres
-					g.axis.x = gx;
-					g.axis.y = -gz;
-					g.axis.z = gy;
-					//FusionVector g = {.array = {gx, -gz, gy}};
-					FusionVector g_off = FusionOffsetUpdate2(&offset, g);
+					//float g[] = {gx, -gz, gy};
+					g[0] = gx;
+					g[1] = -gz;
+					g[2] = gy;
+
+					fusion_update(g, a, m, INTEGRATION_TIME);
 #if MAG_ENABLED
-					float gyro_speed_square = g_off.array[0]*g_off.array[0] + g_off.array[1]*g_off.array[1] + g_off.array[2]*g_off.array[2];
+					// Get fusion's corrected gyro data (or get gyro bias from fusion) and use it here
+					float g_off[3] = {};
+					fusion_get_gyro_bias(g_off);
+					for (int i = 0; i < 3; i++)
+					{
+						g_off[i] = g[i] - g_off[i];
+					}
+
+					float gyro_speed_square = g_off[0]*g_off[0] + g_off[1]*g_off[1] + g_off[2]*g_off[2];
 					// target mag ODR for ~0.25 deg error
 					if (gyro_speed_square > 25*25 && mag_level < 4) // >25dps -> 200hz ODR
 						mag_level = 4;
@@ -464,56 +460,18 @@ void main_imu_thread(void)
 					else if (gyro_speed_square > 2*2 && mag_level < 1) // 2-5dps -> 20hz ODR
 						mag_level = 1;
 					// <2dps -> 10hz ODR
-					if (offset.timer < offset.timeout)
-						FusionAhrsUpdate(&ahrs, g_off, a, m, INTEGRATION_TIME);
-					else
-						FusionAhrsUpdate(&ahrs, z, a, m, INTEGRATION_TIME);
-#else
-					if (offset.timer < offset.timeout)
-						FusionAhrsUpdate(&ahrs, g_off, a, z, INTEGRATION_TIME);
-					else
-						FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME);
 #endif
 				}
 
-				if (FusionAhrsGetFlags(&ahrs).magneticRecovery)
-				{
-					if (gyro_sanity == 2 && vec_epsilon2(gyro_sanity_m.array, m.array, 0.01f))
-					{
-						// For whatever reason the gyro seems unreliable
-						// Reset the offset here so the tracker can probably at least turn off
-						// TODO: the gyroscope might output garbage, the data should be ignored entirely
-						LOG_WRN("Gyroscope may be unreliable");
-						offset.gyroscopeOffset = g;
-						gyro_sanity = 3;
-					}
-					else if (gyro_sanity % 2 == 0)
-					{
-						LOG_WRN("Fusion magnetic recovery active");
-						gyro_sanity_m = m;
-						gyro_sanity = 1;
-					}
-				}
-				else if (gyro_sanity == 1) 
-				{
-					LOG_DBG("Fusion recovered once");
-					gyro_sanity = 2;
-				}
-				else if (gyro_sanity == 3)
-				{
-					LOG_DBG("Gyroscope sanity reset");
-					gyro_sanity = 0;
-				}
-				
-				const FusionVector ahrs_lin_a = FusionAhrsGetLinearAcceleration(&ahrs); // im going insane
-				lin_a[0] = ahrs_lin_a.array[0] * CONST_EARTH_GRAVITY; // Also change to m/s for SlimeVR server
-				lin_a[1] = ahrs_lin_a.array[1] * CONST_EARTH_GRAVITY;
-				lin_a[2] = ahrs_lin_a.array[2] * CONST_EARTH_GRAVITY;
-				memcpy(q, ahrs.quaternion.array, sizeof(q));
-				memcpy(gOff, offset.gyroscopeOffset.array, sizeof(gOff));
+				fusion_update_gyro_sanity(g, m);
+				fusion_get_gyro_bias(gOff);
 			}
 
-			if (gyro_sanity == 0 ? quat_epsilon_coarse(q, last_q) : quat_epsilon_coarse2(q, last_q)) // Probably okay to use the constantly updating last_q
+			float lin_a[3] = {0};
+			fusion_get_lin_a(lin_a);
+			fusion_get_quat(q);
+
+			if (fusion_get_gyro_sanity() == 0 ? quat_epsilon_coarse(q, last_q) : quat_epsilon_coarse2(q, last_q)) // Probably okay to use the constantly updating last_q
 			{
 				int64_t imu_timeout = CLAMP(last_data_time, 1 * 1000, 15 * 1000); // Ramp timeout from last_data_time
 				if (k_uptime_get() - last_data_time > imu_timeout) // No motion in last 1s - 10s
@@ -545,7 +503,6 @@ void main_imu_thread(void)
 			// Save magCal while idling
 			if (magCal == 0b111111 && last_powerstate == 1) // TODO: i guess this is fine
 			{
-//				k_usleep(1); // yield to imu thread first
 				k_yield(); // yield to imu thread first
 				wait_for_threads(); // make sure not to interrupt anything (8ms)
 				sensor_calibrate_mag();
