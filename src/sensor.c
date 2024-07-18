@@ -361,7 +361,7 @@ void main_imu_thread(void)
 
 			FusionVector z = {.array = {0, 0, 0}};
 			if (packets == 2 && powerstate == 1 && MAG_ENABLED)
-			{
+			{ // Fuse accelerometer only
 				ahrs.initialising = true;
 				ahrs.rampedGain = 10.0f;
 				ahrs.accelerometerIgnored = false;
@@ -372,7 +372,7 @@ void main_imu_thread(void)
 				memcpy(q, ahrs.quaternion.array, sizeof(q));
 			}
 			else
-			{
+			{ // Fuse all data
 				FusionVector g = {.array = {0, 0, 0}};
 				FusionVector a = {.array = {ax, -az, ay}};
 				FusionVector m = {.array = {my, mz, -mx}};
@@ -397,13 +397,13 @@ void main_imu_thread(void)
 					//FusionVector g = {.array = {gx, -gz, gy}};
 					FusionVector g_off = FusionOffsetUpdate2(&offset, g);
 #if MAG_ENABLED
-					float gyro_speed_square = g.array[0]*g.array[0] + g.array[1]*g.array[1] + g.array[2]*g.array[2];
+					float gyro_speed_square = g_off.array[0]*g_off.array[0] + g_off.array[1]*g_off.array[1] + g_off.array[2]*g_off.array[2];
 					// target mag ODR for ~0.25 deg error
-					if (gyro_speed_square > 25*25 && mag_level < 3) // >25dps -> 200hz ODR
+					if (gyro_speed_square > 25*25 && mag_level < 4) // >25dps -> 200hz ODR
 						mag_level = 4;
-					else if (gyro_speed_square > 12*12 && mag_level < 2) // 12-25dps -> 100hz ODR
+					else if (gyro_speed_square > 12*12 && mag_level < 3) // 12-25dps -> 100hz ODR
 						mag_level = 3;
-					else if (gyro_speed_square > 5*5 && mag_level < 1) // 5-12dps -> 50hz ODR
+					else if (gyro_speed_square > 5*5 && mag_level < 2) // 5-12dps -> 50hz ODR
 						mag_level = 2;
 					else if (gyro_speed_square > 2*2 && mag_level < 1) // 2-5dps -> 20hz ODR
 						mag_level = 1;
@@ -414,7 +414,7 @@ void main_imu_thread(void)
 						FusionAhrsUpdate(&ahrs, z, a, m, INTEGRATION_TIME);
 #else
 					if (offset.timer < offset.timeout)
-						FusionAhrsUpdate(&ahrs, g, a, z, INTEGRATION_TIME);
+						FusionAhrsUpdate(&ahrs, g_off, a, z, INTEGRATION_TIME);
 					else
 						FusionAhrsUpdate(&ahrs, z, a, z, INTEGRATION_TIME);
 #endif
