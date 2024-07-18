@@ -18,12 +18,14 @@ void vqf_init(float *q, float *g_off, unsigned int rate)
 void vqf_update_accel(float *a, float time)
 {
 	// TODO: time unused?
+	// TODO: how to handle change in sample rate
 	updateAcc(a);
 }
 
 void vqf_update(float *g, float *a, float *m, float time)
 {
 	// TODO: time unused?
+	// TODO: gyro is a different rate to the others, should they be separated
 	updateGyr(g);
 	updateAcc(a);
 	updateMag(m);
