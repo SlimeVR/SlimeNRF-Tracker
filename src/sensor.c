@@ -15,20 +15,17 @@
 const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
 const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
 
-float lin_ax, lin_ay, lin_az;					// linear acceleration (acceleration with gravity component subtracted)
+float lin_a[3] = {0};							// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
 
-float gOff[3] = {0.0f, 0.0f, 0.0f}; // runtime fusion gyro offset
+float gOff[3] = {0}; // runtime fusion gyro offset
 
 FusionOffset offset; // could share goff and q with fusionoffset and fusionahrs but init clears the values
 FusionAhrs ahrs;
 
 FusionVector gyro_sanity_m;
 int gyro_sanity = 0;
-
-// temporary
-uint16_t tx_buf[7];
 
 int64_t last_data_time;
 
@@ -72,6 +69,8 @@ float magBAinv[4][3];
 int mag_level;
 int last_mag_level;
 
+bool fusion_init;
+
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
 K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
@@ -105,6 +104,8 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 
 void sensor_retained_write_quat(void) // TODO: move some of this to sys?
 {
+	if (!fusion_init)
+		return;
 	// Store the last quats
 	for (uint8_t i = 0; i < 4; i++)
 		retained.q[i] = q[i];
@@ -114,6 +115,8 @@ void sensor_retained_write_quat(void) // TODO: move some of this to sys?
 
 void sensor_retained_write_gOff(void) // TODO: move some of this to sys?
 {
+	if (!fusion_init)
+		return;
 	// Store fusion gyro offset
 	for (uint8_t i = 0; i < 3; i++)
 		retained.gOff[i] = gOff[i];
@@ -449,10 +452,10 @@ void main_imu_thread(void)
 					gyro_sanity = 0;
 				}
 				
-				const FusionVector lin_a = FusionAhrsGetLinearAcceleration(&ahrs); // im going insane
-				lin_ax = lin_a.array[0] * CONST_EARTH_GRAVITY; // Also change to m/s for SlimeVR server
-				lin_ay = lin_a.array[1] * CONST_EARTH_GRAVITY;
-				lin_az = lin_a.array[2] * CONST_EARTH_GRAVITY;
+				const FusionVector ahrs_lin_a = FusionAhrsGetLinearAcceleration(&ahrs); // im going insane
+				lin_a[0] = ahrs_lin_a.array[0] * CONST_EARTH_GRAVITY; // Also change to m/s for SlimeVR server
+				lin_a[1] = ahrs_lin_a.array[1] * CONST_EARTH_GRAVITY;
+				lin_a[2] = ahrs_lin_a.array[2] * CONST_EARTH_GRAVITY;
 				memcpy(q, ahrs.quaternion.array, sizeof(q));
 				memcpy(gOff, offset.gyroscopeOffset.array, sizeof(gOff));
 			}
@@ -479,43 +482,10 @@ void main_imu_thread(void)
 
 			if (!(quat_epsilon(q, last_q)))
 			{
-				for (uint8_t i = 0; i < 4; i++)
-					last_q[i] = q[i];
-				for (uint16_t i = 0; i < 16; i++)
-					tx_payload.data[i] = 0;
+				memcpy(last_q, q, sizeof(q));
 				float q_offset[4];
 				q_multiply(q, q3, q_offset);
-				tx_buf[0] = TO_FIXED_15(q_offset[1]);
-				tx_buf[1] = TO_FIXED_15(q_offset[2]);
-				tx_buf[2] = TO_FIXED_15(q_offset[3]);
-				tx_buf[3] = TO_FIXED_15(q_offset[0]);
-				tx_buf[4] = TO_FIXED_7(lin_ax);
-				tx_buf[5] = TO_FIXED_7(lin_ay);
-				tx_buf[6] = TO_FIXED_7(lin_az);
-				tx_payload.data[0] = 0; //reserved for something idk
-				tx_payload.data[1] = tracker_id << 4;
-				//tx_payload.data[2] = batt | (charging ? 128 : 0);
-				// TODO: Send temperature
-				tx_payload.data[2] = batt;
-				tx_payload.data[3] = batt_v;
-				tx_payload.data[4] = (tx_buf[0] >> 8) & 255;
-				tx_payload.data[5] = tx_buf[0] & 255;
-				tx_payload.data[6] = (tx_buf[1] >> 8) & 255;
-				tx_payload.data[7] = tx_buf[1] & 255;
-				tx_payload.data[8] = (tx_buf[2] >> 8) & 255;
-				tx_payload.data[9] = tx_buf[2] & 255;
-				tx_payload.data[10] = (tx_buf[3] >> 8) & 255;
-				tx_payload.data[11] = tx_buf[3] & 255;
-				tx_payload.data[12] = (tx_buf[4] >> 8) & 255;
-				tx_payload.data[13] = tx_buf[4] & 255;
-				tx_payload.data[14] = (tx_buf[5] >> 8) & 255;
-				tx_payload.data[15] = tx_buf[5] & 255;
-				tx_payload.data[16] = (tx_buf[6] >> 8) & 255;
-				tx_payload.data[17] = tx_buf[6] & 255;
-				esb_flush_tx();
-				main_data = true;
-				esb_write_payload(&tx_payload); // Add transmission to queue
-				send_data = true;
+				esb_write_packet_0(q_offset, lin_a);
 			}
 
 #if MAG_ENABLED
@@ -585,6 +555,7 @@ void main_imu_thread(void)
 						.recoveryTriggerPeriod = 5 * 1/INTEGRATION_TIME, // 5 seconds
 				};
 				FusionAhrsSetSettings(&ahrs, &settings);
+				sensor_retained_read();
 				memcpy(ahrs.quaternion.array, q, sizeof(q)); // Load existing quat
 				memcpy(offset.gyroscopeOffset.array, gOff, sizeof(gOff)); // Load fusion gyro offset
 				LOG_INF("Initialized fusion");
@@ -600,12 +571,13 @@ void wait_for_threads(void)
 {
 	if (threads_running || main_running)
 		while (main_running)
-			k_usleep(1);
+			k_yield();
 }
 
 void main_imu_suspend(void)
 {
 	k_thread_suspend(main_imu_thread_id);
+	main_running = false;
 	LOG_INF("Suspended main IMU thread");
 }
 

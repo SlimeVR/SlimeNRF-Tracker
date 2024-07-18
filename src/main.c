@@ -118,9 +118,6 @@ int main(void)
 
 	esb_pair();
 
-	sensor_retained_read();
-// 0ms delta to read calibration and configure pins
-
 	esb_initialize();
 	tx_payload.noack = false;
 	//timer_init();

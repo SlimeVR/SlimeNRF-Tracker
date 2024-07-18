@@ -277,3 +277,12 @@ void esb_reset_pair(void)
 	sys_write(PAIRED_ID, &retained.paired_addr, empty_addr, sizeof(paired_addr)); // write zeroes
 	LOG_INF("Pairing data reset");
 }
+
+void esb_write(uint8_t *data)
+{
+	memcpy(tx_payload.data, data, size_of(tx_payload.data));
+	esb_flush_tx();
+	main_data = true;
+	esb_write_payload(&tx_payload); // Add transmission to queue
+	send_data = true;
+}
