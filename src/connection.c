@@ -1,4 +1,5 @@
 #include "globals.h"
+#include "util.h"
 #include "esb.h"
 
 void connection_write_packet_0(float *q, float *a)
@@ -10,7 +11,7 @@ void connection_write_packet_0(float *q, float *a)
 	// TODO: Send temperature (time to add another packet?)
 	data[2] = batt;
 	data[3] = batt_v;
-	uint16_t *buf = &data[4];
+	uint16_t *buf = (uint16_t *)&data[4];
 	buf[0] = TO_FIXED_15(q[1]);
 	buf[1] = TO_FIXED_15(q[2]);
 	buf[2] = TO_FIXED_15(q[3]);

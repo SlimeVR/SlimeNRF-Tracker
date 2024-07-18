@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "sys.h"
 #include "util.h"
+#include "connection.h"
 
 #include "../Fusion/Fusion/Fusion.h"
 #include "Fusion/FusionOffset2.h"
@@ -485,7 +486,7 @@ void main_imu_thread(void)
 				memcpy(last_q, q, sizeof(q));
 				float q_offset[4];
 				q_multiply(q, q3, q_offset);
-				esb_write_packet_0(q_offset, lin_a);
+				connection_write_packet_0(q_offset, lin_a);
 			}
 
 #if MAG_ENABLED
