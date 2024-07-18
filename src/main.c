@@ -167,8 +167,6 @@ int main(void)
 		else
 			batt_v = batt_mV; // 0-255 -> 2.45-5.00V
 
-//		pwm_set_pulse_dt(&pwm_led, 0);
-
 		if (docked) // TODO: keep sending battery state while plugged and docked?
 		// TODO: move to interrupts? (Then you do not need to do the above)
 			configure_system_off_dock();
