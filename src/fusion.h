@@ -1,7 +1,9 @@
 #ifndef SLIMENRF_FUSION
 #define SLIMENRF_FUSION
 
-void fusion_init(float *q, float *g_off, unsigned int rate);
+void fusion_init(unsigned int rate);
+void fusion_load(const void *data);
+void fusion_save(void *data);
 
 void fusion_update_accel(float *a, float time);
 void fusion_update(float *g, float *a, float *m, float time);

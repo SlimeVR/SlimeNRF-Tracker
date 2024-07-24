@@ -12,7 +12,7 @@ int gyro_sanity = 0;
 
 LOG_MODULE_REGISTER(fusion, LOG_LEVEL_INF);
 
-void fusion_init(float *q, float *g_off, unsigned int rate)
+void fusion_init(const void *data, unsigned int rate)
 {
 	FusionOffsetInitialise2(&offset, rate);
 	FusionAhrsInitialise(&ahrs);
@@ -26,8 +26,18 @@ void fusion_init(float *q, float *g_off, unsigned int rate)
 			.recoveryTriggerPeriod = 5 * rate, // 5 seconds
 	};
 	FusionAhrsSetSettings(&ahrs, &settings);
-	memcpy(ahrs.quaternion.array, q, sizeof(ahrs.quaternion.array)); // Load existing quat
-	memcpy(offset.gyroscopeOffset.array, g_off, sizeof(offset.gyroscopeOffset.array)); // Load fusion gyro offset
+}
+
+void fusion_load(const void *data)
+{
+	memcpy(&ahrs, data, sizeof(ahrs));
+	memcpy(&offset, (uint8_t *)data + sizeof(ahrs), sizeof(offset));
+}
+
+void fusion_save(void *data)
+{
+	memcpy(data, &ahrs, sizeof(ahrs));
+	memcpy((uint8_t *)data + sizeof(ahrs), &offset, sizeof(offset));
 }
 
 void fusion_update_accel(float *a, float time)

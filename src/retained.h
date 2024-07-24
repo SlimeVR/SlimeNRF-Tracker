@@ -7,20 +7,22 @@
 #ifndef RETAINED_H_
 #define RETAINED_H_
 
+//#include "../Fusion/Fusion/Fusion.h"
+//#include "../vqf-c/src/vqf.h"
+
 #include <inttypes.h>
 
 /* Example of validatable retained data. */
 struct retained_data {
 	uint8_t reboot_counter;
 	uint8_t paired_addr[8];
+
 	float accelBias[3];
 	float gyroBias[3];
 	float magBAinv[4][3];
-	bool stored_quats;
-	float q[4];
-	float q2[4];
-	float gOff[3];
-	float gOff2[3];
+
+	bool fusion_data_stored;
+	uint8_t fusion_data[364]; // MAX(sizeof(FusionAhrs)+sizeof(FusionOffset), sizeof(vqf_state_t))
 
 	/* CRC used to validate the retained data.  This must be
 	 * stored little-endian, and covers everything up to but not

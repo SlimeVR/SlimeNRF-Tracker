@@ -1,7 +1,9 @@
 #ifndef SLIMENRF_VQF
 #define SLIMENRF_VQF
 
-void vqf_init(float *q, float *g_off, unsigned int rate);
+void vqf_init(unsigned int rate);
+void vqf_load(const void *data);
+void vqf_save(void *data);
 
 void vqf_update_accel(float *a, float time);
 void vqf_update(float *g, float *a, float *m, float time);

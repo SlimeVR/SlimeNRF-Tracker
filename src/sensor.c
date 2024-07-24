@@ -80,42 +80,20 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 	for (int i = 0; i < 3; i++)
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
 
-	// Recover quats if present
-	if (retained.stored_quats)
+	if (retained.fusion_data_stored)
 	{
-		for (uint8_t i = 0; i < 4; i++)
-			q[i] = retained.q[i];
-		LOG_INF("Recovered quaternions\nMain: %.2f %.2f %.2f %.2f", q[0], q[1], q[2], q[3]);
-		retained.stored_quats = false; // Invalidate the retained quaternions
-		retained_update();
+		LOG_INF("Fusion data recovered");
 	}
-
-	for (uint8_t i = 0; i < 3; i++)
-		gOff[i] = retained.gOff[i];
-	LOG_INF("Recovered fusion gyroscope offset\nMain: %.2f %.2f %.2f", gOff[0], gOff[1], gOff[2]);
 }
 
 // TODO: Always store quat(maybe) and just check if the fusion needs converge fast! (initialize)
-// TODO: for vqf the state stores both quaternion and goff, so really for both fusion and vqf the entire state should be stored in retained
-// they can take up the same memory, just check if it is a vqf or fusion state
-void sensor_retained_write_quat(void) // TODO: move some of this to sys?
+// TODO: check if it is a vqf or fusion state
+void sensor_retained_write(void) // TODO: move to sys?
 {
 	if (!sensor_fusion_init)
 		return;
-	// Store the last quats
-	for (uint8_t i = 0; i < 4; i++)
-		retained.q[i] = q[i];
-	retained.stored_quats = true;
-	retained_update();
-}
-
-void sensor_retained_write_gOff(void) // TODO: move some of this to sys?
-{
-	if (!sensor_fusion_init)
-		return;
-	// Store fusion gyro offset
-	for (uint8_t i = 0; i < 3; i++)
-		retained.gOff[i] = gOff[i];
+	fusion_save(retained.fusion_data);
+	retained.fusion_data_stored = true;
 	retained_update();
 }
 
@@ -137,19 +115,28 @@ void sensor_calibrate_imu(void)
 	LOG_INF("Rest the device on a stable surface");
 	if (!wait_for_motion(main_imu, false, 20)) // Wait for accelerometer to settle, timeout 10s
 		return; // Timeout, calibration failed
+
 	set_led(SYS_LED_PATTERN_ON); // scuffed led
 	k_msleep(500); // Delay before beginning acquisition
+
 	LOG_INF("Reading data");
 	icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 3s
 	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 	LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 	LOG_INF("%.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+
 	LOG_INF("Finished calibration");
-	// clear fusion gyro offset
-	for (uint8_t i = 0; i < 3; i++)
-		gOff[i] = 0;
-	sensor_retained_write_gOff();
+	if (sensor_fusion_init)
+	{ // clear fusion gyro offset
+		float g_off[3] = {0};
+		fusion_set_gyro_bias(g_off);
+		sensor_retained_write();
+	}
+	else
+	{
+		retained.fusion_data_stored = false; // Invalidate retained fusion data
+	}
 	set_led(SYS_LED_PATTERN_OFF); // scuffed led
 }
 
@@ -272,9 +259,9 @@ void main_imu_init(void)
 #endif
 	LOG_INF("Initialized main IMUs");
 	main_ok = true;
-	main_running = false;
-	k_sleep(K_FOREVER); // Wait for after calibrations have loaded the first time
-	main_running = true;
+
+	sys_read(); // In case calibrations haven't loaded yet
+
 	do
 	{
 		if (reset_mode == 1) // Reset mode main calibration
@@ -283,10 +270,18 @@ void main_imu_init(void)
 			reset_mode = 0; // Clear reset mode
 		}
 	} while (false); // TODO: ????? why is this here
+
 	// Setup fusion
 	LOG_INF("Initialize fusion");
 	sensor_retained_read();
-	fusion_init(q, gOff, 1/INTEGRATION_TIME);
+	fusion_init(1/INTEGRATION_TIME);
+	if (retained.fusion_data_stored)
+	{ // Load state if the data is valid (fusion was initialized before)
+		fusion_load(retained.fusion_data);
+		retained.fusion_data_stored = false; // Invalidate retained fusion data
+		retained_update();
+	}
+
 	LOG_INF("Initialized fusion");
 	sensor_fusion_init = true;
 }

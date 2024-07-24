@@ -3,16 +3,24 @@
 
 #include "../vqf-c/src/vqf.h"
 
-void vqf_init(float *q, float *g_off, unsigned int rate)
+#include "vqf.h"
+
+void vqf_init(unsigned int rate)
 {
 	// TODO: should rate be time instead?
-	// TODO: load vqf state from retained
 	// TODO: store vqf state to retained on sensor write
 	float time = 1.0f / rate;
 	initVqf(time, 0, 0);
-//	setState(state);
-	// TODO: how to load a quat? (quat stored with state)
-	vqf_set_gyro_bias(g_off); // TODO: gyro bias was stored with state
+}
+
+void vqf_load(const void *data)
+{
+	setState(*(vqf_state_t *)data);
+}
+
+void vqf_save(void *data)
+{
+	*(vqf_state_t *)data = getState();
 }
 
 void vqf_update_accel(float *a, float time)

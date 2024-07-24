@@ -2,8 +2,7 @@
 #define SLIMENRF_SENSOR
 
 void sensor_retained_read(void);
-void sensor_retained_write_quat(void);
-void sensor_retained_write_gOff(void);
+void sensor_retained_write(void);
 
 void sensor_shutdown(void);
 void sensor_setup_WOM(void);

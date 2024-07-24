@@ -32,8 +32,7 @@ void configure_system_off_WOM()
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	sensor_retained_write_quat();
-	sensor_retained_write_gOff();
+	sensor_retained_write();
 	// Set system off
 	sensor_setup_WOM(); // enable WOM feature
 	LOG_INF("Powering off nRF");
@@ -53,7 +52,7 @@ void configure_system_off_chgstat(void)
 	// Configure dock interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	sensor_retained_write_gOff();
+	sensor_retained_write();
 	// Set system off
 	LOG_INF("Powering off nRF");
 	sys_poweroff();
@@ -68,7 +67,7 @@ void configure_system_off_dock(void)
 	// Configure dock interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
-	sensor_retained_write_gOff();
+	sensor_retained_write();
 	// Set system off
 	LOG_INF("Powering off nRF");
 	sys_poweroff();
