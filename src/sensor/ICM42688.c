@@ -193,3 +193,44 @@ void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
 	if(dest1[2] > 0.8f) {dest1[2] -= 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
 	if(dest1[2] < -0.8f) {dest1[2] += 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
 }
+
+void icm_shutdown(struct i2c_dt_spec dev_i2c)
+{
+	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+}
+
+uint16_t icm_fifo_read(struct i2c_dt_spec dev_i2c, uint8_t *data)
+{
+	uint8_t rawCount[2];
+	i2c_burst_read_dt(&dev_i2c, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
+	uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
+	//LOG_DBG("IMU packet count: %u", count);
+	count += 32; // Add a few read buffer packets (4 ms)
+	uint16_t packets = count / 8;								 // Packet size 8 bytes
+	uint16_t stco = 0;
+	uint8_t addr = ICM42688_FIFO_DATA;
+	i2c_write_dt(&dev_i2c, &addr, 1); // Start read buffer
+	while (count > 0)
+	{
+		i2c_read_dt(&dev_i2c, &data[stco], count > 248 ? 248 : count); // Read less than 255 at a time (for nRF52832)
+		stco += 248;
+		count = count > 248 ? count - 248 : 0;
+		//LOG_DBG("IMU packets left: %u", count);
+	}
+	return count;
+}
+
+int icm_fifo_process(uint16_t index, uint8_t *data, float g[3])
+{
+	index *= 8; // Packet size 8 bytes
+	if ((data[index] & 0x80) == 0x80)
+		return 1; // Skip empty packets
+	// combine into 16 bit values
+	float raw[3];
+	for (int i = 0; i < 3; i++) // gx, gy, gz
+		raw[i] = (int16_t)((((int16_t)data[index + (i * 2) + 1]) << 8) | data[index + (i * 2) + 2]);
+	if (raw[0] < -32766 || raw[1] < -32766 || raw[2] < -32766)
+		return 1; // Skip invalid data
+	memcpy(g, raw, sizeof(raw));
+	return 0;
+}

@@ -71,6 +71,7 @@ void mmc_SET(struct i2c_dt_spec dev_i2c);
 void mmc_RESET(struct i2c_dt_spec dev_i2c);
 void mmc_powerDown(struct i2c_dt_spec dev_i2c);
 void mmc_powerUp(struct i2c_dt_spec dev_i2c, uint8_t MODR);
-void mmc_mag_read(struct i2c_dt_spec mag, float m[3]);
+void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3]);
+void mmc_shutdown(struct i2c_dt_spec dev_i2c);
 
 #endif

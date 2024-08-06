@@ -30,6 +30,9 @@ void mmc_reset(struct i2c_dt_spec dev_i2c)
 
 void mmc_init(struct i2c_dt_spec dev_i2c, uint8_t MODR, uint8_t MBW, uint8_t MSET)
 {
+    // moved here, it is mmc specific
+	mmc_SET(dev_i2c);													 // "deGauss" magnetometer
+
     // enable auto set/reset (bit 5 == 1)
     i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x20);
 
@@ -87,10 +90,16 @@ void mmc_powerUp(struct i2c_dt_spec dev_i2c, uint8_t MODR)
     i2c_reg_update_byte_dt(&dev_i2c, MMC5983MA_CONTROL_2, MODR, MODR); // start continuous mode
 }
 
-void mmc_mag_read(struct i2c_dt_spec mag, float m[3]) {
+void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3]) {
 	uint32_t rawMag[3];
-	mmc_readData(mag, rawMag);
+	mmc_readData(dev_i2c, rawMag);
 	m[0] = ((float)rawMag[0] - MMC5983MA_offset) * MMC5983MA_mRes;
 	m[1] = ((float)rawMag[1] - MMC5983MA_offset) * MMC5983MA_mRes;
 	m[2] = ((float)rawMag[2] - MMC5983MA_offset) * MMC5983MA_mRes;
+}
+
+void mmc_shutdown(struct i2c_dt_spec dev_i2c)
+{
+    // TODO: not the same as power down? what
+	i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 }

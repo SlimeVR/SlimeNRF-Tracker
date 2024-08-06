@@ -157,8 +157,8 @@ void sensor_retained_write(void) // TODO: move to sys?
 
 void sensor_shutdown(void) // Communicate all imus to shut down
 {
-	i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
-	i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+	icm_shutdown(main_imu);
+	mmc_shutdown(main_mag);
 };
 
 void sensor_setup_WOM(void)
@@ -216,6 +216,7 @@ void sensor_calibrate_mag(void)
 	sample_count = 0.0;
 }
 
+// TODO: get rid of it
 void set_LN(void)
 {
 	tickrate = 6;
@@ -228,6 +229,7 @@ void set_LN(void)
 #endif
 }
 
+// TODO: get rid of it
 void set_LP(void)
 {
 	tickrate = 33;
@@ -240,6 +242,7 @@ void set_LP(void)
 #endif
 }
 
+// TODO: get rid of it
 void reconfigure_imu(const struct i2c_dt_spec imu)
 {
 	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
@@ -247,6 +250,7 @@ void reconfigure_imu(const struct i2c_dt_spec imu)
 	i2c_reg_write_byte_dt(&imu, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
 }
 
+// TODO: get rid of it
 void reconfigure_mag(const struct i2c_dt_spec mag)
 {
 	//i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_1, MBW); // set mag bandwidth
@@ -296,6 +300,7 @@ void main_imu_init(void)
 		k_msleep(11 - time_delta);
 	//k_msleep(11);														 // Wait for start up (1ms for ICM, 10ms for MMC -> 10ms)
 */
+	// TODO: move detection to imus
 	uint8_t ICM42688ID = icm_getChipID(main_imu);						 // Read CHIP_ID register for ICM42688
 	LOG_INF("ICM: %u", ICM42688ID);
 	uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
@@ -303,15 +308,19 @@ void main_imu_init(void)
 	if (!((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && (!MAG_ENABLED || MMC5983ID == 0x30))) // check if all I2C sensors have acknowledged
 		return;
 	LOG_INF("Found main IMUs");
-	i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
-	i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
+	// TODO: This may change!!
+	//i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
+	icm_shutdown(main_imu);
+	// TODO: This may change!!
+	//i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
+	mmc_shutdown(main_mag);
 	//icm_reset(main_imu);												 // software reset ICM42688 to default registers
-	uint8_t temp;
-	i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
+	// TODO: Does int flag need to be read at all
+	//uint8_t temp;
+	//i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
 	icm_init(main_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 #if MAG_ENABLED
-	mmc_SET(main_mag);													 // "deGauss" magnetometer
 	mmc_init(main_mag, MODR, MBW, MSET);								 // configure
 // 0-1ms delta to setup mmc
 #endif
@@ -358,23 +367,8 @@ void main_imu_thread(void)
 			// Fusing data will take between 100us (~7 samples, low noise) - 500us (~33 samples, low power)
 			// TODO: on any errors set main_ok false and skip (make functions return nonzero)
 			// Read main FIFO
-			uint8_t rawCount[2];
-			i2c_burst_read_dt(&main_imu, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
-			uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
-			LOG_DBG("IMU packet count: %u", count);
-			count += 32; // Add a few read buffer packets (4 ms)
-			uint16_t packets = count / 8;								 // Packet size 8 bytes
 			uint8_t rawData[2080];
-			uint16_t stco = 0;
-			uint8_t addr = ICM42688_FIFO_DATA;
-			i2c_write_dt(&main_imu, &addr, 1); // Start read buffer
-			while (count > 0)
-			{
-				i2c_read_dt(&main_imu, &rawData[stco], count > 248 ? 248 : count); // Read less than 255 at a time (for nRF52832)
-				stco += 248;
-				count = count > 248 ? count - 248 : 0;
-				LOG_DBG("IMU packets left: %u", count);
-			}
+			uint16_t packets = icm_fifo_read(main_imu, rawData); // TODO: name this better
 
 			float raw_a[3];
 			icm_accel_read(main_imu, raw_a);
@@ -465,7 +459,7 @@ void main_imu_thread(void)
 #endif
 
 			float a[] = {ax, -az, ay};
-			if (packets == 2 && powerstate == 1 && MAG_ENABLED)
+			if (packets == 2 && powerstate == 1 && MAG_ENABLED) // why specifically 2 packets? i forgot
 			{ // Fuse accelerometer only
 				(*sensor_fusion.update_accel)(a, INTEGRATION_TIME_LP);
 			}
@@ -475,20 +469,13 @@ void main_imu_thread(void)
 				float m[] = {my, mz, -mx};
 				for (uint16_t i = 0; i < packets; i++)
 				{
-					// TODO: Packet processing on specific sensor!
-					uint16_t index = i * 8; // Packet size 8 bytes
-					if ((rawData[index] & 0x80) == 0x80)
-						continue; // Skip empty packets
-					// combine into 16 bit values
-					float raw0 = (int16_t)((((int16_t)rawData[index + 1]) << 8) | rawData[index + 2]); // gx
-					float raw1 = (int16_t)((((int16_t)rawData[index + 3]) << 8) | rawData[index + 4]); // gy
-					float raw2 = (int16_t)((((int16_t)rawData[index + 5]) << 8) | rawData[index + 6]); // gz
-					if (raw0 < -32766 || raw1 < -32766 || raw2 < -32766)
-						continue; // Skip invalid data
+					float raw_g[3];
+					if (icm_fifo_process(i, rawData, raw_g))
+						continue; // skip on error
 					// transform and convert to float values
-					float gx = raw0 * (2000.0f/32768.0f) - gyroBias[0]; //gres
-					float gy = raw1 * (2000.0f/32768.0f) - gyroBias[1]; //gres
-					float gz = raw2 * (2000.0f/32768.0f) - gyroBias[2]; //gres
+					float gx = raw_g[0] * (2000.0f/32768.0f) - gyroBias[0]; //gres
+					float gy = raw_g[1] * (2000.0f/32768.0f) - gyroBias[1]; //gres
+					float gz = raw_g[2] * (2000.0f/32768.0f) - gyroBias[2]; //gres
 					//float g[] = {gx, -gz, gy};
 					g[0] = gx;
 					g[1] = -gz;
@@ -504,6 +491,7 @@ void main_imu_thread(void)
 						g_off[i] = g[i] - g_off[i];
 					}
 
+					// TODO: all this mag odr switching stuff might be mag specific?
 					float gyro_speed_square = g_off[0]*g_off[0] + g_off[1]*g_off[1] + g_off[2]*g_off[2];
 					// target mag ODR for ~0.25 deg error
 					if (gyro_speed_square > 25*25 && mag_level < 4) // >25dps -> 200hz ODR
