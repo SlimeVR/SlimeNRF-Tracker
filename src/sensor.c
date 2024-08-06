@@ -35,11 +35,11 @@ int64_t last_data_time;
 	  AODR_1kHz, AODR_2kHz, AODR_4kHz, AODR_8kHz, AODR_16kHz, AODR_32kHz
 	  GODR_12_5Hz, GODR_25Hz, GODR_50Hz, GODR_100Hz, GODR_200Hz, GODR_500Hz, GODR_1kHz, GODR_2kHz, GODR_4kHz, GODR_8kHz, GODR_16kHz, GODR_32kHz
 */
-uint8_t Ascale, Gscale, AODR, GODR, aMode, gMode; // also change gyro range in fusion!
+uint8_t Ascale = AFS_8G, Gscale = GFS_2000DPS, AODR = AODR_200Hz, GODR = GODR_1kHz, aMode = aMode_LN, gMode = gMode_LN; // also change gyro range in fusion!
 #define INTEGRATION_TIME 0.001
 #define INTEGRATION_TIME_LP 0.005
 
-float accelBias[3], gyroBias[3]; // offset biases for the accel and gyro
+float accelBias[3] = {0}, gyroBias[3] = {0}; // offset biases for the accel and gyro
 
 // MMC5983MA definitions
 
@@ -49,7 +49,7 @@ float accelBias[3], gyroBias[3]; // offset biases for the accel and gyro
  * Bandwidth choices are: MBW_100Hz, MBW_200Hz, MBW_400Hz, MBW_800Hz
  * Set/Reset choices are: MSET_1, MSET_25, MSET_75, MSET_100, MSET_250, MSET_500, MSET_1000, MSET_2000, so MSET_100 set/reset occurs every 100th measurement, etc.
  */
-uint8_t MODR, MBW, MSET;
+uint8_t MODR = MODR_200Hz, MBW = MBW_400Hz, MSET = MSET_2000;
 
 int magCal;
 int last_magCal;
