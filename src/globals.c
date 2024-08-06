@@ -25,8 +25,6 @@ float q3[4] = {0.5f, -0.5f, -0.5f, -0.5f}; // correction quat
 
 int tracker_id = 0;
 
-unsigned int last_batt_pptt[16] = {10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001};
-int8_t last_batt_pptt_i = 0;
 //int64_t led_time = 0;
 //int64_t led_time_off = 0;
 uint8_t reset_mode = -1;

@@ -40,8 +40,6 @@ extern float q3[4]; // correction quat
 
 extern int tracker_id;
 
-extern unsigned int last_batt_pptt[16];
-extern int8_t last_batt_pptt_i;
 extern int64_t led_time;
 extern int64_t led_time_off;
 extern uint8_t reset_mode;

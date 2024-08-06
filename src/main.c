@@ -123,6 +123,9 @@ int main(void)
 	//timer_init();
 // 1ms delta to start ESB
 
+	unsigned int last_batt_pptt[16] = {10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001};
+	int8_t last_batt_pptt_i = 0;
+
 	while (1)
 	{
 		// Get start time
