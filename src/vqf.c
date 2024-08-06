@@ -5,11 +5,9 @@
 
 #include "vqf.h"
 
-void vqf_init(unsigned int rate)
+void vqf_init(float time)
 {
-	// TODO: should rate be time instead?
 	// TODO: store vqf state to retained on sensor write
-	float time = 1.0f / rate;
 	initVqf(time, 0, 0);
 }
 

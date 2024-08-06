@@ -274,7 +274,7 @@ void main_imu_init(void)
 	// Setup fusion
 	LOG_INF("Initialize fusion");
 	sensor_retained_read();
-	fusion_init(1/INTEGRATION_TIME);
+	fusion_init(INTEGRATION_TIME);
 	if (retained.fusion_data_stored)
 	{ // Load state if the data is valid (fusion was initialized before)
 		fusion_load(retained.fusion_data);

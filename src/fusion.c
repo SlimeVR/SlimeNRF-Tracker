@@ -12,8 +12,9 @@ int gyro_sanity = 0;
 
 LOG_MODULE_REGISTER(fusion, LOG_LEVEL_INF);
 
-void fusion_init(const void *data, unsigned int rate)
+void fusion_init(float time)
 {
+	unsigned int rate = 1.0f / time;
 	FusionOffsetInitialise2(&offset, rate);
 	FusionAhrsInitialise(&ahrs);
 	// ahrs.initialising = true; // cancel fusion init, maybe only if there is a quat stored? oh well

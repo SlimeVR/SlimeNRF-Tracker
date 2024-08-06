@@ -1,7 +1,7 @@
 #ifndef SLIMENRF_VQF
 #define SLIMENRF_VQF
 
-void vqf_init(unsigned int rate);
+void vqf_init(float time);
 void vqf_load(const void *data);
 void vqf_save(void *data);
 
