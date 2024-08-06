@@ -4,6 +4,7 @@
 #include "connection.h"
 
 #include "fusion.h"
+#include "vqf.h"
 #include "magneto/magneto1_4.h"
 
 #include "sensor/ICM42688.h"
@@ -64,6 +65,63 @@ int last_mag_level;
 
 bool sensor_fusion_init;
 
+typedef struct sensor_fusion {
+	void (*init)(float);
+	void (*load)(const void *);
+	void (*save)(void *);
+
+	void (*update_accel)(float *, float);
+	void (*update)(float *, float *, float *, float);
+
+	void (*get_gyro_bias)(float *);
+	void (*set_gyro_bias)(float *);
+
+	void (*update_gyro_sanity)(float *, float *);
+	int (*get_gyro_sanity)(void);
+    
+	void (*get_lin_a)(float *);
+	void (*get_quat)(float *);
+} sensor_fusion_t;
+
+sensor_fusion_t sensor_fusion_fusion = {
+    *fusion_init,
+    *fusion_load,
+    *fusion_save,
+
+    *fusion_update_accel,
+    *fusion_update,
+
+    *fusion_get_gyro_bias,
+    *fusion_set_gyro_bias,
+    
+    *fusion_update_gyro_sanity,
+    *fusion_get_gyro_sanity,
+
+    *fusion_get_lin_a,
+    *fusion_get_quat
+};
+
+sensor_fusion_t sensor_fusion_vqf = {
+    *vqf_init,
+    *vqf_load,
+    *vqf_save,
+
+    *vqf_update_accel,
+    *vqf_update,
+
+    *vqf_get_gyro_bias,
+    *vqf_set_gyro_bias,
+
+    *vqf_update_gyro_sanity,
+    *vqf_get_gyro_sanity,
+
+    *vqf_get_lin_a,
+    *vqf_get_quat
+};
+
+//sensor_fusion_t sensor_fusion;
+#define sensor_fusion sensor_fusion_fusion
+
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
 K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
@@ -92,7 +150,7 @@ void sensor_retained_write(void) // TODO: move to sys?
 {
 	if (!sensor_fusion_init)
 		return;
-	fusion_save(retained.fusion_data);
+	(*sensor_fusion.save)(retained.fusion_data);
 	retained.fusion_data_stored = true;
 	retained_update();
 }
@@ -130,7 +188,7 @@ void sensor_calibrate_imu(void)
 	if (sensor_fusion_init)
 	{ // clear fusion gyro offset
 		float g_off[3] = {0};
-		fusion_set_gyro_bias(g_off);
+		(*sensor_fusion.set_gyro_bias)(g_off);
 		sensor_retained_write();
 	}
 	else
@@ -274,10 +332,10 @@ void main_imu_init(void)
 	// Setup fusion
 	LOG_INF("Initialize fusion");
 	sensor_retained_read();
-	fusion_init(INTEGRATION_TIME);
+	(*sensor_fusion.init)(INTEGRATION_TIME);
 	if (retained.fusion_data_stored)
 	{ // Load state if the data is valid (fusion was initialized before)
-		fusion_load(retained.fusion_data);
+		(*sensor_fusion.load)(retained.fusion_data);
 		retained.fusion_data_stored = false; // Invalidate retained fusion data
 		retained_update();
 	}
@@ -409,8 +467,7 @@ void main_imu_thread(void)
 			float a[] = {ax, -az, ay};
 			if (packets == 2 && powerstate == 1 && MAG_ENABLED)
 			{ // Fuse accelerometer only
-			// TODO: FUSION UPDATE, ACCEL ONLY
-				fusion_update_accel(a, INTEGRATION_TIME_LP);
+				(*sensor_fusion.update_accel)(a, INTEGRATION_TIME_LP);
 			}
 			else
 			{ // Fuse all data
@@ -437,11 +494,11 @@ void main_imu_thread(void)
 					g[1] = -gz;
 					g[2] = gy;
 
-					fusion_update(g, a, m, INTEGRATION_TIME);
+					(*sensor_fusion.update)(g, a, m, INTEGRATION_TIME);
 #if MAG_ENABLED
 					// Get fusion's corrected gyro data (or get gyro bias from fusion) and use it here
 					float g_off[3] = {};
-					fusion_get_gyro_bias(g_off);
+					(*sensor_fusion.get_gyro_bias)(g_off);
 					for (int i = 0; i < 3; i++)
 					{
 						g_off[i] = g[i] - g_off[i];
@@ -461,15 +518,15 @@ void main_imu_thread(void)
 #endif
 				}
 
-				fusion_update_gyro_sanity(g, m);
-				fusion_get_gyro_bias(gOff);
+				(*sensor_fusion.update_gyro_sanity)(g, m);
+				(*sensor_fusion.get_gyro_bias)(gOff);
 			}
 
 			float lin_a[3] = {0};
-			fusion_get_lin_a(lin_a);
-			fusion_get_quat(q);
+			(*sensor_fusion.get_lin_a)(lin_a);
+			(*sensor_fusion.get_quat)(q);
 
-			if (fusion_get_gyro_sanity() == 0 ? quat_epsilon_coarse(q, last_q) : quat_epsilon_coarse2(q, last_q)) // Probably okay to use the constantly updating last_q
+			if ((*sensor_fusion.get_gyro_sanity)() == 0 ? quat_epsilon_coarse(q, last_q) : quat_epsilon_coarse2(q, last_q)) // Probably okay to use the constantly updating last_q
 			{
 				int64_t imu_timeout = CLAMP(last_data_time, 1 * 1000, 15 * 1000); // Ramp timeout from last_data_time
 				if (k_uptime_get() - last_data_time > imu_timeout) // No motion in last 1s - 10s
