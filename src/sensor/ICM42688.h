@@ -201,5 +201,6 @@ void icm_setup_WOM(struct i2c_dt_spec dev_i2c);
 void icm_shutdown(struct i2c_dt_spec dev_i2c);
 uint16_t icm_fifo_read(struct i2c_dt_spec dev_i2c, uint8_t *data);
 int icm_fifo_process(uint16_t index, uint8_t *data, float g[3]);
+float icm_temp_read(struct i2c_dt_spec dev_i2c);
 
 #endif

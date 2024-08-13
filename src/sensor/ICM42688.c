@@ -232,8 +232,22 @@ int icm_fifo_process(uint16_t index, uint8_t *data, float g[3])
 //		raw[i] *= 2000.0f/32768.0f;
 		raw[i] *= _gRes;
 	}
+	// data[index + 7] is temperature
+	// but it is lower precision
+	// Temperature in Degrees Centigrade = (FIFO_TEMP_DATA / 2.07) + 25
 	if (raw[0] < -32766 || raw[1] < -32766 || raw[2] < -32766)
 		return 1; // Skip invalid data
 	memcpy(g, raw, sizeof(raw));
 	return 0;
+}
+
+float icm_temp_read(struct i2c_dt_spec dev_i2c)
+{
+	uint8_t rawCount[2];
+	i2c_burst_read_dt(&dev_i2c, ICM42688_TEMP_DATA0, &rawCount[0], 2);
+	// Temperature in Degrees Centigrade = (TEMP_DATA / 132.48) + 25
+	float raw = (int16_t)((((int16_t)rawCount[0]) << 8) | rawCount[1]);
+	raw /= 132.48;
+	raw += 25;
+	return raw;
 }
