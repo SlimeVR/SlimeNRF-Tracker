@@ -15,6 +15,38 @@
 const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
 const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
 
+/*
+Sensor:addr,reg,id
+
+IMUs:
+
+Bosch Sensortec
+BMI160:68/69,00,D1
+*BMI270:68/69,00,24
+BMI323:68/69,00,43
+TDK InvenSense
+*ICM-42688-P:68/69,75,47
+*ICM-42688-V:68/69,75,DB
+STMicroelectronics
+LSM6DS3:6A/6B,0F,69
+LSM6DSO:6A/6B,0F,6C
+*LSM6DSV:6A/6B,0F,70
+
+Magnetometers:
+
+Bosch Sensortec
+BMM150:10/11/12/13,40,32
+BMM350:14/15/16/17,00,33
+STMicroelectronics
+IIS2MDC:1E,4F,40
+LIS2MDL:1E,4F,40
+LIS3MDL:1C/1E,0F,3D
+memsic
+MMC5603NJ:30,39,10
+MMC5633NJL:30,39,10
+*MMC5983MA:30,2F,30
+*/
+
 float lin_a[3] = {0};							// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
@@ -78,7 +110,7 @@ typedef struct sensor_fusion {
 
 	void (*update_gyro_sanity)(float *, float *);
 	int (*get_gyro_sanity)(void);
-    
+
 	void (*get_lin_a)(float *);
 	void (*get_quat)(float *);
 } sensor_fusion_t;
@@ -93,7 +125,7 @@ sensor_fusion_t sensor_fusion_fusion = {
 
     *fusion_get_gyro_bias,
     *fusion_set_gyro_bias,
-    
+
     *fusion_update_gyro_sanity,
     *fusion_get_gyro_sanity,
 
@@ -121,6 +153,29 @@ sensor_fusion_t sensor_fusion_vqf = {
 
 //sensor_fusion_t sensor_fusion;
 #define sensor_fusion sensor_fusion_fusion
+
+typedef struct sensor_imu {
+	void (*init)(const i2c_dt_spec, float, float, float*, float*); // return update time, also how to deal with CLKIN???? some boards might use it
+	void (*shutdown)(const i2c_dt_spec);
+
+	void (*update_odr)(const i2c_dt_spec, float, float, float*, float*); // return actual update time
+
+	uint16_t (*fifo_read)(const i2c_dt_spec, uint8_t*);
+	int (*fifo_process)(uint16_t, uint8_t*, float[3]); // deg/s
+	void (*accel_read)(const i2c_dt_spec, float[3]); // m/s^2
+	float (*temp_read)(const i2c_dt_spec); // deg C
+
+	void (*setup_WOM)(const i2c_dt_spec);
+} sensor_imu_t;
+
+typedef struct sensor_mag {
+	float (*init)(const i2c_dt_spec, float); // return update time
+	void (*shutdown)(const i2c_dt_spec);
+
+	float (*update_odr)(const i2c_dt_spec, float); // return actual update time
+
+	void (*mag_read)(const i2c_dt_spec, float[3]); // any unit
+} sensor_mag_t;
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
