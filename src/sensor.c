@@ -473,9 +473,9 @@ void main_imu_thread(void)
 					if (icm_fifo_process(i, rawData, raw_g))
 						continue; // skip on error
 					// transform and convert to float values
-					float gx = raw_g[0] * (2000.0f/32768.0f) - gyroBias[0]; //gres
-					float gy = raw_g[1] * (2000.0f/32768.0f) - gyroBias[1]; //gres
-					float gz = raw_g[2] * (2000.0f/32768.0f) - gyroBias[2]; //gres
+					float gx = raw_g[0] - gyroBias[0]; //gres
+					float gy = raw_g[1] - gyroBias[1]; //gres
+					float gz = raw_g[2] - gyroBias[2]; //gres
 					//float g[] = {gx, -gz, gy};
 					g[0] = gx;
 					g[1] = -gz;

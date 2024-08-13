@@ -227,8 +227,11 @@ int icm_fifo_process(uint16_t index, uint8_t *data, float g[3])
 		return 1; // Skip empty packets
 	// combine into 16 bit values
 	float raw[3];
-	for (int i = 0; i < 3; i++) // gx, gy, gz
+	for (int i = 0; i < 3; i++) { // gx, gy, gz
 		raw[i] = (int16_t)((((int16_t)data[index + (i * 2) + 1]) << 8) | data[index + (i * 2) + 2]);
+//		raw[i] *= 2000.0f/32768.0f;
+		raw[i] *= _gRes;
+	}
 	if (raw[0] < -32766 || raw[1] < -32766 || raw[2] < -32766)
 		return 1; // Skip invalid data
 	memcpy(g, raw, sizeof(raw));
