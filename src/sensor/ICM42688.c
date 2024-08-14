@@ -223,7 +223,7 @@ uint16_t icm_fifo_read(struct i2c_dt_spec dev_i2c, uint8_t *data)
 		count = count > 248 ? count - 248 : 0;
 		//LOG_DBG("IMU packets left: %u", count);
 	}
-	return count;
+	return packets;
 }
 
 int icm_fifo_process(uint16_t index, uint8_t *data, float g[3])
