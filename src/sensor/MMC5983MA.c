@@ -14,6 +14,8 @@
 
 #include "MMC5983MA.h"
 
+uint8_t mmc_last_odr = 0xff;
+
 uint8_t mmc_getChipID(struct i2c_dt_spec dev_i2c)
 {
     uint8_t c;
@@ -28,21 +30,21 @@ void mmc_reset(struct i2c_dt_spec dev_i2c)
     k_msleep(11); // Wait 10 ms for all registers to reset 
 }
 
-void mmc_init(struct i2c_dt_spec dev_i2c, uint8_t MODR, uint8_t MBW, uint8_t MSET)
-{
-    // moved here, it is mmc specific
-	mmc_SET(dev_i2c);													 // "deGauss" magnetometer
-
-    // enable auto set/reset (bit 5 == 1)
-    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x20);
-
-    // set magnetometer bandwidth
-    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_1, MBW);
-
-    // enable continuous measurement mode (bit 3 == 1), set sample rate
-    // enable automatic Set/Reset (bit 8 == 1), set set/reset rate
-    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | 0x08 | MODR);
-}
+//void mmc_init(struct i2c_dt_spec dev_i2c, uint8_t MODR, uint8_t MBW, uint8_t MSET)
+//{
+//    // moved here, it is mmc specific
+//	mmc_SET(dev_i2c);													 // "deGauss" magnetometer
+//
+//    // enable auto set/reset (bit 5 == 1)
+//    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x20);
+//
+//    // set magnetometer bandwidth
+//    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_1, MBW);
+//
+//    // enable continuous measurement mode (bit 3 == 1), set sample rate
+//    // enable automatic Set/Reset (bit 8 == 1), set set/reset rate
+//    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | 0x08 | MODR);
+//}
 
 void mmc_SET(struct i2c_dt_spec dev_i2c)
 {
@@ -70,6 +72,10 @@ void mmc_clearInt(struct i2c_dt_spec dev_i2c)
     i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_STATUS, 0x01);
 }
 
+// TODO: see USING SET AND RESET TO REMOVE BRIDGE OFFSET in datasheet
+// the specific sensor code could read the temperature and decide to perform set/reset as needed, then store the offset
+// also should always run on init
+
 void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t * destination)
 {
     uint8_t rawData[7]; // x/y/z mag register data stored here
@@ -81,6 +87,8 @@ void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t * destination)
 
 void mmc_powerDown(struct i2c_dt_spec dev_i2c)
 {
+    // sets oneshot basically
+    mmc_last_odr = 0xff; // reset last odr
     i2c_reg_update_byte_dt(&dev_i2c, MMC5983MA_CONTROL_2, 0x07, 0); // clear lowest four bits
     k_msleep(20); // make sure to finish the last measurement
 }
@@ -100,6 +108,94 @@ void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3]) {
 
 void mmc_shutdown(struct i2c_dt_spec dev_i2c)
 {
-    // TODO: not the same as power down? what
+    // reset device
+    mmc_last_odr = 0xff; // reset last odr
 	i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+}
+
+int mmc_init(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
+{
+    // moved here, it is mmc specific
+	mmc_SET(dev_i2c);													 // "deGauss" magnetometer
+
+    // enable auto set/reset (bit 5 == 1)
+    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x20);
+
+    mmc_last_odr = 0xff; // reset last odr
+    int err = mmc_update_odr(dev_i2c, time, actual_time);
+	return (err < 0 ? 0 : err);
+}
+
+int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
+{
+    int ODR;
+    uint8_t MODR;
+    uint8_t MBW;
+    uint8_t MSET = MSET_2000; // always use lowest SET/RESET interval
+
+    if (time == 0) // off interpreted as oneshot
+        ODR = 0;
+    else
+        ODR = 1 / time;
+
+    if (ODR > 200)
+    {
+        MODR = MODR_1000Hz;
+        time = 1.0 / 1000;
+    }
+    else if (ODR > 100)
+    {
+        MODR = MODR_200Hz;
+        time = 1.0 / 200;
+    }
+    else if (ODR > 50)
+    {
+        MODR = MODR_100Hz;
+        time = 1.0 / 100;
+    }
+    else if (ODR > 20)
+    {
+        MODR = MODR_50Hz;
+        time = 1.0 / 50;
+    }
+    else if (ODR > 10)
+    {
+        MODR = MODR_20Hz;
+        time = 1.0 / 20;
+    }
+    else if (ODR > 1)
+    {
+        MODR = MODR_10Hz;
+        time = 1.0 / 10;
+    }
+    else if (ODR > 0)
+    {
+        MODR = MODR_1Hz;
+        time = 1.0 / 1;
+    }
+    else
+    {
+        MODR = MODR_ONESHOT;
+        time = INFINITY;
+    }
+
+    if (mmc_last_odr == MODR)
+        return -1;
+    else
+        mmc_last_odr = MODR;
+
+    if (MODR == MODR_1000Hz)
+        MBW = MBW_800Hz;
+    else
+        MBW = MBW_400Hz; // only use up to 2ms measurement time to save power
+
+    // set magnetometer bandwidth
+    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_1, MBW);
+
+    // enable continuous measurement mode (bit 3 == 1), set sample rate
+    // enable automatic Set/Reset (bit 8 == 1), set set/reset rate
+    i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | 0x08 | MODR);
+
+    *actual_time = time;
+    return 0;
 }

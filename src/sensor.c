@@ -3,6 +3,7 @@
 #include "util.h"
 #include "connection.h"
 
+#include <math.h>
 #include "fusion.h"
 #include "vqf.h"
 #include "magneto/magneto1_4.h"
@@ -34,6 +35,8 @@ LSM6DSO:6A/6B,0F,6C
 
 Magnetometers:
 
+QST Corporation
+QMC5883L:0B,OD,FF
 Bosch Sensortec
 BMM150:10/11/12/13,40,32
 BMM350:14/15/16/17,00,33
@@ -55,33 +58,7 @@ float gOff[3] = {0}; // runtime fusion gyro offset
 
 int64_t last_data_time;
 
-// TODO: move to sensor
-// ICM42688 definitions
-
-// TODO: move to sensor
-/* Specify sensor parameters (sample rate is twice the bandwidth)
- * choices are:
-	  AFS_2G, AFS_4G, AFS_8G, AFS_16G
-	  GFS_15_625DPS, GFS_31_25DPS, GFS_62_5DPS, GFS_125DPS, GFS_250DPS, GFS_500DPS, GFS_1000DPS, GFS_2000DPS
-	  AODR_1_5625Hz, AODR_3_125Hz, AODR_6_25Hz, AODR_50AODR_12_5Hz, AODR_25Hz, AODR_50Hz, AODR_100Hz, AODR_200Hz, AODR_500Hz,
-	  AODR_1kHz, AODR_2kHz, AODR_4kHz, AODR_8kHz, AODR_16kHz, AODR_32kHz
-	  GODR_12_5Hz, GODR_25Hz, GODR_50Hz, GODR_100Hz, GODR_200Hz, GODR_500Hz, GODR_1kHz, GODR_2kHz, GODR_4kHz, GODR_8kHz, GODR_16kHz, GODR_32kHz
-*/
-uint8_t Ascale = AFS_8G, Gscale = GFS_2000DPS, AODR = AODR_200Hz, GODR = GODR_1kHz, aMode = aMode_LN, gMode = gMode_LN; // also change gyro range in fusion!
-#define INTEGRATION_TIME 0.001
-#define INTEGRATION_TIME_LP 0.005
-
 float accelBias[3] = {0}, gyroBias[3] = {0}; // offset biases for the accel and gyro
-
-// MMC5983MA definitions
-
-// TODO: move to sensor
-/* Specify sensor parameters (continuous mode sample rate is dependent on bandwidth)
- * choices are: MODR_ONESHOT, MODR_1Hz, MODR_10Hz, MODR_20Hz, MODR_50 Hz, MODR_100Hz, MODR_200Hz (BW = 0x01), MODR_1000Hz (BW = 0x03)
- * Bandwidth choices are: MBW_100Hz, MBW_200Hz, MBW_400Hz, MBW_800Hz
- * Set/Reset choices are: MSET_1, MSET_25, MSET_75, MSET_100, MSET_250, MSET_500, MSET_1000, MSET_2000, so MSET_100 set/reset occurs every 100th measurement, etc.
- */
-uint8_t MODR = MODR_200Hz, MBW = MBW_400Hz, MSET = MSET_2000;
 
 int magCal;
 int last_magCal;
@@ -92,8 +69,11 @@ double sample_count;
 
 float magBAinv[4][3];
 
-int mag_level;
-int last_mag_level;
+float max_gyro_speed_square;
+
+float accel_actual_time;
+float gyro_actual_time;
+float mag_actual_time;
 
 bool sensor_fusion_init;
 
@@ -155,26 +135,26 @@ sensor_fusion_t sensor_fusion_vqf = {
 #define sensor_fusion sensor_fusion_fusion
 
 typedef struct sensor_imu {
-	void (*init)(const i2c_dt_spec, float, float, float*, float*); // return update time, also how to deal with CLKIN???? some boards might use it
-	void (*shutdown)(const i2c_dt_spec);
+	int (*init)(struct i2c_dt_spec, float, float, float*, float*); // return update time, return 0 if success, 1 if general error, also how to deal with CLKIN???? some boards might use it
+	void (*shutdown)(struct i2c_dt_spec);
 
-	void (*update_odr)(const i2c_dt_spec, float, float, float*, float*); // return actual update time
+	int (*update_odr)(struct i2c_dt_spec, float, float, float*, float*); // return actual update time, return 0 if success, -1 if odr is same, 1 if general error
 
-	uint16_t (*fifo_read)(const i2c_dt_spec, uint8_t*);
+	uint16_t (*fifo_read)(struct i2c_dt_spec, uint8_t*);
 	int (*fifo_process)(uint16_t, uint8_t*, float[3]); // deg/s
-	void (*accel_read)(const i2c_dt_spec, float[3]); // m/s^2
-	float (*temp_read)(const i2c_dt_spec); // deg C
+	void (*accel_read)(struct i2c_dt_spec, float[3]); // m/s^2
+	float (*temp_read)(struct i2c_dt_spec); // deg C
 
-	void (*setup_WOM)(const i2c_dt_spec);
+	void (*setup_WOM)(struct i2c_dt_spec);
 } sensor_imu_t;
 
 typedef struct sensor_mag {
-	float (*init)(const i2c_dt_spec, float); // return update time
-	void (*shutdown)(const i2c_dt_spec);
+	int (*init)(struct i2c_dt_spec, float, float*); // return update time, return 0 if success, 1 if general error
+	void (*shutdown)(struct i2c_dt_spec);
 
-	float (*update_odr)(const i2c_dt_spec, float); // return actual update time
+	int (*update_odr)(struct i2c_dt_spec, float, float*); // return actual update time, return 0 if success, -1 if odr is same, 1 if general error
 
-	void (*mag_read)(const i2c_dt_spec, float[3]); // any unit
+	void (*mag_read)(struct i2c_dt_spec, float[3]); // any unit
 } sensor_mag_t;
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
@@ -275,41 +255,12 @@ void sensor_calibrate_mag(void)
 void set_LN(void)
 {
 	tickrate = 6;
-	// TODO: This becomes part of the sensor
-//	aMode = aMode_LN;
-#if MAG_ENABLED
-//	gMode = gMode_LN;
-//	MBW = MBW_400Hz;
-	MODR = MODR_200Hz;
-#endif
 }
 
 // TODO: get rid of it
 void set_LP(void)
 {
 	tickrate = 33;
-	// TODO: This becomes part of the sensor
-//	aMode = aMode_LP;
-#if MAG_ENABLED
-//	gMode = gMode_SBY;
-//	MBW = MBW_800Hz;
-	MODR = MODR_ONESHOT;
-#endif
-}
-
-// TODO: get rid of it
-void reconfigure_imu(const struct i2c_dt_spec imu)
-{
-	i2c_reg_write_byte_dt(&imu, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
-	i2c_reg_write_byte_dt(&imu, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
-	i2c_reg_write_byte_dt(&imu, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
-}
-
-// TODO: get rid of it
-void reconfigure_mag(const struct i2c_dt_spec mag)
-{
-	//i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_1, MBW); // set mag bandwidth
-	i2c_reg_write_byte_dt(&mag, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | 0x08 | MODR); // set mag ODR
 }
 
 bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples)
@@ -373,10 +324,11 @@ void main_imu_init(void)
 	// TODO: Does int flag need to be read at all
 	//uint8_t temp;
 	//i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
-	icm_init(main_imu, Ascale, Gscale, AODR, GODR, aMode, gMode, false); // configure
+
+	icm_init(main_imu, 1.0 / 167, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 #if MAG_ENABLED
-	mmc_init(main_mag, MODR, MBW, MSET);								 // configure
+	mmc_init(main_mag, 1.0 / 167, &mag_actual_time);								 // configure with ~200Hz ODR
 // 0-1ms delta to setup mmc
 #endif
 	LOG_INF("Initialized main IMUs");
@@ -396,7 +348,7 @@ void main_imu_init(void)
 	// Setup fusion
 	LOG_INF("Initialize fusion");
 	sensor_retained_read();
-	(*sensor_fusion.init)(INTEGRATION_TIME);
+	(*sensor_fusion.init)(gyro_actual_time);
 	if (retained.fusion_data_stored)
 	{ // Load state if the data is valid (fusion was initialized before)
 		(*sensor_fusion.load)(retained.fusion_data);
@@ -470,58 +422,37 @@ void main_imu_thread(void)
 				case 0:
 					set_LN();
 					LOG_INF("Switching main IMUs to low noise");
-					last_mag_level = -1;
 					break;
 				case 1:
 					set_LP();
 					LOG_INF("Switching main IMUs to low power");
-					reconfigure_mag(main_mag);
+					mmc_update_odr(main_mag, INFINITY, &mag_actual_time); // standby/oneshot
 					break;
 				};
-				//reconfigure_imu(main_imu); // Reconfigure if needed
-				//reconfigure_mag(main_mag); // Reconfigure if needed
 			}
 
-			if (last_mag_level != mag_level && powerstate == 0)
+			if (powerstate == 0)
 			{
-				switch (mag_level)
-				{
-				case 0:
-					MODR = MODR_10Hz;
-					LOG_DBG("Switching magnetometer ODR to 10Hz");
-					break;
-				case 1:
-					MODR = MODR_20Hz;
-					LOG_DBG("Switching magnetometer ODR to 20Hz");
-					break;
-				case 2:
-					MODR = MODR_50Hz;
-					LOG_DBG("Switching magnetometer ODR to 50Hz");
-					break;
-				case 3:
-					MODR = MODR_100Hz;
-					LOG_DBG("Switching magnetometer ODR to 100Hz");
-					break;
-				case 4:
-					MODR = MODR_200Hz;
-					LOG_DBG("Switching magnetometer ODR to 200Hz");
-					break;
-				};
-				reconfigure_mag(main_mag);
+				float gyro_speed = sqrtf(max_gyro_speed_square);
+				float mag_target_time = 1.0 / (4 * gyro_speed); // target mag ODR for ~0.25 deg error
+				if (mag_target_time > 0.005) // cap at 0.005, 200hz
+					mag_target_time = 0.005;
+				int err = mmc_update_odr(main_mag, mag_target_time, &mag_actual_time);
+				if (!err)
+					LOG_DBG("Switching magnetometer ODR to %.2fHz", 1.0 / mag_actual_time);
 			}
-			last_mag_level = mag_level;
-			mag_level = 0;
 #endif
 
 			float a[] = {ax, -az, ay};
 			if (packets == 2 && powerstate == 1 && MAG_ENABLED) // why specifically 2 packets? i forgot
 			{ // Fuse accelerometer only
-				(*sensor_fusion.update_accel)(a, INTEGRATION_TIME_LP);
+				(*sensor_fusion.update_accel)(a, accel_actual_time);
 			}
 			else
 			{ // Fuse all data
 				float g[3] = {0};
 				float m[] = {my, mz, -mx};
+				max_gyro_speed_square = 0;
 				for (uint16_t i = 0; i < packets; i++)
 				{
 					float raw_g[3];
@@ -536,7 +467,7 @@ void main_imu_thread(void)
 					g[1] = -gz;
 					g[2] = gy;
 
-					(*sensor_fusion.update)(g, a, m, INTEGRATION_TIME);
+					(*sensor_fusion.update)(g, a, m, gyro_actual_time);
 #if MAG_ENABLED
 					// Get fusion's corrected gyro data (or get gyro bias from fusion) and use it here
 					float g_off[3] = {};
@@ -546,18 +477,10 @@ void main_imu_thread(void)
 						g_off[i] = g[i] - g_off[i];
 					}
 
-					// TODO: all this mag odr switching stuff might be mag specific?
-					float gyro_speed_square = g_off[0]*g_off[0] + g_off[1]*g_off[1] + g_off[2]*g_off[2];
-					// target mag ODR for ~0.25 deg error
-					if (gyro_speed_square > 25*25 && mag_level < 4) // >25dps -> 200hz ODR
-						mag_level = 4;
-					else if (gyro_speed_square > 12*12 && mag_level < 3) // 12-25dps -> 100hz ODR
-						mag_level = 3;
-					else if (gyro_speed_square > 5*5 && mag_level < 2) // 5-12dps -> 50hz ODR
-						mag_level = 2;
-					else if (gyro_speed_square > 2*2 && mag_level < 1) // 2-5dps -> 20hz ODR
-						mag_level = 1;
-					// <2dps -> 10hz ODR
+					// Get the highest gyro speed
+					float gyro_speed_square = g_off[0] * g_off[0] + g_off[1] * g_off[1] + g_off[2] * g_off[2];
+					if (gyro_speed_square > max_gyro_speed_square)
+						max_gyro_speed_square = gyro_speed_square;
 #endif
 				}
 

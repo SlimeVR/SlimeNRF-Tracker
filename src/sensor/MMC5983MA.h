@@ -61,7 +61,7 @@
 #define MMC5983MA_offset 131072.0f // mag range unsigned to signed
 
 uint8_t mmc_getChipID(struct i2c_dt_spec dev_i2c);
-void mmc_init(struct i2c_dt_spec dev_i2c, uint8_t MODR, uint8_t MBW, uint8_t MSET);
+//void mmc_init(struct i2c_dt_spec dev_i2c, uint8_t MODR, uint8_t MBW, uint8_t MSET);
 void mmc_reset(struct i2c_dt_spec dev_i2c);
 uint8_t mmc_status(struct i2c_dt_spec dev_i2c);
 void mmc_clearInt(struct i2c_dt_spec dev_i2c);
@@ -73,5 +73,8 @@ void mmc_powerDown(struct i2c_dt_spec dev_i2c);
 void mmc_powerUp(struct i2c_dt_spec dev_i2c, uint8_t MODR);
 void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3]);
 void mmc_shutdown(struct i2c_dt_spec dev_i2c);
+
+int mmc_init(struct i2c_dt_spec dev_i2c, float time, float *actual_time); // return update time
+int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time); // return actual update time
 
 #endif
