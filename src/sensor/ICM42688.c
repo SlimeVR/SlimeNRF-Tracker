@@ -240,7 +240,6 @@ uint16_t icm_fifo_read(struct i2c_dt_spec dev_i2c, uint8_t *data)
 	uint8_t rawCount[2];
 	i2c_burst_read_dt(&dev_i2c, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 	uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
-	//LOG_DBG("IMU packet count: %u", count);
 	count += 32; // Add a few read buffer packets (4 ms)
 	uint16_t packets = count / 8;								 // Packet size 8 bytes
 	uint16_t stco = 0;
@@ -251,7 +250,6 @@ uint16_t icm_fifo_read(struct i2c_dt_spec dev_i2c, uint8_t *data)
 		i2c_read_dt(&dev_i2c, &data[stco], count > 248 ? 248 : count); // Read less than 255 at a time (for nRF52832)
 		stco += 248;
 		count = count > 248 ? count - 248 : 0;
-		//LOG_DBG("IMU packets left: %u", count);
 	}
 	return packets;
 }
@@ -337,36 +335,4 @@ uint8_t icm_getChipID(struct i2c_dt_spec dev_i2c)
 	uint8_t temp;
 	i2c_reg_read_byte_dt(&dev_i2c, ICM42688_WHO_AM_I, &temp);
 	return temp;
-}
-
-// need to make this external
-void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
-{
-	float rawData[3];
-	for (int ii = 0; ii < 500; ii++)
-	{
-		icm_accel_read(dev_i2c, &rawData[0]);
-		dest1[0] += rawData[0];
-		dest1[1] += rawData[1];
-		dest1[2] += rawData[2];
-		icm_gyro_read(dev_i2c, &rawData[0]);
-		dest2[0] += rawData[0];
-		dest2[1] += rawData[1];
-		dest2[2] += rawData[2];
-		k_msleep(5);
-	}
-
-	dest1[0] /= 500.0f;
-	dest1[1] /= 500.0f;
-	dest1[2] /= 500.0f;
-	dest2[0] /= 500.0f;
-	dest2[1] /= 500.0f;
-	dest2[2] /= 500.0f;
-// need better accel calibration
-	if(dest1[0] > 0.8f) {dest1[0] -= 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
-	if(dest1[0] < -0.8f) {dest1[0] += 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
-	if(dest1[1] > 0.8f) {dest1[1] -= 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
-	if(dest1[1] < -0.8f) {dest1[1] += 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
-	if(dest1[2] > 0.8f) {dest1[2] -= 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
-	if(dest1[2] < -0.8f) {dest1[2] += 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
 }

@@ -215,7 +215,7 @@ void sensor_calibrate_imu(void)
 	k_msleep(500); // Delay before beginning acquisition
 
 	LOG_INF("Reading data");
-	icm_offsetBias(main_imu, accelBias, gyroBias); // This takes about 3s
+	sensor_offsetBias(main_imu, accelBias, gyroBias); // This takes about 3s
 	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 	LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
@@ -377,7 +377,8 @@ void main_imu_thread(void)
 			// TODO: on any errors set main_ok false and skip (make functions return nonzero)
 			// Read main FIFO
 			uint8_t rawData[2080];
-			uint16_t packets = icm_fifo_read(main_imu, rawData); // TODO: name this better
+			uint16_t packets = icm_fifo_read(main_imu, rawData); // TODO: name this better?
+			LOG_DBG("IMU packet count: %u", packets);
 
 			float raw_a[3];
 			icm_accel_read(main_imu, raw_a);
@@ -555,4 +556,35 @@ void main_imu_suspend(void)
 void main_imu_wakeup(void)
 {
 	k_wakeup(main_imu_thread_id);
+}
+
+void sensor_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
+{
+	float rawData[3];
+	for (int i = 0; i < 500; i++)
+	{
+		icm_accel_read(dev_i2c, &rawData[0]);
+		dest1[0] += rawData[0];
+		dest1[1] += rawData[1];
+		dest1[2] += rawData[2];
+		icm_gyro_read(dev_i2c, &rawData[0]);
+		dest2[0] += rawData[0];
+		dest2[1] += rawData[1];
+		dest2[2] += rawData[2];
+		k_msleep(5);
+	}
+
+	dest1[0] /= 500.0f;
+	dest1[1] /= 500.0f;
+	dest1[2] /= 500.0f;
+	dest2[0] /= 500.0f;
+	dest2[1] /= 500.0f;
+	dest2[2] /= 500.0f;
+// need better accel calibration
+	if(dest1[0] > 0.9f) {dest1[0] -= 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
+	if(dest1[0] < -0.9f) {dest1[0] += 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
+	if(dest1[1] > 0.9f) {dest1[1] -= 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
+	if(dest1[1] < -0.9f) {dest1[1] += 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
+	if(dest1[2] > 0.9f) {dest1[2] -= 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
+	if(dest1[2] < -0.9f) {dest1[2] += 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
 }

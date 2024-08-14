@@ -203,6 +203,5 @@ float icm_temp_read(struct i2c_dt_spec dev_i2c);
 void icm_setup_WOM(struct i2c_dt_spec dev_i2c);
 
 uint8_t icm_getChipID(struct i2c_dt_spec dev_i2c);
-void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2);
 
 #endif
