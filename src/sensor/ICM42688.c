@@ -200,8 +200,8 @@ void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
 
 void icm_shutdown(struct i2c_dt_spec dev_i2c)
 {
-    icm_last_accel_odr = 0xff; // reset last odr
-    icm_last_gyro_odr = 0xff; // reset last odr
+	icm_last_accel_odr = 0xff; // reset last odr
+	icm_last_gyro_odr = 0xff; // reset last odr
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 }
 
@@ -266,8 +266,8 @@ int icm_init(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time, floa
 	icm_getGres(Gscale);
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INT_SOURCE0, 0x00); // temporary disable interrupts
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
-    icm_last_accel_odr = 0xff; // reset last odr
-    icm_last_gyro_odr = 0xff; // reset last odr
+	icm_last_accel_odr = 0xff; // reset last odr
+	icm_last_gyro_odr = 0xff; // reset last odr
 	int err = icm_update_odr(dev_i2c, accel_time, gyro_time, accel_actual_time, gyro_actual_time);
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_ACCEL_CONFIG0, 0x44); // set gyro and accel bandwidth to ODR/10
 //	k_msleep(50); // 10ms Accel, 30ms Gyro startup
@@ -291,165 +291,165 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	uint8_t GODR;
 
 	// Calculate accel
-    if (accel_time <= 0 || accel_time == INFINITY) // off, standby interpreted as off
+	if (accel_time <= 0 || accel_time == INFINITY) // off, standby interpreted as off
 	{
-        aMode = aMode_OFF;
-    	ODR = 0;
+		aMode = aMode_OFF;
+		ODR = 0;
 	}
-    else
+	else
 	{
-        aMode = aMode_LN;
-    	ODR = 1 / accel_time;
+		aMode = aMode_LN;
+		ODR = 1 / accel_time;
 	}
 
 	if (aMode != aMode_LN)
 	{
 		AODR = 0;
-        accel_time = INFINITY;
+		accel_time = INFINITY;
 	}
-    else if (ODR > 16000)
-    {
-        AODR = AODR_32kHz;
-        accel_time = 1.0 / 32000;
-    }
-    else if (ODR > 8000)
-    {
-        AODR = AODR_16kHz;
-        accel_time = 1.0 / 16000;
-    }
-    else if (ODR > 4000)
-    {
-        AODR = AODR_8kHz;
-        accel_time = 1.0 / 8000;
-    }
-    else if (ODR > 2000)
-    {
-        AODR = AODR_4kHz;
-        accel_time = 1.0 / 4000;
-    }
-    else if (ODR > 1000)
-    {
-        AODR = AODR_2kHz;
-        accel_time = 1.0 / 2000;
-    }
-    else if (ODR > 500)
-    {
-        AODR = AODR_1kHz;
-        accel_time = 1.0 / 1000;
-    }
-    else if (ODR > 200)
-    {
-        AODR = AODR_500Hz;
-        accel_time = 1.0 / 500;
-    }
-    else if (ODR > 100)
-    {
-        AODR = AODR_200Hz;
-        accel_time = 1.0 / 200;
-    }
-    else if (ODR > 50)
-    {
-        AODR = AODR_100Hz;
-        accel_time = 1.0 / 100;
-    }
-    else if (ODR > 25)
-    {
-        AODR = AODR_50Hz;
-        accel_time = 1.0 / 50;
-    }
-    else if (ODR > 12)
-    {
-        AODR = AODR_25Hz;
-        accel_time = 1.0 / 25;
-    }
-    else
-    {
-        AODR = AODR_12_5Hz;
-        accel_time = 1.0 / 12.5;
-    }
-
-	// Calculate gyro
-    if (gyro_time <= 0) // off
+	else if (ODR > 16000)
 	{
-        gMode = gMode_OFF;
-    	ODR = 0;
+		AODR = AODR_32kHz;
+		accel_time = 1.0 / 32000;
 	}
-    else if (gyro_time == INFINITY) // standby
+	else if (ODR > 8000)
 	{
-        gMode = gMode_SBY;
-    	ODR = 0;
+		AODR = AODR_16kHz;
+		accel_time = 1.0 / 16000;
+	}
+	else if (ODR > 4000)
+	{
+		AODR = AODR_8kHz;
+		accel_time = 1.0 / 8000;
+	}
+	else if (ODR > 2000)
+	{
+		AODR = AODR_4kHz;
+		accel_time = 1.0 / 4000;
+	}
+	else if (ODR > 1000)
+	{
+		AODR = AODR_2kHz;
+		accel_time = 1.0 / 2000;
+	}
+	else if (ODR > 500)
+	{
+		AODR = AODR_1kHz;
+		accel_time = 1.0 / 1000;
+	}
+	else if (ODR > 200)
+	{
+		AODR = AODR_500Hz;
+		accel_time = 1.0 / 500;
+	}
+	else if (ODR > 100)
+	{
+		AODR = AODR_200Hz;
+		accel_time = 1.0 / 200;
+	}
+	else if (ODR > 50)
+	{
+		AODR = AODR_100Hz;
+		accel_time = 1.0 / 100;
+	}
+	else if (ODR > 25)
+	{
+		AODR = AODR_50Hz;
+		accel_time = 1.0 / 50;
+	}
+	else if (ODR > 12)
+	{
+		AODR = AODR_25Hz;
+		accel_time = 1.0 / 25;
 	}
 	else
 	{
-        gMode = gMode_LN;
-    	ODR = 1 / gyro_time;
+		AODR = AODR_12_5Hz;
+		accel_time = 1.0 / 12.5;
+	}
+
+	// Calculate gyro
+	if (gyro_time <= 0) // off
+	{
+		gMode = gMode_OFF;
+		ODR = 0;
+	}
+	else if (gyro_time == INFINITY) // standby
+	{
+		gMode = gMode_SBY;
+		ODR = 0;
+	}
+	else
+	{
+		gMode = gMode_LN;
+		ODR = 1 / gyro_time;
 	}
 
 	if (gMode != gMode_LN)
 	{
 		GODR = 0;
-        gyro_time = INFINITY;
+		gyro_time = INFINITY;
 	}
-    else if (ODR > 16000)
-    {
-        GODR = GODR_32kHz;
-        gyro_time = 1.0 / 32000;
-    }
-    else if (ODR > 8000)
-    {
-        GODR = GODR_16kHz;
-        gyro_time = 1.0 / 16000;
-    }
-    else if (ODR > 4000)
-    {
-        GODR = GODR_8kHz;
-        gyro_time = 1.0 / 8000;
-    }
-    else if (ODR > 2000)
-    {
-        GODR = GODR_4kHz;
-        gyro_time = 1.0 / 4000;
-    }
-    else if (ODR > 1000)
-    {
-        GODR = GODR_2kHz;
-        gyro_time = 1.0 / 2000;
-    }
-    else if (ODR > 500)
-    {
-        GODR = GODR_1kHz;
-        gyro_time = 1.0 / 1000;
-    }
-    else if (ODR > 200)
-    {
-        GODR = GODR_500Hz;
-        gyro_time = 1.0 / 500;
-    }
-    else if (ODR > 100)
-    {
-        GODR = GODR_200Hz;
-        gyro_time = 1.0 / 200;
-    }
-    else if (ODR > 50)
-    {
-        GODR = GODR_100Hz;
-        gyro_time = 1.0 / 100;
-    }
-    else if (ODR > 25)
-    {
-        GODR = GODR_50Hz;
-        gyro_time = 1.0 / 50;
-    }
-    else if (ODR > 12)
-    {
-        GODR = GODR_25Hz;
-        gyro_time = 1.0 / 25;
-    }
-    else
-    {
-        GODR = GODR_12_5Hz;
-        gyro_time = 1.0 / 12.5;
-    }
+	else if (ODR > 16000)
+	{
+		GODR = GODR_32kHz;
+		gyro_time = 1.0 / 32000;
+	}
+	else if (ODR > 8000)
+	{
+		GODR = GODR_16kHz;
+		gyro_time = 1.0 / 16000;
+	}
+	else if (ODR > 4000)
+	{
+		GODR = GODR_8kHz;
+		gyro_time = 1.0 / 8000;
+	}
+	else if (ODR > 2000)
+	{
+		GODR = GODR_4kHz;
+		gyro_time = 1.0 / 4000;
+	}
+	else if (ODR > 1000)
+	{
+		GODR = GODR_2kHz;
+		gyro_time = 1.0 / 2000;
+	}
+	else if (ODR > 500)
+	{
+		GODR = GODR_1kHz;
+		gyro_time = 1.0 / 1000;
+	}
+	else if (ODR > 200)
+	{
+		GODR = GODR_500Hz;
+		gyro_time = 1.0 / 500;
+	}
+	else if (ODR > 100)
+	{
+		GODR = GODR_200Hz;
+		gyro_time = 1.0 / 200;
+	}
+	else if (ODR > 50)
+	{
+		GODR = GODR_100Hz;
+		gyro_time = 1.0 / 100;
+	}
+	else if (ODR > 25)
+	{
+		GODR = GODR_50Hz;
+		gyro_time = 1.0 / 50;
+	}
+	else if (ODR > 12)
+	{
+		GODR = GODR_25Hz;
+		gyro_time = 1.0 / 25;
+	}
+	else
+	{
+		GODR = GODR_12_5Hz;
+		gyro_time = 1.0 / 12.5;
+	}
 
 	if (icm_last_accel_odr == AODR && icm_last_gyro_odr == GODR) // if both were already configured
 		return -1;
@@ -460,8 +460,8 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 		i2c_reg_write_byte_dt(&dev_i2c, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
 		k_busy_wait(250); // wait >200us (datasheet 14.36)
 	}
-    icm_last_accel_odr = AODR;
-    icm_last_gyro_odr = GODR;
+	icm_last_accel_odr = AODR;
+	icm_last_gyro_odr = GODR;
 
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
