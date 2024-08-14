@@ -325,10 +325,10 @@ void main_imu_init(void)
 	//uint8_t temp;
 	//i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
 
-	icm_init(main_imu, 1.0 / 167, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
+	icm_init(main_imu, tickrate / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 #if MAG_ENABLED
-	mmc_init(main_mag, 1.0 / 167, &mag_actual_time);								 // configure with ~200Hz ODR
+	mmc_init(main_mag, tickrate / 1000.0, &mag_actual_time);								 // configure with ~200Hz ODR
 // 0-1ms delta to setup mmc
 #endif
 	LOG_INF("Initialized main IMUs");
