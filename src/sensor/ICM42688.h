@@ -189,21 +189,20 @@ https://media.digikey.com/pdf/Data%20Sheets/TDK%20PDFs/ICM-42688-P_DS_Rev1.2.pdf
 #define gMode_SBY 0x01
 #define gMode_LN  0x03
 
-float icm_getAres(uint8_t Ascale);
-float icm_getGres(uint8_t Gscale);
-uint8_t icm_getChipID(struct i2c_dt_spec dev_i2c);
-//void icm_init(struct i2c_dt_spec dev_i2c, uint8_t Ascale, uint8_t Gscale, uint8_t AODR, uint8_t GODR, uint8_t aMode, uint8_t gMode, bool CLKIN);
-void icm_accel_read(struct i2c_dt_spec dev_i2c, float a[3]);
-void icm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3]);
-void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2);
-void icm_reset(struct i2c_dt_spec dev_i2c);
-void icm_setup_WOM(struct i2c_dt_spec dev_i2c);
+int icm_init(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
 void icm_shutdown(struct i2c_dt_spec dev_i2c);
+
+int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
+
 uint16_t icm_fifo_read(struct i2c_dt_spec dev_i2c, uint8_t *data);
 int icm_fifo_process(uint16_t index, uint8_t *data, float g[3]);
+void icm_accel_read(struct i2c_dt_spec dev_i2c, float a[3]);
+void icm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3]);
 float icm_temp_read(struct i2c_dt_spec dev_i2c);
 
-int icm_init(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time); // return update time
-int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time); // return actual update time
+void icm_setup_WOM(struct i2c_dt_spec dev_i2c);
+
+uint8_t icm_getChipID(struct i2c_dt_spec dev_i2c);
+void icm_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2);
 
 #endif
