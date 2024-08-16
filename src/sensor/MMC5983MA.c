@@ -43,7 +43,7 @@ int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 	uint8_t MBW;
 	uint8_t MSET = MSET_2000; // always use lowest SET/RESET interval
 
-	if (time == 0) // off interpreted as oneshot
+	if (time <= 0) // off interpreted as oneshot
 		ODR = 0;
 	else
 		ODR = 1 / time;
