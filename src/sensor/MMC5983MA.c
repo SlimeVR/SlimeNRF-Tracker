@@ -49,43 +49,51 @@ int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 		ODR = 1 / time;
 
 	if (ODR > 200) // TODO: this sucks
-	{
+	{ // 1000Hz*0.5ms/1000ms = 50% active
 		MODR = MODR_1000Hz;
+		MBW = MBW_800Hz; // Max MBW_800Hz
 		time = 1.0 / 1000;
 	}
-	else if (ODR > 100)
-	{
+	else if (ODR > 100) // Nominal working state, this should use as low power as possible
+	{ // 200Hz*0.5ms/1000ms = 10% active
 		MODR = MODR_200Hz;
+		MBW = MBW_800Hz; // Max MBW_200Hz, MBW_800Hz is used since the RMS noise is still only 1.2mG
 		time = 1.0 / 200;
 	}
 	else if (ODR > 50)
-	{
+	{ // 100Hz*2ms/1000ms = 20% active
 		MODR = MODR_100Hz;
+		MBW = MBW_400Hz; // 0.8mG
 		time = 1.0 / 100;
 	}
 	else if (ODR > 20)
-	{
+	{ // 50Hz*4ms/1000ms = 20% active
 		MODR = MODR_50Hz;
+		MBW = MBW_200Hz; // 0.6mG
 		time = 1.0 / 50;
 	}
 	else if (ODR > 10)
-	{
+	{ // 20Hz*8ms/1000ms = 16% active
 		MODR = MODR_20Hz;
+		MBW = MBW_100Hz; // 0.4mG
 		time = 1.0 / 20;
 	}
 	else if (ODR > 1)
-	{
+	{ // 10Hz*8ms/1000ms = 8% active
 		MODR = MODR_10Hz;
+		MBW = MBW_100Hz;
 		time = 1.0 / 10;
 	}
 	else if (ODR > 0)
-	{
+	{ // 1Hz*8ms/1000ms = 0.8% active
 		MODR = MODR_1Hz;
+		MBW = MBW_100Hz;
 		time = 1.0 / 1;
 	}
 	else
 	{
 		MODR = MODR_ONESHOT;
+		MBW = MBW_800Hz;
 		time = INFINITY;
 	}
 
@@ -93,11 +101,6 @@ int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 		return -1;
 	else
 		mmc_last_odr = MODR;
-
-	if (MODR == MODR_1000Hz)
-		MBW = MBW_800Hz;
-	else
-		MBW = MBW_400Hz; // only use up to 2ms measurement time to save power
 
 	// set magnetometer bandwidth
 	i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_1, MBW);
