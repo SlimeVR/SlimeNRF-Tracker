@@ -69,7 +69,7 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	if (aMode != aMode_LN)
 	{
 		AODR = 0;
-		accel_time = INFINITY;
+		accel_time = 0; // off
 	}
 	else if (ODR > 16000) // TODO: this is absolutely awful
 	{
@@ -152,7 +152,7 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	if (gMode != gMode_LN)
 	{
 		GODR = 0;
-		gyro_time = INFINITY;
+		gyro_time = 0; // off
 	}
 	else if (ODR > 16000) // TODO: this is absolutely awful
 	{
@@ -229,6 +229,10 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
+
+	*accel_actual_time = accel_time;
+	*gyro_actual_time = gyro_time;
+
 	return 0;
 }
 
