@@ -161,6 +161,36 @@ typedef struct sensor_mag {
 	void (*mag_read)(struct i2c_dt_spec, float[3]); // any unit
 } sensor_mag_t;
 
+sensor_imu_t sensor_imu_icm42688 = {
+	*icm_init,
+	*icm_shutdown,
+
+	*icm_update_odr,
+
+	*icm_fifo_read,
+	*icm_fifo_process,
+	*icm_accel_read,
+	*icm_gyro_read,
+	*icm_temp_read,
+
+	*icm_setup_WOM
+};
+
+sensor_mag_t sensor_mag_mmc5983ma = {
+	*mmc_init,
+	*mmc_shutdown,
+
+	*mmc_update_odr,
+
+	*mmc_mag_oneshot,
+	*mmc_mag_read
+};
+
+//sensor_imu_t sensor_imu;
+//sensor_mag_t sensor_mag;
+#define sensor_imu sensor_imu_icm42688
+#define sensor_mag sensor_mag_mmc5983ma
+
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
 K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
@@ -196,13 +226,13 @@ void sensor_retained_write(void) // TODO: move to sys?
 
 void sensor_shutdown(void) // Communicate all imus to shut down
 {
-	icm_shutdown(main_imu);
-	mmc_shutdown(main_mag);
+	(*sensor_imu.shutdown)(main_imu);
+	(*sensor_mag.shutdown)(main_mag);
 };
 
 void sensor_setup_WOM(void)
 {
-	icm_setup_WOM(main_imu);
+	(*sensor_imu.setup_WOM)(main_imu);
 }
 
 void sensor_calibrate_imu(void)
@@ -271,13 +301,13 @@ bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples)
 {
 	uint8_t counts = 0;
 	float a[3], last_a[3];
-	icm_accel_read(imu, last_a);
+	(*sensor_imu.accel_read)(imu, last_a);
 	set_led(SYS_LED_PATTERN_LONG);
 	for (int i = 0; i < samples + counts; i++)
 	{
 		LOG_INF("Accelerometer: %.5f %.5f %.5f", a[0], a[1], a[2]);
 		k_msleep(500);
-		icm_accel_read(imu, a);
+		(*sensor_imu.accel_read)(imu, a);
 		if (vec_epsilon(a, last_a) != motion)
 		{
 			LOG_INF("No motion detected");
@@ -320,19 +350,19 @@ void main_imu_init(void)
 	LOG_INF("Found main IMUs");
 	// TODO: This may change!!
 	//i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
-	icm_shutdown(main_imu);
+	(*sensor_imu.shutdown)(main_imu);
 	// TODO: This may change!!
 	//i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
-	mmc_shutdown(main_mag);
+	(*sensor_mag.shutdown)(main_mag);
 	//icm_reset(main_imu);												 // software reset ICM42688 to default registers
 	// TODO: Does int flag need to be read at all
 	//uint8_t temp;
 	//i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
 
-	icm_init(main_imu, tickrate / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
+	(*sensor_imu.init)(main_imu, tickrate / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 #if MAG_ENABLED
-	mmc_init(main_mag, tickrate / 1000.0, &mag_actual_time);								 // configure with ~200Hz ODR
+	(*sensor_mag.init)(main_mag, tickrate / 1000.0, &mag_actual_time);								 // configure with ~200Hz ODR
 // 0-1ms delta to setup mmc
 #endif
 	LOG_INF("Initialized main IMUs");
@@ -385,23 +415,33 @@ void main_imu_thread(void)
 			// Magneto sample will take ~400us
 			// Fusing data will take between 100us (~7 samples, low noise) - 500us (~33 samples, low power)
 			// TODO: on any errors set main_ok false and skip (make functions return nonzero)
-			// Read main FIFO
+
+#if MAG_ENABLED
+			// At high speed, use oneshot mode to have synced magnetometer data
+			// Call before FIFO and get the data after
+			if (mag_use_oneshot)
+				(*sensor_mag.mag_oneshot)(main_mag);
+#endif
+
+			// Read gyroscope (FIFO)
 			uint8_t rawData[2080];
-			uint16_t packets = icm_fifo_read(main_imu, rawData); // TODO: name this better?
+			uint16_t packets = (*sensor_imu.fifo_read)(main_imu, rawData); // TODO: name this better?
 			LOG_DBG("IMU packet count: %u", packets);
 
+			// Read accelerometer
 			float raw_a[3];
-			icm_accel_read(main_imu, raw_a);
+			(*sensor_imu.accel_read)(main_imu, raw_a);
 			float ax = raw_a[0] - accelBias[0];
 			float ay = raw_a[1] - accelBias[1];
 			float az = raw_a[2] - accelBias[2];
 
+			// Read magnetometer and process magneto
 			float mx = 0, my = 0, mz = 0;
 #if MAG_ENABLED
-			if (last_powerstate == 0)
+			if (powerstate == 0)
 			{
 				float m[3];
-				mmc_mag_read(main_mag, m);
+				(*sensor_mag.mag_read)(main_mag, m);
 				magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count); // 400us
 				apply_BAinv(m, magBAinv);
 				mx = m[0];
@@ -428,7 +468,7 @@ void main_imu_thread(void)
 					set_led(SYS_LED_PATTERN_ON); // TODO: will interfere with things
 			}
 
-			if (reconfig)
+			if (reconfig) // TODO: get rid of reconfig?
 			{
 				switch (powerstate)
 				{
@@ -439,20 +479,9 @@ void main_imu_thread(void)
 				case 1:
 					set_LP();
 					LOG_INF("Switching main IMUs to low power");
-					mmc_update_odr(main_mag, INFINITY, &mag_actual_time); // standby/oneshot
+					(*sensor_mag.update_odr)(main_mag, INFINITY, &mag_actual_time); // standby/oneshot
 					break;
 				};
-			}
-
-			if (powerstate == 0)
-			{
-				float gyro_speed = sqrtf(max_gyro_speed_square);
-				float mag_target_time = 1.0 / (4 * gyro_speed); // target mag ODR for ~0.25 deg error
-				if (mag_target_time > 0.005) // cap at 0.005, 200hz
-					mag_target_time = 0.005;
-				int err = mmc_update_odr(main_mag, mag_target_time, &mag_actual_time);
-				if (!err)
-					LOG_DBG("Switching magnetometer ODR to %.2fHz", 1.0 / mag_actual_time);
 			}
 #endif
 
@@ -469,7 +498,7 @@ void main_imu_thread(void)
 				for (uint16_t i = 0; i < packets; i++)
 				{
 					float raw_g[3];
-					if (icm_fifo_process(i, rawData, raw_g))
+					if ((*sensor_imu.fifo_process)(i, rawData, raw_g))
 						continue; // skip on error
 					// transform and convert to float values
 					float gx = raw_g[0] - gyroBias[0]; //gres
@@ -480,6 +509,7 @@ void main_imu_thread(void)
 					g[1] = -gz;
 					g[2] = gy;
 
+					// Process fusion
 					(*sensor_fusion.update)(g, a, m, gyro_actual_time);
 #if MAG_ENABLED
 					// Get fusion's corrected gyro data (or get gyro bias from fusion) and use it here
@@ -497,14 +527,17 @@ void main_imu_thread(void)
 #endif
 				}
 
+				// Update fusion gyro sanity?
 				(*sensor_fusion.update_gyro_sanity)(g, m);
-				(*sensor_fusion.get_gyro_bias)(gOff);
+				(*sensor_fusion.get_gyro_bias)(gOff); // TODO: where the hell am i using this???
 			}
 
+			// Get updated linear acceleration and quaternion from fusion
 			float lin_a[3] = {0};
 			(*sensor_fusion.get_lin_a)(lin_a);
 			(*sensor_fusion.get_quat)(q);
 
+			// Check the IMU gyroscope
 			if ((*sensor_fusion.get_gyro_sanity)() == 0 ? quat_epsilon_coarse(q, last_q) : quat_epsilon_coarse2(q, last_q)) // Probably okay to use the constantly updating last_q
 			{
 				int64_t imu_timeout = CLAMP(last_data_time, 1 * 1000, 15 * 1000); // Ramp timeout from last_data_time
@@ -525,6 +558,31 @@ void main_imu_thread(void)
 				powerstate = 0;
 			}
 
+#if MAG_ENABLED
+			// Update magnetometer mode
+			if (powerstate == 0)
+			{
+				float gyro_speed = sqrtf(max_gyro_speed_square);
+				float mag_target_time = 1.0 / (4 * gyro_speed); // target mag ODR for ~0.25 deg error
+				if (mag_target_time > 0.005) // cap at 0.005 (200hz), above this the sensor will use oneshot mode instead
+				{
+					mag_target_time = 0.005;
+					int err = (*sensor_mag.update_odr)(main_mag, INFINITY, &mag_actual_time);
+					if (!err)
+						LOG_DBG("Switching magnetometer to oneshot");
+					mag_use_oneshot = true;
+				}
+				if (mag_target_time <= 0.005 || mag_actual_time != INFINITY) // under 200Hz or magnetometer did not have a oneshot mode
+				{
+					int err = (*sensor_mag.update_odr)(main_mag, mag_target_time, &mag_actual_time);
+					if (!err)
+						LOG_DBG("Switching magnetometer ODR to %.2fHz", 1.0 / mag_actual_time);
+					mag_use_oneshot = false;
+				}
+			}
+#endif
+
+			// Send packet with new orientation
 			if (!(quat_epsilon(q, last_q)))
 			{
 				memcpy(last_q, q, sizeof(q));
@@ -535,12 +593,8 @@ void main_imu_thread(void)
 
 #if MAG_ENABLED
 			// Save magCal while idling
-			if (magCal == 0b111111 && last_powerstate == 1) // TODO: i guess this is fine
-			{
-				k_yield(); // yield to imu thread first
-				wait_for_threads(); // make sure not to interrupt anything (8ms)
+			if (magCal == 0b111111 && last_powerstate == 1 && powerstate == 1) // TODO: i guess this is fine
 				sensor_calibrate_mag();
-			}
 #endif
 		}
 		main_running = false;
@@ -573,11 +627,11 @@ void sensor_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
 	float rawData[3];
 	for (int i = 0; i < 500; i++)
 	{
-		icm_accel_read(dev_i2c, &rawData[0]);
+		(*sensor_imu.accel_read)(dev_i2c, &rawData[0]);
 		dest1[0] += rawData[0];
 		dest1[1] += rawData[1];
 		dest1[2] += rawData[2];
-		icm_gyro_read(dev_i2c, &rawData[0]);
+		(*sensor_imu.gyro_read)(dev_i2c, &rawData[0]);
 		dest2[0] += rawData[0];
 		dest2[1] += rawData[1];
 		dest2[2] += rawData[2];
