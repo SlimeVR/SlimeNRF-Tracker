@@ -45,7 +45,6 @@ extern int64_t led_time_off;
 extern uint8_t reset_mode;
 extern uint8_t last_reset;
 extern bool system_off_main;
-extern bool reconfig;
 //extern bool charging;
 
 #define LAST_RESET_LIMIT 10
@@ -59,9 +58,6 @@ extern bool send_data;
 
 extern uint16_t led_clock;
 extern uint32_t led_clock_offset;
-
-extern int powerstate;
-extern int last_powerstate;
 
 extern struct gpio_callback button_cb_data;
 

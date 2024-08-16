@@ -362,6 +362,10 @@ void main_imu_init(void)
 	sensor_fusion_init = true;
 }
 
+bool reconfig;
+int powerstate = 0;
+int last_powerstate = 0;
+
 // TODO: make threads more abstract, pass in imus n stuff instead
 void main_imu_thread(void)
 {
@@ -371,6 +375,10 @@ void main_imu_thread(void)
 	{
 		if (main_ok)
 		{
+			// Trigger reconfig on powerstate change
+			reconfig = last_powerstate != powerstate ? true : false;
+			last_powerstate = powerstate;
+
 			// Reading IMUs will take between 2.5ms (~7 samples, low noise) - 7ms (~33 samples, low power)
 			// Magneto sample will take ~400us
 			// Fusing data will take between 100us (~7 samples, low noise) - 500us (~33 samples, low power)

@@ -177,8 +177,6 @@ int main(void)
 		if (system_off_main) // System off on extended no movement
 			configure_system_off_WOM();
 
-		reconfig = last_powerstate != powerstate ? true : false;
-		last_powerstate = powerstate;
 		main_data = false;
 
 		wait_for_threads(); // TODO:

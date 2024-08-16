@@ -30,7 +30,6 @@ int tracker_id = 0;
 uint8_t reset_mode = -1;
 uint8_t last_reset = 0;
 bool system_off_main = false;
-bool reconfig;
 //bool charging = false;
 
 volatile uint32_t m_counter = 1;
@@ -42,8 +41,5 @@ bool send_data = false;
 
 uint16_t led_clock = 0;
 uint32_t led_clock_offset = 0;
-
-int powerstate = 0;
-int last_powerstate = 0;
 
 struct gpio_callback button_cb_data;
