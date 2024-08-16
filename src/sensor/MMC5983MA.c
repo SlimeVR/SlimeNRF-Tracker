@@ -110,7 +110,13 @@ int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 	return 0;
 }
 
-void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3]) {
+void mmc_mag_oneshot(struct i2c_dt_spec dev_i2c)
+{
+	// enable auto set/reset (bit 5 == 1) and trigger oneshot
+	i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x20 | 0x02);
+}
+
+void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3]) { // TODO: does it matter to read measurement register to see if oneshot completed
 	uint32_t rawMag[3];
 	mmc_readData(dev_i2c, rawMag);
 	m[0] = ((float)rawMag[0] - MMC5983MA_offset) * MMC5983MA_mRes;

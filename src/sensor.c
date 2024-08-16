@@ -71,6 +71,7 @@ double sample_count;
 float magBAinv[4][3];
 
 float max_gyro_speed_square;
+bool mag_use_oneshot;
 
 float accel_actual_time;
 float gyro_actual_time;
@@ -156,6 +157,7 @@ typedef struct sensor_mag {
 
 	int (*update_odr)(struct i2c_dt_spec, float, float*); // return actual update time, return 0 if success, -1 if odr is same, 1 if general error
 
+	void (*mag_oneshot)(struct i2c_dt_spec); // trigger oneshot if exists
 	void (*mag_read)(struct i2c_dt_spec, float[3]); // any unit
 } sensor_mag_t;
 

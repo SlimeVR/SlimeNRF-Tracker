@@ -65,6 +65,7 @@ void mmc_shutdown(struct i2c_dt_spec dev_i2c);
 
 int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time);
 
+void mmc_mag_oneshot(struct i2c_dt_spec dev_i2c);
 void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3]);
 
 uint8_t mmc_getChipID(struct i2c_dt_spec dev_i2c);
