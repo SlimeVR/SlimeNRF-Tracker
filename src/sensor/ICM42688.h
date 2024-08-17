@@ -12,6 +12,8 @@
 #ifndef ICM42688_h
 #define ICM42688_h
 
+#include "../sensor.h"
+
 /* ICM42688 registers
 https://media.digikey.com/pdf/Data%20Sheets/TDK%20PDFs/ICM-42688-P_DS_Rev1.2.pdf
 */
@@ -203,5 +205,7 @@ float icm_temp_read(struct i2c_dt_spec dev_i2c);
 void icm_setup_WOM(struct i2c_dt_spec dev_i2c);
 
 uint8_t icm_getChipID(struct i2c_dt_spec dev_i2c);
+
+extern const sensor_imu_t sensor_imu_icm42688;
 
 #endif

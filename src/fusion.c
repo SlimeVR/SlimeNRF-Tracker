@@ -4,6 +4,8 @@
 #include "../Fusion/Fusion/Fusion.h"
 #include "Fusion/FusionOffset2.h"
 
+#include "fusion.h"
+
 FusionOffset offset; // could share goff and q with fusionoffset and fusionahrs but init clears the values
 FusionAhrs ahrs;
 
@@ -127,3 +129,21 @@ void fusion_get_quat(float *q)
 {
 	memcpy(q, ahrs.quaternion.array, sizeof(ahrs.quaternion.array));
 }
+
+const sensor_fusion_t sensor_fusion_fusion = {
+	*fusion_init,
+	*fusion_load,
+	*fusion_save,
+
+	*fusion_update_accel,
+	*fusion_update,
+
+	*fusion_get_gyro_bias,
+	*fusion_set_gyro_bias,
+
+	*fusion_update_gyro_sanity,
+	*fusion_get_gyro_sanity,
+
+	*fusion_get_lin_a,
+	*fusion_get_quat
+};

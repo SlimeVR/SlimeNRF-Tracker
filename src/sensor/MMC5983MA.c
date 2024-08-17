@@ -158,3 +158,13 @@ void mmc_RESET(struct i2c_dt_spec dev_i2c)
 	i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x10);
 	k_busy_wait(1); // self clearing after 500 ns
 }
+
+const sensor_mag_t sensor_mag_mmc5983ma = {
+	*mmc_init,
+	*mmc_shutdown,
+
+	*mmc_update_odr,
+
+	*mmc_mag_oneshot,
+	*mmc_mag_read
+};

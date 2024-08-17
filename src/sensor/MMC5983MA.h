@@ -12,6 +12,8 @@
 #ifndef MMC5983MA_h
 #define MMC5983MA_h
 
+#include "../sensor.h"
+
 //Register map for MMC5983MA'
 //http://www.memsic.com/userfiles/files/DataSheets/Magnetic-Sensors-Datasheets/MMC5983MA_Datasheet.pdf
 #define MMC5983MA_XOUT_0        0x00
@@ -72,5 +74,7 @@ uint8_t mmc_getChipID(struct i2c_dt_spec dev_i2c);
 void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t * destination);
 void mmc_SET(struct i2c_dt_spec dev_i2c);
 void mmc_RESET(struct i2c_dt_spec dev_i2c);
+
+extern const sensor_mag_t sensor_mag_mmc5983ma;
 
 #endif

@@ -80,3 +80,21 @@ void vqf_get_quat(float *q)
 {
 	getQuat9D(q);
 }
+
+const sensor_fusion_t sensor_fusion_vqf = {
+	*vqf_init,
+	*vqf_load,
+	*vqf_save,
+
+	*vqf_update_accel,
+	*vqf_update,
+
+	*vqf_get_gyro_bias,
+	*vqf_set_gyro_bias,
+
+	*vqf_update_gyro_sanity,
+	*vqf_get_gyro_sanity,
+
+	*vqf_get_lin_a,
+	*vqf_get_quat
+};

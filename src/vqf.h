@@ -1,6 +1,8 @@
 #ifndef SLIMENRF_VQF
 #define SLIMENRF_VQF
 
+#include "sensor.h"
+
 void vqf_init(float time);
 void vqf_load(const void *data);
 void vqf_save(void *data);
@@ -16,5 +18,7 @@ int vqf_get_gyro_sanity(void);
 
 void vqf_get_lin_a(float *lin_a);
 void vqf_get_quat(float *q);
+
+extern const sensor_fusion_t sensor_fusion_vqf;
 
 #endif
