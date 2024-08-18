@@ -9,8 +9,8 @@
 #include "vqf.h"
 #include "magneto/magneto1_4.h"
 
-#include "sensor/ICM42688.h"
-#include "sensor/MMC5983MA.h"
+#include "sensor/sensors.h"
+#include "sensor/scan.h"
 
 #include "sensor.h"
 
@@ -54,6 +54,16 @@ sensor_mag_t *sensor_mag = &sensor_mag_mmc5983ma;
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
 K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
+
+/*
+void sensor_init(void)
+{
+	int imu_id = sensor_scan_imu(sensor_imu_dev);
+	int mag_id = sensor_scan_mag(sensor_mag_dev);
+	sensor_imu = sensor_imus[IMU_ICM42688];
+	sensor_mag = sensor_imus[MAG_MMC5983MA];
+}
+*/
 
 void sensor_retained_read(void) // TODO: move some of this to sys?
 {
