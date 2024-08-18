@@ -17,39 +17,6 @@
 const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
 const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
 
-/*
-Sensor:addr,reg,id
-
-IMUs:
-
-Bosch Sensortec
-BMI160:68/69,00,D1
-*BMI270:68/69,00,24
-BMI323:68/69,00,43
-TDK InvenSense
-*ICM-42688-P:68/69,75,47
-*ICM-42688-V:68/69,75,DB
-STMicroelectronics
-LSM6DS3:6A/6B,0F,69
-LSM6DSO:6A/6B,0F,6C
-*LSM6DSV:6A/6B,0F,70
-
-Magnetometers:
-
-QST Corporation
-QMC5883L:0B,OD,FF
-Bosch Sensortec
-BMM150:10/11/12/13,40,32
-BMM350:14/15/16/17,00,33
-STMicroelectronics
-IIS2MDC:1E,4F,40
-LIS2MDL:1E,4F,40
-LIS3MDL:1C/1E,0F,3D
-memsic
-MMC5603NJ:30,39,10
-MMC5633NJL:30,39,10
-*MMC5983MA:30,2F,30
-*/
 
 float lin_a[3] = {0};							// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
