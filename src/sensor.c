@@ -343,6 +343,7 @@ int main_imu_init(void)
 
 	LOG_INF("Initialized fusion");
 	sensor_fusion_init = true;
+	return 0;
 }
 
 bool reconfig;
