@@ -266,7 +266,7 @@ int set_sensor_clock(bool enable, float rate, float *actual_rate)
 	if (!device_is_ready(clk_out.dev))
 		return -1;
 	int err = pwm_set_dt(&clk_out, PWM_HZ(rate), enable ? PWM_HZ(rate * 2) : 0); // if clk_out is used
-	if (err == 0)
+	if (!err)
 		*actual_rate = enable ? rate : 0; // the system probably could provide the correct rate
 	return err;
 }

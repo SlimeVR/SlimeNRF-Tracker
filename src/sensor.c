@@ -271,7 +271,7 @@ int main_imu_init(void)
 	//k_msleep(11);														 // Wait for start up (1ms for ICM, 10ms for MMC -> 10ms)
 */
 	err = sensor_init(); // IMUs discovery
-	if (err != 0)
+	if (err)
 		return err;
 	LOG_INF("Found main IMUs");
 	// TODO: This may change!!
@@ -338,7 +338,7 @@ void main_imu_thread(void)
 	main_running = true;
 	int err = main_imu_init(); // Initialize IMUs and Fusion
 	// TODO: handle imu init error
-	if (err == 0)
+	if (!err)
 		main_ok = true;
 	while (1)
 	{

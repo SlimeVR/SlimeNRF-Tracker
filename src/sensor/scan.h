@@ -46,7 +46,7 @@ int sensor_scan(struct i2c_dt_spec i2c_dev, int dev_addr_count, const uint8_t de
 				uint8_t reg = dev_reg[reg_index + k];
 				uint8_t id;
 				int err = i2c_reg_read_byte(dev, addr, reg, &id);
-				if (err != 0)
+				if (err)
 					break;
 				for (int l = 0; l < id_cnt; l++)
 				{
