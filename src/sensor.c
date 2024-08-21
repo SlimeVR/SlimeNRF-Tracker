@@ -19,11 +19,8 @@
 struct i2c_dt_spec sensor_imu_dev = I2C_DT_SPEC_GET(SENSOR_IMU_NODE);
 struct i2c_dt_spec sensor_mag_dev = I2C_DT_SPEC_GET(SENSOR_MAG_NODE);
 
-float lin_a[3] = {0};							// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
-
-float gOff[3] = {0}; // runtime fusion gyro offset
 
 int64_t last_data_time;
 
@@ -51,7 +48,7 @@ bool sensor_sensor_init;
 bool mag_available;
 bool mag_enabled = MAG_ENABLED; // TODO: toggle from server
 
-const sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion;
+const sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion; // TODO: change from server
 
 const sensor_imu_t *sensor_imu = &sensor_imu_icm42688;
 const sensor_mag_t *sensor_mag = &sensor_mag_mmc5983ma;
@@ -466,7 +463,6 @@ void main_imu_thread(void)
 
 				// Update fusion gyro sanity?
 				(*sensor_fusion->update_gyro_sanity)(g, m);
-				(*sensor_fusion->get_gyro_bias)(gOff); // TODO: where the hell am i using this???
 			}
 
 			// Get updated linear acceleration and quaternion from fusion
