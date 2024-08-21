@@ -14,7 +14,7 @@
 // Otherwise it should use an address and imus already stored in volatile memory
 // Cannot gurantee storage in flash, it's probably okay to keep it volatile
 
-int sensor_scan(struct i2c_dt_spec i2c_dev, int dev_addr_count, uint8_t dev_addr[], uint8_t dev_reg[], uint8_t dev_id[], int dev_ids[])
+int sensor_scan(struct i2c_dt_spec i2c_dev, int dev_addr_count, const uint8_t dev_addr[], const uint8_t dev_reg[], const uint8_t dev_id[], const int dev_ids[])
 {
 	const struct device *dev = i2c_dev.bus;
 
@@ -82,16 +82,6 @@ int sensor_scan(struct i2c_dt_spec i2c_dev, int dev_addr_count, uint8_t dev_addr
 	}
 
 	return -1;
-}
-
-int sensor_scan_imu(struct i2c_dt_spec i2c_dev)
-{
-	return sensor_scan(i2c_dev, i2c_dev_imu_addr_count, i2c_dev_imu_addr, i2c_dev_imu_reg, i2c_dev_imu_id, i2c_dev_imu);
-}
-
-int sensor_scan_mag(struct i2c_dt_spec i2c_dev)
-{
-	return sensor_scan(i2c_dev, i2c_dev_mag_addr_count, i2c_dev_mag_addr, i2c_dev_mag_reg, i2c_dev_mag_id, i2c_dev_mag);
 }
 
 #endif

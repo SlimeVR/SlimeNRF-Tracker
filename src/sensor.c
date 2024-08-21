@@ -10,7 +10,6 @@
 #include "magneto/magneto1_4.h"
 
 #include "sensor/sensors.h"
-#include "sensor/scan.h"
 
 #include "sensor.h"
 
