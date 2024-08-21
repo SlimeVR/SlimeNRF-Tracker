@@ -64,6 +64,15 @@ enum dev_imu {
 	IMU_LSM6DSO,
 	IMU_LSM6DSV
 };
+const char *dev_imu_names[] = {
+	"BMI160",
+	"BMI270",
+	"BMI323",
+	"ICM-42688-P/ICM-42688-V",
+	"LSM6DS3",
+	"LSM6DSO",
+	"LSM6DSV"
+};
 const sensor_imu_t *sensor_imus[] = {
     NULL, // not implemented
     NULL,
@@ -101,6 +110,15 @@ enum dev_mag {
 	MAG_LIS2MDL, // IIS2MDC/LIS2MDL
 	MAG_MMC5633NJL, // MMC5603NJ/MMC5633NJL
 	MAG_MMC5983MA
+};
+const char *dev_mag_names[] = {
+	"QMC5883L",
+	"BMM150",
+	"BMM350",
+	"LIS3MDL",
+	"IIS2MDC/LIS2MDL",
+	"MMC5603NJ/MMC5633NJL",
+	"MMC5983MA"
 };
 const sensor_mag_t *sensor_mags[] = {
     NULL, // not implemented

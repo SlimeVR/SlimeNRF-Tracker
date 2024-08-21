@@ -67,65 +67,50 @@ int sensor_init(void)
 
 	LOG_INF("Scanning bus for IMU");
 	int imu_id = sensor_scan_imu(sensor_imu_dev); // TODO: the dev addr should be stored to retained and reused to save time
-	switch (imu_id)
-	{
-	case IMU_BMI160:
-		LOG_INF("Found BMI160");
-	case IMU_BMI270:
-		LOG_INF("Found BMI270");
-	case IMU_BMI323:
-		LOG_INF("Found BMI323");
-	case IMU_ICM42688:
-		LOG_INF("Found ICM-42688-P/ICM-42688-V");
-	case IMU_LSM6DS3:
-		LOG_INF("Found LSM6DS3");
-	case IMU_LSM6DSO:
-		LOG_INF("Found LSM6DSO");
-	case IMU_LSM6DSV:
-		LOG_INF("Found LSM6DSV");
-	default:
+	if (imu_id >= sizeof(dev_imu_names) / sizeof(dev_imu_names[0]))
+		LOG_WRN("Found unknown device");
+	else if (imu_id < 0)
 		LOG_ERR("No IMU detected");
-	}
-	if (imu_id < 0)
-		return -1; // no IMU detected! something is very wrong
-	sensor_imu = sensor_imus[imu_id];
-	if (sensor_imu == NULL)
+	else
+		LOG_INF("Found %s", dev_imu_names[imu_id]);
+	if (imu_id >= 0)
 	{
-		LOG_ERR("IMU not supported");
-		return -1; // an IMU was detected but not supported
+		if (imu_id >= sizeof(sensor_imus) / sizeof(sensor_imus[0]) || sensor_imus[imu_id] == NULL)
+		{
+			LOG_ERR("IMU not supported");
+			sensor_imu = NULL;
+			return -1; // an IMU was detected but not supported
+		}
+		else
+		{
+			sensor_imu = sensor_imus[imu_id];
+		}
+	}
+	else
+	{
+		sensor_imu = NULL;
+		return -1; // no IMU detected! something is very wrong
 	}
 
 	LOG_INF("Scanning bus for magnetometer");
 	int mag_id = sensor_scan_mag(sensor_mag_dev);
-	switch (imu_id)
-	{
-	case MAG_QMC5883L:
-		LOG_INF("Found QMC5883L");
-	case MAG_BMM150:
-		LOG_INF("Found BMM150");
-	case MAG_BMM350:
-		LOG_INF("Found BMM350");
-	case MAG_LIS3MDL:
-		LOG_INF("Found LIS3MDL");
-	case MAG_LIS2MDL:
-		LOG_INF("Found IIS2MDC/LIS2MDL");
-	case MAG_MMC5633NJL:
-		LOG_INF("Found MMC5603NJ/MMC5633NJL");
-	case MAG_MMC5983MA:
-		LOG_INF("Found MMC5983MA");
-	default:
+	if (mag_id >= sizeof(dev_mag_names) / sizeof(dev_mag_names[0]))
+		LOG_WRN("Found unknown device");
+	else if (mag_id < 0)
 		LOG_WRN("No magnetometer detected");
-	}
+	else
+		LOG_INF("Found %s", dev_mag_names[mag_id]);
 	if (mag_id >= 0) // if there is no magnetometer we do not care as much
 	{
-		sensor_mag = sensor_mags[mag_id];
-		if (sensor_mag == NULL)
+		if (mag_id >= sizeof(dev_mag_names) / sizeof(dev_mag_names[0]) || sensor_mags[mag_id] == NULL)
 		{
-			mag_available = false;
 			LOG_ERR("Magnetometer not supported");
+			sensor_mag = NULL; 
+			mag_available = false;
 		}
 		else
 		{
+			sensor_mag = sensor_mags[mag_id];
 			mag_available = true;
 		}
 	}
