@@ -257,9 +257,9 @@ const struct pwm_dt_spec clk_out = PWM_DT_SPEC_GET_OR(CLKOUT_NODE, {0});
 int set_sensor_clock(bool enable, float rate, float *actual_rate)
 {
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, clk_gpios)
-	gpio_pin_set_dt(&enable, 0); // if enabling some external oscillator is available
-//	*actual_rate = (float)NSEC_PER_SEC / clk_out.period; // assume pwm period is the same as an equivalent external oscillator
-	*actual_rate = 32768; // default
+	gpio_pin_set_dt(&clk_en, enable); // if enabling some external oscillator is available
+//	*actual_rate = enable ? (float)NSEC_PER_SEC / clk_out.period : 0; // assume pwm period is the same as an equivalent external oscillator
+	*actual_rate = enable ? 32768 : 0; // default
 	return 0;
 #endif
 	*actual_rate = 0; // rate is 0 if there will be no clock source available
@@ -267,6 +267,6 @@ int set_sensor_clock(bool enable, float rate, float *actual_rate)
 		return -1;
 	int err = pwm_set_dt(&clk_out, PWM_HZ(rate), enable ? PWM_HZ(rate * 2) : 0); // if clk_out is used
 	if (err == 0)
-		*actual_rate = rate; // the system probably could provide the correct rate
+		*actual_rate = enable ? rate : 0; // the system probably could provide the correct rate
 	return err;
 }
