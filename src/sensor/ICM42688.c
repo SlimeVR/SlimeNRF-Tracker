@@ -18,11 +18,22 @@ float _aRes = 16.0f/32768.0f; // Always 16G
 float _gRes = 2000.0f/32768.0f; // Always 2000dps
 uint8_t icm_last_accel_odr = 0xff;
 uint8_t icm_last_gyro_odr = 0xff;
+const float icm_clock_reference = 32000;
+float icm_clock_scale = 1; // ODR is scaled by clock_rate/clock_reference
 
-int icm_init(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
+int icm_init(struct i2c_dt_spec dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
 {
-	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INT_SOURCE0, 0x00); // temporary disable interrupts
+//	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INT_SOURCE0, 0x00); // temporary disable interrupts
+	if (clock_rate > 0)
+	{
+		icm_clock_scale = clock_rate / icm_clock_reference;
+		i2c_reg_write_byte_dt(&dev_i2c, ICM42688_REG_BANK_SEL, 0x01); // select register bank 1
+		i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INTF_CONFIG5, 0x04); // use CLKIN (set PIN9_FUNCTION to CLKIN)
+	}
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
+	if (clock_rate > 0)
+		i2c_reg_update_byte_dt(&dev_i2c, ICM42688_INTF_CONFIG1, 0x04, 0x04); // use CLKIN (set RTC_MODE to require RTC clock input)
+//		i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INTF_CONFIG1, 0x91 | 0x04); // use CLKIN (set RTC_MODE to require RTC clock input)
 	icm_last_accel_odr = 0xff; // reset last odr
 	icm_last_gyro_odr = 0xff; // reset last odr
 	int err = icm_update_odr(dev_i2c, accel_time, gyro_time, accel_actual_time, gyro_actual_time);
@@ -32,6 +43,7 @@ int icm_init(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time, floa
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FIFO_CONFIG, 0x00); // FIFO bypass mode
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FSYNC_CONFIG, 0x00); // disable FSYNC
 	i2c_reg_update_byte_dt(&dev_i2c, ICM42688_TMST_CONFIG, 0x02, 0x00); // disable FSYNC
+//	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_TMST_CONFIG, (0x23 | 0x02) ^ 0x02); // disable FSYNC
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FIFO_CONFIG1, 0x02); // enable FIFO gyro only
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FIFO_CONFIG, 1<<6); // begin FIFO stream
 	return (err < 0 ? 0 : err);
@@ -64,6 +76,7 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	{
 		aMode = aMode_LN;
 		ODR = 1 / accel_time;
+		ODR /= icm_clock_scale; // scale clock
 	}
 
 	if (aMode != aMode_LN)
@@ -131,6 +144,7 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 		AODR = AODR_12_5Hz;
 		accel_time = 1.0 / 12.5;
 	}
+	accel_time *= icm_clock_scale; // scale clock
 
 	// Calculate gyro
 	if (gyro_time <= 0) // off
@@ -147,6 +161,7 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	{
 		gMode = gMode_LN;
 		ODR = 1 / gyro_time;
+		ODR /= icm_clock_scale; // scale clock
 	}
 
 	if (gMode != gMode_LN)
@@ -214,6 +229,7 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 		GODR = GODR_12_5Hz;
 		gyro_time = 1.0 / 12.5;
 	}
+	gyro_time *= icm_clock_scale; // scale clock
 
 	if (icm_last_accel_odr == AODR && icm_last_gyro_odr == GODR) // if both were already configured
 		return -1;

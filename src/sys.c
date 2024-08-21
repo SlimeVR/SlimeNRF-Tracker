@@ -28,6 +28,8 @@ void configure_system_off_WOM()
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
+	float actual_clock_rate;
+	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
@@ -45,6 +47,8 @@ void configure_system_off_chgstat(void)
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
+	float actual_clock_rate;
+	set_sensor_clock(false, 0, &actual_clock_rate);
 //	// Configure chgstat interrupt
 //	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
 //	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_PULLUP);
@@ -64,6 +68,8 @@ void configure_system_off_dock(void)
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
+	float actual_clock_rate;
+	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure dock interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
@@ -239,4 +245,25 @@ void sys_write(uint16_t id, void *retained_ptr, const void *data, size_t len)
 	memcpy(retained_ptr, data, len);
 	nvs_write(&fs, id, data, len);
 	retained_update();
+}
+
+const struct gpio_dt_spec clk_en = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, clk_gpios, {0});
+const struct pwm_dt_spec clk_out = PWM_DT_SPEC_GET_OR(CLKOUT_NODE, {0});
+
+// return 0 if clock applied, -1 if failed (because there is no clk_en or clk_out)
+int set_sensor_clock(bool enable, float rate, float *actual_rate)
+{
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, clk_gpios)
+	gpio_pin_set_dt(&enable, 0); // if enabling some external oscillator is available
+//	*actual_rate = (float)NSEC_PER_SEC / clk_out.period; // assume pwm period is the same as an equivalent external oscillator
+	*actual_rate = 32768; // default
+	return 0;
+#endif
+	*actual_rate = 0; // rate is 0 if there will be no clock source available
+	if (!device_is_ready(clk_out.dev))
+		return -1;
+	int err = pwm_set_dt(&clk_out, PWM_HZ(rate), enable ? PWM_HZ(rate * 2) : 0); // if clk_out is used
+	if (err == 0)
+		*actual_rate = rate; // the system probably could provide the correct rate
+	return err;
 }

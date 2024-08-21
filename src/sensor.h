@@ -1,6 +1,8 @@
 #ifndef SLIMENRF_SENSOR
 #define SLIMENRF_SENSOR
 
+int sensor_init(void);
+
 void sensor_retained_read(void);
 void sensor_retained_write(void);
 
@@ -15,7 +17,7 @@ void set_LP(void);
 bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples);
 
 // TODO: make threads more abstract, pass in imus n stuff instead
-void main_imu_init(void);
+int main_imu_init(void);
 void main_imu_thread(void);
 void wait_for_threads(void);
 void main_imu_suspend(void);
@@ -42,10 +44,10 @@ typedef struct sensor_fusion {
 } sensor_fusion_t;
 
 typedef struct sensor_imu {
-	int (*init)(struct i2c_dt_spec, float, float, float*, float*); // return update time, return 0 if success, 1 if general error, also how to deal with CLKIN???? some boards might use it
+	int (*init)(struct i2c_dt_spec, float, float, float, float*, float*); // first float is clock_rate, nonzero means use CLKIN, return update time, return 0 if success, -1 if general error
 	void (*shutdown)(struct i2c_dt_spec);
 
-	int (*update_odr)(struct i2c_dt_spec, float, float, float*, float*); // return actual update time, return 0 if success, -1 if odr is same, 1 if general error
+	int (*update_odr)(struct i2c_dt_spec, float, float, float*, float*); // return actual update time, return 0 if success, 1 if odr is same, -1 if general error
 
 	uint16_t (*fifo_read)(struct i2c_dt_spec, uint8_t*);
 	int (*fifo_process)(uint16_t, uint8_t*, float[3]); // deg/s TODO: is support accel needed?
@@ -60,7 +62,7 @@ typedef struct sensor_mag {
 	int (*init)(struct i2c_dt_spec, float, float*); // return update time, return 0 if success, 1 if general error
 	void (*shutdown)(struct i2c_dt_spec);
 
-	int (*update_odr)(struct i2c_dt_spec, float, float*); // return actual update time, return 0 if success, -1 if odr is same, 1 if general error
+	int (*update_odr)(struct i2c_dt_spec, float, float*); // return actual update time, return 0 if success, 1 if odr is same, -1 if general error
 
 	void (*mag_oneshot)(struct i2c_dt_spec); // trigger oneshot if exists
 	void (*mag_read)(struct i2c_dt_spec, float[3]); // any unit

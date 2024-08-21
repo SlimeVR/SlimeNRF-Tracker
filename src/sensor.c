@@ -45,25 +45,98 @@ float gyro_actual_time;
 float mag_actual_time;
 
 bool sensor_fusion_init;
+bool sensor_sensor_init;
 
-sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion;
+bool mag_available;
+bool mag_enabled = MAG_ENABLED; // TODO: toggle from server
 
-sensor_imu_t *sensor_imu = &sensor_imu_icm42688;
-sensor_mag_t *sensor_mag = &sensor_mag_mmc5983ma;
+const sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion;
+
+const sensor_imu_t *sensor_imu = &sensor_imu_icm42688;
+const sensor_mag_t *sensor_mag = &sensor_mag_mmc5983ma;
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
 K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
 
-/*
-void sensor_init(void)
+int sensor_init(void)
 {
-	int imu_id = sensor_scan_imu(sensor_imu_dev);
+	if (sensor_sensor_init)
+		return 0; // already initialized
+
+	LOG_INF("Scanning bus for IMU");
+	int imu_id = sensor_scan_imu(sensor_imu_dev); // TODO: the dev addr should be stored to retained and reused to save time
+	switch (imu_id)
+	{
+	case IMU_BMI160:
+		LOG_INF("Found BMI160");
+	case IMU_BMI270:
+		LOG_INF("Found BMI270");
+	case IMU_BMI323:
+		LOG_INF("Found BMI323");
+	case IMU_ICM42688:
+		LOG_INF("Found ICM-42688-P/ICM-42688-V");
+	case IMU_LSM6DS3:
+		LOG_INF("Found LSM6DS3");
+	case IMU_LSM6DSO:
+		LOG_INF("Found LSM6DSO");
+	case IMU_LSM6DSV:
+		LOG_INF("Found LSM6DSV");
+	default:
+		LOG_ERR("No IMU detected");
+	}
+	if (imu_id < 0)
+		return -1; // no IMU detected! something is very wrong
+	sensor_imu = sensor_imus[imu_id];
+	if (sensor_imu == NULL)
+	{
+		LOG_ERR("IMU not supported");
+		return -1; // an IMU was detected but not supported
+	}
+
+	LOG_INF("Scanning bus for magnetometer");
 	int mag_id = sensor_scan_mag(sensor_mag_dev);
-	sensor_imu = sensor_imus[IMU_ICM42688];
-	sensor_mag = sensor_imus[MAG_MMC5983MA];
+	switch (imu_id)
+	{
+	case MAG_QMC5883L:
+		LOG_INF("Found QMC5883L");
+	case MAG_BMM150:
+		LOG_INF("Found BMM150");
+	case MAG_BMM350:
+		LOG_INF("Found BMM350");
+	case MAG_LIS3MDL:
+		LOG_INF("Found LIS3MDL");
+	case MAG_LIS2MDL:
+		LOG_INF("Found IIS2MDC/LIS2MDL");
+	case MAG_MMC5633NJL:
+		LOG_INF("Found MMC5603NJ/MMC5633NJL");
+	case MAG_MMC5983MA:
+		LOG_INF("Found MMC5983MA");
+	default:
+		LOG_WRN("No magnetometer detected");
+	}
+	if (mag_id >= 0) // if there is no magnetometer we do not care as much
+	{
+		sensor_mag = sensor_mags[mag_id];
+		if (sensor_mag == NULL)
+		{
+			mag_available = false;
+			LOG_ERR("Magnetometer not supported");
+		}
+		else
+		{
+			mag_available = true;
+		}
+	}
+	else
+	{
+		sensor_mag = NULL; 
+		mag_available = false; // marked as not available
+	}
+
+	sensor_sensor_init = true; // successfully initialized
+	return 0;
 }
-*/
 
 void sensor_retained_read(void) // TODO: move some of this to sys?
 {
@@ -96,12 +169,14 @@ void sensor_retained_write(void) // TODO: move to sys?
 
 void sensor_shutdown(void) // Communicate all imus to shut down
 {
+	sensor_init(); // try initialization if possible
 	(*sensor_imu->shutdown)(main_imu);
 	(*sensor_mag->shutdown)(main_mag);
 };
 
 void sensor_setup_WOM(void)
 {
+	sensor_init(); // try initialization if possible
 	(*sensor_imu->setup_WOM)(main_imu);
 }
 
@@ -199,8 +274,9 @@ bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples)
 	return false;
 }
 
-void main_imu_init(void)
+int main_imu_init(void)
 {
+	int err;
 	// TODO: on any errors set main_ok false and skip (make functions return nonzero)
 // 5ms delta (???) from entering loop
 // skip sleep, surely this wont cause issues :D
@@ -210,13 +286,9 @@ void main_imu_init(void)
 		k_msleep(11 - time_delta);
 	//k_msleep(11);														 // Wait for start up (1ms for ICM, 10ms for MMC -> 10ms)
 */
-	// TODO: move detection to imus
-	uint8_t ICM42688ID = icm_getChipID(main_imu);						 // Read CHIP_ID register for ICM42688
-	LOG_INF("ICM: %u", ICM42688ID);
-	uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
-	LOG_INF("MMC: %u", MMC5983ID);
-	if (!((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && (!MAG_ENABLED || MMC5983ID == 0x30))) // check if all I2C sensors have acknowledged
-		return;
+	err = sensor_init(); // IMUs discovery
+	if (err != 0)
+		return err;
 	LOG_INF("Found main IMUs");
 	// TODO: This may change!!
 	//i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
@@ -229,12 +301,20 @@ void main_imu_init(void)
 	//uint8_t temp;
 	//i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
 
-	(*sensor_imu->init)(main_imu, tickrate / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
+	float clock_actual_rate;
+	set_sensor_clock(true, 32768, &clock_actual_rate); // enable the clock source for IMU if present
+
+	err = (*sensor_imu->init)(main_imu, clock_actual_rate, tickrate / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
+	if (err < 0)
+		return err;
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
-#if MAG_ENABLED
-	(*sensor_mag->init)(main_mag, tickrate / 1000.0, &mag_actual_time);								 // configure with ~200Hz ODR
+	if (mag_available && mag_enabled)
+	{
+		err = (*sensor_mag->init)(main_mag, tickrate / 1000.0, &mag_actual_time);								 // configure with ~200Hz ODR
+		if (err < 0)
+			return err;
 // 0-1ms delta to setup mmc
-#endif
+	}
 	LOG_INF("Initialized main IMUs");
 	main_ok = true;
 
@@ -268,11 +348,11 @@ bool reconfig;
 int powerstate = 0;
 int last_powerstate = 0;
 
-// TODO: make threads more abstract, pass in imus n stuff instead
 void main_imu_thread(void)
 {
 	main_running = true;
-	main_imu_init(); // Initialize IMUs and Fusion
+	int err = main_imu_init(); // Initialize IMUs and Fusion
+	// TODO: handle imu init error
 	while (1)
 	{
 		if (main_ok)
@@ -286,12 +366,10 @@ void main_imu_thread(void)
 			// Fusing data will take between 100us (~7 samples, low noise) - 500us (~33 samples, low power)
 			// TODO: on any errors set main_ok false and skip (make functions return nonzero)
 
-#if MAG_ENABLED
 			// At high speed, use oneshot mode to have synced magnetometer data
 			// Call before FIFO and get the data after
-			if (mag_use_oneshot)
+			if (mag_available && mag_enabled && mag_use_oneshot)
 				(*sensor_mag->mag_oneshot)(main_mag);
-#endif
 
 			// Read gyroscope (FIFO)
 			uint8_t rawData[2080];
@@ -307,8 +385,7 @@ void main_imu_thread(void)
 
 			// Read magnetometer and process magneto
 			float mx = 0, my = 0, mz = 0;
-#if MAG_ENABLED
-			if (powerstate == 0)
+			if (mag_available && mag_enabled && powerstate == 0)
 			{
 				float m[3];
 				(*sensor_mag->mag_read)(main_mag, m);
@@ -338,7 +415,7 @@ void main_imu_thread(void)
 					set_led(SYS_LED_PATTERN_ON); // TODO: will interfere with things
 			}
 
-			if (reconfig) // TODO: get rid of reconfig?
+			if (mag_available && mag_enabled && reconfig) // TODO: get rid of reconfig?
 			{
 				switch (powerstate)
 				{
@@ -353,10 +430,9 @@ void main_imu_thread(void)
 					break;
 				};
 			}
-#endif
 
 			float a[] = {ax, -az, ay};
-			if (packets == 2 && powerstate == 1 && MAG_ENABLED) // why specifically 2 packets? i forgot
+			if (mag_available && mag_enabled && packets == 2 && powerstate == 1) // why specifically 2 packets? i forgot
 			{ // Fuse accelerometer only
 				(*sensor_fusion->update_accel)(a, accel_actual_time);
 			}
@@ -381,20 +457,22 @@ void main_imu_thread(void)
 
 					// Process fusion
 					(*sensor_fusion->update)(g, a, m, gyro_actual_time);
-#if MAG_ENABLED
-					// Get fusion's corrected gyro data (or get gyro bias from fusion) and use it here
-					float g_off[3] = {};
-					(*sensor_fusion->get_gyro_bias)(g_off);
-					for (int i = 0; i < 3; i++)
-					{
-						g_off[i] = g[i] - g_off[i];
-					}
 
-					// Get the highest gyro speed
-					float gyro_speed_square = g_off[0] * g_off[0] + g_off[1] * g_off[1] + g_off[2] * g_off[2];
-					if (gyro_speed_square > max_gyro_speed_square)
-						max_gyro_speed_square = gyro_speed_square;
-#endif
+					if (mag_available && mag_enabled)
+					{
+						// Get fusion's corrected gyro data (or get gyro bias from fusion) and use it here
+						float g_off[3] = {};
+						(*sensor_fusion->get_gyro_bias)(g_off);
+						for (int i = 0; i < 3; i++)
+						{
+							g_off[i] = g[i] - g_off[i];
+						}
+
+						// Get the highest gyro speed
+						float gyro_speed_square = g_off[0] * g_off[0] + g_off[1] * g_off[1] + g_off[2] * g_off[2];
+						if (gyro_speed_square > max_gyro_speed_square)
+							max_gyro_speed_square = gyro_speed_square;
+					}
 				}
 
 				// Update fusion gyro sanity?
@@ -428,9 +506,8 @@ void main_imu_thread(void)
 				powerstate = 0;
 			}
 
-#if MAG_ENABLED
 			// Update magnetometer mode
-			if (powerstate == 0)
+			if (mag_available && mag_enabled && powerstate == 0)
 			{
 				float gyro_speed = sqrtf(max_gyro_speed_square);
 				float mag_target_time = 1.0 / (4 * gyro_speed); // target mag ODR for ~0.25 deg error
@@ -450,7 +527,6 @@ void main_imu_thread(void)
 					mag_use_oneshot = false;
 				}
 			}
-#endif
 
 			// Send packet with new orientation
 			if (!(quat_epsilon(q, last_q)))
@@ -461,11 +537,9 @@ void main_imu_thread(void)
 				connection_write_packet_0(q_offset, lin_a);
 			}
 
-#if MAG_ENABLED
 			// Save magCal while idling
-			if (magCal == 0b111111 && last_powerstate == 1 && powerstate == 1) // TODO: i guess this is fine
+			if (mag_available && mag_enabled && magCal == 0b111111 && last_powerstate == 1 && powerstate == 1) // TODO: i guess this is fine
 				sensor_calibrate_mag();
-#endif
 		}
 		main_running = false;
 		k_sleep(K_FOREVER);
@@ -492,6 +566,7 @@ void main_imu_wakeup(void)
 	k_wakeup(main_imu_thread_id);
 }
 
+// TODO: move to a calibration file
 void sensor_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
 {
 	float rawData[3];
