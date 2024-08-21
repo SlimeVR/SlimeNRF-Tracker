@@ -301,7 +301,6 @@ int main_imu_init(void)
 // 0-1ms delta to setup mmc
 	}
 	LOG_INF("Initialized main IMUs");
-	main_ok = true;
 
 	sys_read(); // In case calibrations haven't loaded yet
 
@@ -339,6 +338,8 @@ void main_imu_thread(void)
 	main_running = true;
 	int err = main_imu_init(); // Initialize IMUs and Fusion
 	// TODO: handle imu init error
+	if (err == 0)
+		main_ok = true;
 	while (1)
 	{
 		if (main_ok)
