@@ -204,8 +204,6 @@ float icm_temp_read(struct i2c_dt_spec dev_i2c);
 
 void icm_setup_WOM(struct i2c_dt_spec dev_i2c);
 
-uint8_t icm_getChipID(struct i2c_dt_spec dev_i2c);
-
 extern const sensor_imu_t sensor_imu_icm42688;
 
 #endif

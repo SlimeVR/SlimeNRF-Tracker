@@ -350,13 +350,6 @@ void icm_setup_WOM(struct i2c_dt_spec dev_i2c)
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_SMD_CONFIG, 0x01); // enable WOM feature
 }
 
-uint8_t icm_getChipID(struct i2c_dt_spec dev_i2c)
-{
-	uint8_t temp;
-	i2c_reg_read_byte_dt(&dev_i2c, ICM42688_WHO_AM_I, &temp);
-	return temp;
-}
-
 const sensor_imu_t sensor_imu_icm42688 = {
 	*icm_init,
 	*icm_shutdown,

@@ -127,13 +127,6 @@ void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3]) { // TODO: does it mat
 	m[2] = ((float)rawMag[2] - MMC5983MA_offset) * MMC5983MA_mRes;
 }
 
-uint8_t mmc_getChipID(struct i2c_dt_spec dev_i2c)
-{
-	uint8_t c;
-	i2c_reg_read_byte_dt(&dev_i2c, MMC5983MA_PRODUCT_ID, &c);
-	return c;
-}
-
 // TODO: see USING SET AND RESET TO REMOVE BRIDGE OFFSET in datasheet
 // the specific sensor code could read the temperature and decide to perform set/reset as needed, then store the offset
 // also should always run on init
