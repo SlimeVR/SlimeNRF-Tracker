@@ -152,16 +152,22 @@ void sensor_retained_write(void) // TODO: move to sys?
 
 void sensor_shutdown(void) // Communicate all imus to shut down
 {
-	sensor_init(); // try initialization if possible
-	(*sensor_imu->shutdown)(sensor_imu_dev);
+	int err = sensor_init(); // try initialization if possible
+	if (!err)
+		(*sensor_imu->shutdown)(sensor_imu_dev);
+	else
+		LOG_ERR("Failed to shutdown sensor");
 	if (mag_available)
 		(*sensor_mag->shutdown)(sensor_mag_dev);
 };
 
 void sensor_setup_WOM(void)
 {
-	sensor_init(); // try initialization if possible
-	(*sensor_imu->setup_WOM)(sensor_imu_dev);
+	int err = sensor_init(); // try initialization if possible
+	if (!err)
+		(*sensor_imu->setup_WOM)(sensor_imu_dev);
+	else
+		LOG_ERR("Failed to setup wake on motion");
 }
 
 void sensor_calibrate_imu(void)
