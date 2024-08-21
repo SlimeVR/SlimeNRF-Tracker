@@ -13,9 +13,11 @@
 
 #include "sensor.h"
 
-const struct i2c_dt_spec main_imu = I2C_DT_SPEC_GET(MAIN_IMU_NODE);
-const struct i2c_dt_spec main_mag = I2C_DT_SPEC_GET(MAIN_MAG_NODE);
+#define SENSOR_IMU_NODE DT_NODELABEL(imu)
+#define SENSOR_MAG_NODE DT_NODELABEL(mag)
 
+struct i2c_dt_spec sensor_imu_dev = I2C_DT_SPEC_GET(SENSOR_IMU_NODE);
+struct i2c_dt_spec sensor_mag_dev = I2C_DT_SPEC_GET(SENSOR_MAG_NODE);
 
 float lin_a[3] = {0};							// linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
@@ -169,14 +171,14 @@ void sensor_retained_write(void) // TODO: move to sys?
 void sensor_shutdown(void) // Communicate all imus to shut down
 {
 	sensor_init(); // try initialization if possible
-	(*sensor_imu->shutdown)(main_imu);
-	(*sensor_mag->shutdown)(main_mag);
+	(*sensor_imu->shutdown)(sensor_imu_dev);
+	(*sensor_mag->shutdown)(sensor_mag_dev);
 };
 
 void sensor_setup_WOM(void)
 {
 	sensor_init(); // try initialization if possible
-	(*sensor_imu->setup_WOM)(main_imu);
+	(*sensor_imu->setup_WOM)(sensor_imu_dev);
 }
 
 void sensor_calibrate_imu(void)
@@ -184,14 +186,14 @@ void sensor_calibrate_imu(void)
 	LOG_INF("Calibrating main accelerometer and gyroscope zero rate offset");
 	// TODO: Add LED flashies
 	LOG_INF("Rest the device on a stable surface");
-	if (!wait_for_motion(main_imu, false, 20)) // Wait for accelerometer to settle, timeout 10s
+	if (!wait_for_motion(sensor_imu_dev, false, 20)) // Wait for accelerometer to settle, timeout 10s
 		return; // Timeout, calibration failed
 
 	set_led(SYS_LED_PATTERN_ON); // scuffed led
 	k_msleep(500); // Delay before beginning acquisition
 
 	LOG_INF("Reading data");
-	sensor_offsetBias(main_imu, accelBias, gyroBias); // This takes about 3s
+	sensor_offsetBias(sensor_imu_dev, accelBias, gyroBias); // This takes about 3s
 	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 	LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
@@ -291,10 +293,10 @@ int main_imu_init(void)
 	LOG_INF("Found main IMUs");
 	// TODO: This may change!!
 	//i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
-	(*sensor_imu->shutdown)(main_imu);
+	(*sensor_imu->shutdown)(sensor_imu_dev);
 	// TODO: This may change!!
 	//i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
-	(*sensor_mag->shutdown)(main_mag);
+	(*sensor_mag->shutdown)(sensor_mag_dev);
 	//icm_reset(main_imu);												 // software reset ICM42688 to default registers
 	// TODO: Does int flag need to be read at all
 	//uint8_t temp;
@@ -303,13 +305,13 @@ int main_imu_init(void)
 	float clock_actual_rate;
 	set_sensor_clock(true, 32768, &clock_actual_rate); // enable the clock source for IMU if present
 
-	err = (*sensor_imu->init)(main_imu, clock_actual_rate, tickrate / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
+	err = (*sensor_imu->init)(sensor_imu_dev, clock_actual_rate, tickrate / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
 	if (err < 0)
 		return err;
 // 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 	if (mag_available && mag_enabled)
 	{
-		err = (*sensor_mag->init)(main_mag, tickrate / 1000.0, &mag_actual_time);								 // configure with ~200Hz ODR
+		err = (*sensor_mag->init)(sensor_mag_dev, tickrate / 1000.0, &mag_actual_time);								 // configure with ~200Hz ODR
 		if (err < 0)
 			return err;
 // 0-1ms delta to setup mmc
@@ -368,16 +370,16 @@ void main_imu_thread(void)
 			// At high speed, use oneshot mode to have synced magnetometer data
 			// Call before FIFO and get the data after
 			if (mag_available && mag_enabled && mag_use_oneshot)
-				(*sensor_mag->mag_oneshot)(main_mag);
+				(*sensor_mag->mag_oneshot)(sensor_mag_dev);
 
 			// Read gyroscope (FIFO)
 			uint8_t rawData[2080];
-			uint16_t packets = (*sensor_imu->fifo_read)(main_imu, rawData); // TODO: name this better?
+			uint16_t packets = (*sensor_imu->fifo_read)(sensor_imu_dev, rawData); // TODO: name this better?
 			LOG_DBG("IMU packet count: %u", packets);
 
 			// Read accelerometer
 			float raw_a[3];
-			(*sensor_imu->accel_read)(main_imu, raw_a);
+			(*sensor_imu->accel_read)(sensor_imu_dev, raw_a);
 			float ax = raw_a[0] - accelBias[0];
 			float ay = raw_a[1] - accelBias[1];
 			float az = raw_a[2] - accelBias[2];
@@ -387,7 +389,7 @@ void main_imu_thread(void)
 			if (mag_available && mag_enabled && powerstate == 0)
 			{
 				float m[3];
-				(*sensor_mag->mag_read)(main_mag, m);
+				(*sensor_mag->mag_read)(sensor_mag_dev, m);
 				magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count); // 400us
 				apply_BAinv(m, magBAinv);
 				mx = m[0];
@@ -425,7 +427,7 @@ void main_imu_thread(void)
 				case 1:
 					set_LP();
 					LOG_INF("Switching main IMUs to low power");
-					(*sensor_mag->update_odr)(main_mag, INFINITY, &mag_actual_time); // standby/oneshot
+					(*sensor_mag->update_odr)(sensor_mag_dev, INFINITY, &mag_actual_time); // standby/oneshot
 					break;
 				};
 			}
@@ -513,14 +515,14 @@ void main_imu_thread(void)
 				if (mag_target_time > 0.005) // cap at 0.005 (200hz), above this the sensor will use oneshot mode instead
 				{
 					mag_target_time = 0.005;
-					int err = (*sensor_mag->update_odr)(main_mag, INFINITY, &mag_actual_time);
+					int err = (*sensor_mag->update_odr)(sensor_mag_dev, INFINITY, &mag_actual_time);
 					if (!err)
 						LOG_DBG("Switching magnetometer to oneshot");
 					mag_use_oneshot = true;
 				}
 				if (mag_target_time <= 0.005 || mag_actual_time != INFINITY) // under 200Hz or magnetometer did not have a oneshot mode
 				{
-					int err = (*sensor_mag->update_odr)(main_mag, mag_target_time, &mag_actual_time);
+					int err = (*sensor_mag->update_odr)(sensor_mag_dev, mag_target_time, &mag_actual_time);
 					if (!err)
 						LOG_DBG("Switching magnetometer ODR to %.2fHz", 1.0 / mag_actual_time);
 					mag_use_oneshot = false;

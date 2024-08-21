@@ -52,6 +52,12 @@
 		};
 	};
 
+	pwmclock: pwmclock {
+		compatible = "pwm-clock";
+		#clock-cells = <1>;
+		pwms = <&pwm0 1 PWM_HZ(32768) PWM_POLARITY_NORMAL>;
+	};
+
 	battery-divider {
 		compatible = "voltage-divider";
 		status = "okay";
@@ -121,16 +127,16 @@
 	pinctrl-1 = <&i2c0_sleep>;
 	pinctrl-names = "default", "sleep";
 
-	icm_0: icm42688@68 {
+	imu: imu@0 { // any address out of range (00, 7f, etc. will search all addresses and stored address first if available, specify an address here to search first otherwise
 		compatible = "i2c-device";
-		label = "main-imu";
-		reg = <0x68>;
+		label = "imu";
+		reg = <0>;
 	};
 
-	mmc_0: mmc5983ma@30 {
+	mag: mag@0 {
 		compatible = "i2c-device";
-		label = "main-mag";
-		reg = <0x30>;
+		label = "mag";
+		reg = <0>;
 	};
 
 };
@@ -152,10 +158,6 @@ zephyr_udc0: &usbd {
 
 &cryptocell {
 	status = "disabled";
-};
-
-&temp {
-	status = "okay";
 };
 
 &nfct {

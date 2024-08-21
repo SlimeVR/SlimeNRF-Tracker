@@ -14,9 +14,6 @@ extern struct esb_payload tx_payload;
 
 #define LED0_NODE DT_NODELABEL(pwm_led0)
 
-#define MAIN_IMU_NODE DT_NODELABEL(icm_0)
-#define MAIN_MAG_NODE DT_NODELABEL(mmc_0)
-
 #define CLKOUT_NODE DT_NODELABEL(pwmclock)
 
 extern int tickrate;
