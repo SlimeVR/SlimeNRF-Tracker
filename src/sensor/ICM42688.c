@@ -232,7 +232,7 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	gyro_time *= icm_clock_scale; // scale clock
 
 	if (icm_last_accel_odr == AODR && icm_last_gyro_odr == GODR) // if both were already configured
-		return -1;
+		return 1;
 
 	// only if the power mode has changed
 	if ((icm_last_accel_odr == 0 ? 0 : 1) != (AODR == 0 ? 0 : 1) || (icm_last_gyro_odr == 0 ? 0 : 1) != (GODR == 0 ? 0 : 1))
