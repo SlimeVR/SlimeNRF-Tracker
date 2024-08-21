@@ -12,10 +12,6 @@ extern struct esb_payload tx_payload;
 
 #define ZEPHYR_USER_NODE DT_PATH(zephyr_user)
 
-#define LED0_NODE DT_NODELABEL(pwm_led0)
-
-#define CLKOUT_NODE DT_NODELABEL(pwmclock)
-
 extern int tickrate;
 
 extern uint8_t batt;
