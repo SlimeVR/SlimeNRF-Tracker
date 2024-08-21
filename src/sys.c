@@ -87,10 +87,14 @@ void power_check(void)
 	bool docked = gpio_pin_get_dt(&dock);
 	int batt_mV;
 	uint32_t batt_pptt = read_batt_mV(&batt_mV);
-	LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
-	if (batt_pptt == 0 && !docked)
+	bool battery_available = batt_mV > 500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
+	if (battery_available)
+		LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
+	else
+		LOG_INF("Battery not available (%dmV)", batt_mV);
+	if (battery_available && batt_pptt == 0 && !docked)
 		configure_system_off_chgstat();
-	else if (docked)
+	else if (docked) // TODO: on some boards there is actual power path, try to use the LED in this case
 		configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
 }
 

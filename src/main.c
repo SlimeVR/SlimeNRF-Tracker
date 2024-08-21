@@ -134,10 +134,13 @@ int main(void)
 		//charging = gpio_pin_get_dt(&chgstat); // TODO: Charging detect doesn't work (hardware issue)
 		bool docked = gpio_pin_get_dt(&dock);
 
+		// TODO: move battery stuff to sys
 		int batt_mV;
 		batt_pptt = read_batt_mV(&batt_mV);
 
-		if (batt_pptt == 0 && !docked)
+		bool battery_available = batt_mV > 500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
+
+		if (battery_available && batt_pptt == 0 && !docked)
 			configure_system_off_chgstat();
 		last_batt_pptt[last_batt_pptt_i] = batt_pptt;
 		last_batt_pptt_i++;
@@ -159,7 +162,7 @@ int main(void)
 
 		// format for packet send
 		batt = batt_pptt / 100;
-		if (batt < 1) // Clamp to 1% (because server sees 0% as "no battery")
+		if (battery_available && batt < 1) // Clamp to 1% (because server sees 0% as "no battery")
 			batt = 1;
 		batt_mV /= 10;
 		batt_mV -= 245;
