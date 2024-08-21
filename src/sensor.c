@@ -157,7 +157,8 @@ void sensor_shutdown(void) // Communicate all imus to shut down
 {
 	sensor_init(); // try initialization if possible
 	(*sensor_imu->shutdown)(sensor_imu_dev);
-	(*sensor_mag->shutdown)(sensor_mag_dev);
+	if (mag_available)
+		(*sensor_mag->shutdown)(sensor_mag_dev);
 };
 
 void sensor_setup_WOM(void)
@@ -281,7 +282,8 @@ int main_imu_init(void)
 	(*sensor_imu->shutdown)(sensor_imu_dev);
 	// TODO: This may change!!
 	//i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
-	(*sensor_mag->shutdown)(sensor_mag_dev);
+	if (mag_available)
+		(*sensor_mag->shutdown)(sensor_mag_dev);
 	//icm_reset(main_imu);												 // software reset ICM42688 to default registers
 	// TODO: Does int flag need to be read at all
 	//uint8_t temp;
