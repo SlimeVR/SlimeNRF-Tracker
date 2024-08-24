@@ -87,18 +87,19 @@ int main(void)
 	set_led(SYS_LED_PATTERN_OFF);
 
 // TODO: if reset counter is 0 but reset reason was 1 then perform imu scanning (pressed reset once)
-	if (reset_mode == 0) // Reset mode scan imus
+	if (reset_reason & 0x01 && reset_mode == 0) // Reset mode scan imus
 	{
 		LOG_INF("IMU scan requested");
+		// TODO: Set addr of imu and mag to 0x00 to scan all addresses
 	}
 // ?? delta
 
-	if (reset_mode == 1 || reset_mode == 2)
+	if (reset_mode == 1)
 	{
 		LOG_INF("IMU calibration requested");
 	}
 
-	if (reset_mode == 3) // Reset mode pairing reset
+	if (reset_mode == 2) // Reset mode pairing reset
 	{
 		LOG_INF("Pairing reset requested");
 		esb_reset_pair();
@@ -106,7 +107,7 @@ int main(void)
 	}
 
 #if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
-	if (reset_mode >= 4) // DFU_MAGIC_UF2_RESET, Reset mode DFU
+	if (reset_mode >= 3) // DFU_MAGIC_UF2_RESET, Reset mode DFU
 	{
 		LOG_INF("DFU requested");
 		NRF_POWER->GPREGRET = 0x57;
