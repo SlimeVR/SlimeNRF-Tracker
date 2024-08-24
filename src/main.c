@@ -873,7 +873,9 @@ void main_imu_thread(void) {
 			{
 				LOG_INF("Found main imus");
 				i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
+#if MAG_ENABLED
 				i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
+#endif
 				//icm_reset(main_imu);												 // software reset ICM42688 to default registers
 				uint8_t temp;
 				i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
@@ -973,13 +975,17 @@ void power_check(void) {
 	if (batt_pptt == 0 && !docked) {
 		// Communicate all imus to shut down
 		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+#if MAG_ENABLED
 		i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+#endif
 		gpio_pin_set_dt(&led, 0); // Turn off LED
 		configure_system_off_chgstat();
 	} else if (docked) {
 		// Communicate all imus to shut down
 		i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+#if MAG_ENABLED
 		i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+#endif
 		gpio_pin_set_dt(&led, 0); // Turn off LED
 		configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
 	}
@@ -1069,13 +1075,17 @@ int main(void)
 		if (!docked) { // TODO: should the tracker start again if docking state changes?
 			// Communicate all imus to shut down
 			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+#if MAG_ENABLED
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+#endif
 			gpio_pin_set_dt(&led, 0); // Turn off LED
 			configure_system_off_chgstat();
 		} else {
 			// Communicate all imus to shut down
 			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+#if MAG_ENABLED
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+#endif
 			gpio_pin_set_dt(&led, 0); // Turn off LED
 			configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
 		}
@@ -1271,7 +1281,9 @@ int main(void)
 			LOG_INF("Shutdown");
 			// Communicate all imus to shut down
 			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+#if MAG_ENABLED
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+#endif
 			// Turn off LED
 			gpio_pin_set_dt(&led, 0);
 			configure_system_off_chgstat();
@@ -1309,7 +1321,9 @@ int main(void)
 			LOG_INF("Shutdown");
 			// Communicate all imus to shut down
 			i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
+#if MAG_ENABLED
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+#endif
 			// Turn off LED
 			gpio_pin_set_dt(&led, 0);
 			configure_system_off_dock();
@@ -1321,7 +1335,9 @@ int main(void)
 			LOG_INF("Shutdown");
 			// Communicate all imus to shut down
 			icm_reset(main_imu);
+#if MAG_ENABLED
 			i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
+#endif
 			// Turn off LED
 			gpio_pin_set_dt(&led, 0);
 			configure_system_off_WOM(main_imu);
