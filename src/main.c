@@ -867,7 +867,11 @@ void main_imu_thread(void) {
 */
 			uint8_t ICM42688ID = icm_getChipID(main_imu);						 // Read CHIP_ID register for ICM42688
 				LOG_INF("ICM: %u", ICM42688ID);
+#if MAG_ENABLED
 			uint8_t MMC5983ID = mmc_getChipID(main_mag);						 // Read CHIP_ID register for MMC5983MA
+#else
+			uint8_t MMC5983ID;
+#endif
 				LOG_INF("MMC: %u", MMC5983ID);
 			if ((ICM42688ID == 0x47 || ICM42688ID == 0xDB) && (!MAG_ENABLED || MMC5983ID == 0x30)) // check if all I2C sensors have acknowledged
 			{
