@@ -36,7 +36,7 @@ int sensor_scan(struct i2c_dt_spec i2c_dev, int dev_addr_count, const uint8_t de
 			if (i2c_dev.addr >= SCAN_ADDR_START && i2c_dev.addr <= SCAN_ADDR_STOP && i2c_dev.addr != addr)
 				continue; // if an address was provided try to scan it first
 			addr = dev_addr[addr_index + j];
-            LOG_DBG("Scanning address: %02X", addr);
+			LOG_DBG("Scanning address: %02X", addr);
 			int id_cnt = id_count;
 			int id_ind = id_index;
 			int fnd_id = found_id;
@@ -44,9 +44,9 @@ int sensor_scan(struct i2c_dt_spec i2c_dev, int dev_addr_count, const uint8_t de
 			{
 				uint8_t reg = dev_reg[reg_index + k];
 				uint8_t id;
-                LOG_DBG("Scanning register: %02X", reg);
+				LOG_DBG("Scanning register: %02X", reg);
 				int err = i2c_reg_read_byte(dev, addr, reg, &id);
-                LOG_DBG("Read value: %02X", id);
+				LOG_DBG("Read value: %02X", id);
 				if (err)
 					break;
 				for (int l = 0; l < id_cnt; l++)

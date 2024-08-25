@@ -67,7 +67,7 @@ void vqf_get_lin_a(float *lin_a)
 {
 	float q[4] = {0};
 	vqf_get_quat(q);
-    
+
 	float vec_gravity[3] = {0};
 	vec_gravity[0] = 2.0f * (q[1] * q[3] - q[0] * q[2]);
 	vec_gravity[1] = 2.0f * (q[2] * q[3] + q[0] * q[1]);

@@ -45,7 +45,7 @@ void fusion_save(void *data)
 
 void fusion_update_accel(float *a, float time)
 {
-    FusionVector vec_a = {.array = {a[0], a[1], a[2]}};
+	FusionVector vec_a = {.array = {a[0], a[1], a[2]}};
 
 	ahrs.initialising = true;
 	ahrs.rampedGain = 10.0f;
@@ -58,12 +58,12 @@ void fusion_update_accel(float *a, float time)
 
 void fusion_update(float *g, float *a, float *m, float time)
 {
-    FusionVector vec_g = {.array = {g[0], g[1], g[2]}};
-    FusionVector vec_a = {.array = {a[0], a[1], a[2]}};
-    FusionVector vec_m = {.array = {m[0], m[1], m[2]}};
+	FusionVector vec_g = {.array = {g[0], g[1], g[2]}};
+	FusionVector vec_a = {.array = {a[0], a[1], a[2]}};
+	FusionVector vec_m = {.array = {m[0], m[1], m[2]}};
 
 	FusionVector g_off = FusionOffsetUpdate2(&offset, vec_g);
-    
+
 	if (offset.timer < offset.timeout) // Don't fuse gyro if not moving
 		FusionAhrsUpdate(&ahrs, g_off, vec_a, vec_m, time);
 	else
@@ -96,7 +96,7 @@ void fusion_update_gyro_sanity(float *g, float *m)
 		else if (gyro_sanity % 2 == 0)
 		{
 			LOG_WRN("Fusion magnetic recovery active");
-            memcpy(gyro_sanity_m.array, m, sizeof(gyro_sanity_m.array));
+			memcpy(gyro_sanity_m.array, m, sizeof(gyro_sanity_m.array));
 			gyro_sanity = 1;
 		}
 	}
