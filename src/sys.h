@@ -22,7 +22,8 @@ void configure_system_off_WOM(void);
 void configure_system_off_chgstat(void);
 void configure_system_off_dock(void);
 void power_check(void);
-void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
+// TODO: temporary move button to main
+//void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
 
 void set_led(enum sys_led_pattern led_pattern);
 void led_thread(void);

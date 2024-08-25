@@ -16,6 +16,13 @@ uint32_t* dbl_reset_mem = ((uint32_t*) DFU_DBL_RESET_MEM);
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
+{
+	sys_reboot(SYS_REBOOT_COLD); // treat like pin reset but without pin reset reason
+}
+#endif
+
 int main(void)
 {
 	int32_t reset_reason = NRF_POWER->RESETREAS;

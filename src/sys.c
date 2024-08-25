@@ -112,12 +112,7 @@ void power_check(void)
 		configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
 }
 
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
-void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
-{
-	sys_reboot(SYS_REBOOT_COLD); // treat like pin reset but without pin reset reason
-}
-#endif
+// TODO: temporary move button to main
 
 enum sys_led_pattern current_led_pattern;
 int led_pattern_state;
