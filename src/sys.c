@@ -28,13 +28,16 @@ K_THREAD_DEFINE(led_thread_id, 512, led_thread, NULL, NULL, NULL, 6, 0, 0);
 void configure_system_off_WOM()
 {
 	LOG_INF("System off requested (WOM)");
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, int0_gpios)
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure WOM interrupt
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
+#endif
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
 	sensor_retained_write();
@@ -42,6 +45,9 @@ void configure_system_off_WOM()
 	sensor_setup_WOM(); // enable WOM feature
 	LOG_INF("Powering off nRF");
 	sys_poweroff();
+#else
+	LOG_INF("WOM not available");
+#endif
 }
 
 void configure_system_off_chgstat(void)
@@ -57,8 +63,10 @@ void configure_system_off_chgstat(void)
 //	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_PULLUP);
 //	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_SENSE_LOW);
 	// Configure dock interrupt
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
+#endif
 	sensor_retained_write();
 	// Set system off
 	LOG_INF("Powering off nRF");
@@ -74,8 +82,10 @@ void configure_system_off_dock(void)
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure dock interrupt
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
+#endif
 	sensor_retained_write();
 	// Set system off
 	LOG_INF("Powering off nRF");
@@ -84,7 +94,11 @@ void configure_system_off_dock(void)
 
 void power_check(void)
 {
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	bool docked = gpio_pin_get_dt(&dock);
+#else
+	bool docked = false;
+#endif
 	int batt_mV;
 	uint32_t batt_pptt = read_batt_mV(&batt_mV);
 	bool battery_available = batt_mV > 500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
