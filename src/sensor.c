@@ -64,7 +64,7 @@ int sensor_init(void)
 
 	LOG_INF("Scanning bus for IMU");
 	int imu_id = sensor_scan_imu(sensor_imu_dev); // TODO: the dev addr should be stored to retained and reused to save time
-	if (imu_id >= sizeof(dev_imu_names) / sizeof(dev_imu_names[0]))
+	if (imu_id >= (int)(sizeof(dev_imu_names) / sizeof(dev_imu_names[0])))
 		LOG_WRN("Found unknown device");
 	else if (imu_id < 0)
 		LOG_ERR("No IMU detected");
@@ -72,7 +72,7 @@ int sensor_init(void)
 		LOG_INF("Found %s", dev_imu_names[imu_id]);
 	if (imu_id >= 0)
 	{
-		if (imu_id >= sizeof(sensor_imus) / sizeof(sensor_imus[0]) || sensor_imus[imu_id] == NULL)
+		if (imu_id >= (int)(sizeof(sensor_imus) / sizeof(sensor_imus[0])) || sensor_imus[imu_id] == NULL)
 		{
 			LOG_ERR("IMU not supported");
 			sensor_imu = NULL;
@@ -91,7 +91,7 @@ int sensor_init(void)
 
 	LOG_INF("Scanning bus for magnetometer");
 	int mag_id = sensor_scan_mag(sensor_mag_dev);
-	if (mag_id >= sizeof(dev_mag_names) / sizeof(dev_mag_names[0]))
+	if (mag_id >= (int)(sizeof(dev_mag_names) / sizeof(dev_mag_names[0])))
 		LOG_WRN("Found unknown device");
 	else if (mag_id < 0)
 		LOG_WRN("No magnetometer detected");
@@ -99,7 +99,7 @@ int sensor_init(void)
 		LOG_INF("Found %s", dev_mag_names[mag_id]);
 	if (mag_id >= 0) // if there is no magnetometer we do not care as much
 	{
-		if (mag_id >= sizeof(dev_mag_names) / sizeof(dev_mag_names[0]) || sensor_mags[mag_id] == NULL)
+		if (mag_id >= (int)(sizeof(dev_mag_names) / sizeof(dev_mag_names[0])) || sensor_mags[mag_id] == NULL)
 		{
 			LOG_ERR("Magnetometer not supported");
 			sensor_mag = NULL; 
