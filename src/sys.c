@@ -101,7 +101,7 @@ void power_check(void)
 #endif
 	int batt_mV;
 	uint32_t batt_pptt = read_batt_mV(&batt_mV);
-	bool battery_available = batt_mV > 500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
+	bool battery_available = batt_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
 	if (battery_available)
 		LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
 	else

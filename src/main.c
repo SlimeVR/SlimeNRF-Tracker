@@ -146,7 +146,7 @@ int main(void)
 		int batt_mV;
 		batt_pptt = read_batt_mV(&batt_mV);
 
-		bool battery_available = batt_mV > 500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
+		bool battery_available = batt_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
 
 		if (battery_available && batt_pptt == 0 && !docked)
 			configure_system_off_chgstat();
