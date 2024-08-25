@@ -229,6 +229,7 @@ void esb_pair(void)
 
 	if (paired_addr[0] == 0x00) // No dongle paired
 	{
+		LOG_INF("Pairing");
 		esb_set_addr_discovery();
 		esb_initialize();
 //	timer_init(); // TODO: shouldn't be here!!!
@@ -237,7 +238,7 @@ void esb_pair(void)
 		uint8_t check = addr & 255;
 		if (check == 0)
 			check = 8;
-		LOG_INF("Check code: %02X", paired_addr[0]);
+		LOG_INF("Check code: %02X", check);
 		tx_payload_pair.data[0] = check; // Use int from device address to make sure packet is for this device
 		for (int i = 0; i < 6; i++)
 			tx_payload_pair.data[i+2] = (addr >> (8 * i)) & 0xFF;
