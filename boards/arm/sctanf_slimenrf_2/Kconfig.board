@@ -3,5 +3,4 @@
 
 config BOARD_SCTANF_SLIMENRF_2
 	bool "sctanf slimenrf 2"
-	select SOC_DCDC_NRF52X
 	depends on SOC_NRF52832_CIAA
