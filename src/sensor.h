@@ -66,6 +66,7 @@ typedef struct sensor_mag {
 
 	void (*mag_oneshot)(struct i2c_dt_spec); // trigger oneshot if exists
 	void (*mag_read)(struct i2c_dt_spec, float[3]); // any unit
+	float (*temp_read)(struct i2c_dt_spec); // deg C
 } sensor_mag_t;
 
 #endif

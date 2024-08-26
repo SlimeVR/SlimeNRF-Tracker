@@ -529,9 +529,14 @@ void main_imu_thread(void)
 				connection_write_packet_0(q_offset, lin_a);
 			}
 
-			// Save magCal while idling
-			if (mag_available && mag_enabled && magCal == 0b111111 && last_powerstate == 1 && powerstate == 1) // TODO: i guess this is fine
-				sensor_calibrate_mag();
+			// Handle magnetometer calibration or bridge offset calibration
+			if (mag_available && mag_enabled && last_powerstate == 1 && powerstate == 1) // TODO: i guess this is fine
+			{
+				if (magCal == 0b111111) // Save magCal while idling
+					sensor_calibrate_mag();
+				else // only enough time to do one of the two
+					(*sensor_mag->temp_read)(sensor_mag_dev); // for some applicable magnetometer, calibrates bridge offsets
+			}
 		}
 		main_running = false;
 		k_sleep(K_FOREVER);

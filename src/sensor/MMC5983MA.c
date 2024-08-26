@@ -15,6 +15,9 @@
 #include "MMC5983MA.h"
 
 uint8_t mmc_last_odr = 0xff;
+float mmc_last_time = 0;
+uint8_t mmc_last_rawTemp;
+float mmc_bridge_offset[3] = {0};
 
 int mmc_init(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 {
@@ -42,6 +45,7 @@ int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 	uint8_t MODR;
 	uint8_t MBW;
 	uint8_t MSET = MSET_2000; // always use lowest SET/RESET interval
+	mmc_last_time = time;
 
 	if (time <= 0) // off interpreted as oneshot
 		ODR = 0;
@@ -119,17 +123,60 @@ void mmc_mag_oneshot(struct i2c_dt_spec dev_i2c)
 	i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x20 | 0x02);
 }
 
-void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3]) { // TODO: does it matter to read measurement register to see if oneshot completed
+void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3])
+{
+	uint8_t status;
+	while (status & 0x02) // wait for oneshot to complete
+		i2c_reg_read_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, &status);
 	uint32_t rawMag[3];
 	mmc_readData(dev_i2c, rawMag);
-	m[0] = ((float)rawMag[0] - MMC5983MA_offset) * MMC5983MA_mRes;
-	m[1] = ((float)rawMag[1] - MMC5983MA_offset) * MMC5983MA_mRes;
-	m[2] = ((float)rawMag[2] - MMC5983MA_offset) * MMC5983MA_mRes;
+	m[0] = ((float)rawMag[0] - MMC5983MA_offset) * MMC5983MA_mRes - mmc_bridge_offset[0];
+	m[1] = ((float)rawMag[1] - MMC5983MA_offset) * MMC5983MA_mRes - mmc_bridge_offset[1];
+	m[2] = ((float)rawMag[2] - MMC5983MA_offset) * MMC5983MA_mRes - mmc_bridge_offset[2];
 }
 
-// TODO: see USING SET AND RESET TO REMOVE BRIDGE OFFSET in datasheet
-// the specific sensor code could read the temperature and decide to perform set/reset as needed, then store the offset
-// also should always run on init
+// MMC must trigger the measurement, which will take significant time
+// instead, the temperature is read from the last measurement and then another measurement is immediately triggered
+float mmc_temp_read(struct i2c_dt_spec dev_i2c)
+{
+	uint8_t rawTemp;
+	i2c_reg_read_byte_dt(&dev_i2c, MMC5983MA_TOUT, &rawTemp);
+	// Temperature output, unsigned format. The range is -75~125°C, about 0.8°C/LSB, 00000000 stands for -75°C
+	float temp = rawTemp;
+	temp *= 0.8;
+	temp -= 75;
+
+	// USING SET AND RESET TO REMOVE BRIDGE OFFSET in datasheet
+	if (mmc_last_rawTemp != rawTemp && mmc_last_odr > 1.0 / 50) // calculate offset at low motion only
+	{ // TODO: does the temp register have hysteresis?
+		float mPos[3], mNeg[3];
+		float actual_time;
+
+		mmc_last_rawTemp = rawTemp;
+		for (int i = 0; i < 3; i++) // clear stored offset
+			mmc_bridge_offset[i] = 0;
+
+		mmc_update_odr(dev_i2c, INFINITY, &actual_time); // set oneshot mode
+
+		mmc_SET(dev_i2c);
+		mmc_mag_oneshot(dev_i2c);
+		mmc_mag_read(dev_i2c, mPos);
+
+		mmc_RESET(dev_i2c);
+		mmc_mag_oneshot(dev_i2c);
+		mmc_mag_read(dev_i2c, mNeg);
+
+		for (int i = 0; i < 3; i++) // store bridge offset for future readings
+			mmc_bridge_offset[i] = (mPos[i] + mNeg[i]) / 2; // ((+H + Offset) + (-H + Offset)) / 2
+
+		mmc_SET(dev_i2c);
+		mmc_update_odr(dev_i2c, mmc_last_time, &actual_time); // reset odr
+	}
+
+	// enable auto set/reset (bit 5 == 1) and trigger measurement
+	i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x20 | 0x01);
+	return temp;
+}
 
 void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t * destination)
 {
@@ -159,5 +206,6 @@ const sensor_mag_t sensor_mag_mmc5983ma = {
 	*mmc_update_odr,
 
 	*mmc_mag_oneshot,
-	*mmc_mag_read
+	*mmc_mag_read,
+	*mmc_temp_read
 };
