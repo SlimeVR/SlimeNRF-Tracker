@@ -251,23 +251,20 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	return 0;
 }
 
-// make i2c stuff external? (portability)
-// make busy wait and msleep external? (portability)
-
 uint16_t icm_fifo_read(struct i2c_dt_spec dev_i2c, uint8_t *data)
 {
 	uint8_t rawCount[2];
 	i2c_burst_read_dt(&dev_i2c, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 	uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
-	count += 32; // Add a few read buffer packets (4 ms)
-	uint16_t packets = count / 8;								 // Packet size 8 bytes
-	uint16_t stco = 0;
+	count += 32; // Add a few read buffer packets, since the FIFO may contain more data than when we begin reading (allowing 4ms of transaction time for 1000hz ODR)
+	uint16_t packets = count / 8; // FIFO packet size is 8 bytes for Packet 2
+	uint16_t offset = 0;
 	uint8_t addr = ICM42688_FIFO_DATA;
 	i2c_write_dt(&dev_i2c, &addr, 1); // Start read buffer
 	while (count > 0)
 	{
-		i2c_read_dt(&dev_i2c, &data[stco], count > 248 ? 248 : count); // Read less than 255 at a time (for nRF52832)
-		stco += 248;
+		i2c_read_dt(&dev_i2c, &data[offset], count > 248 ? 248 : count); // Read less than 255 at a time (for nRF52832)
+		offset += 248;
 		count = count > 248 ? count - 248 : 0;
 	}
 	return packets;
@@ -298,41 +295,41 @@ void icm_accel_read(struct i2c_dt_spec dev_i2c, float a[3])
 {
 	uint8_t rawAccel[6];
 	i2c_burst_read_dt(&dev_i2c, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6);
-	float raw0 = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
-	float raw1 = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
-	float raw2 = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
-	a[0] = raw0 * _aRes;
-	a[1] = raw1 * _aRes;
-	a[2] = raw2 * _aRes;
+	float accel0 = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
+	float accel1 = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
+	float accel2 = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
+	a[0] = accel0 * _aRes;
+	a[1] = accel1 * _aRes;
+	a[2] = accel2 * _aRes;
 }
 
 void icm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3])
 {
 	uint8_t rawGyro[6];
 	i2c_burst_read_dt(&dev_i2c, ICM42688_GYRO_DATA_X1, &rawGyro[0], 6);
-	float raw0 = (int16_t)((((int16_t)rawGyro[0]) << 8) | rawGyro[1]);
-	float raw1 = (int16_t)((((int16_t)rawGyro[2]) << 8) | rawGyro[3]);
-	float raw2 = (int16_t)((((int16_t)rawGyro[4]) << 8) | rawGyro[5]);
-	g[0] = raw0 * _gRes;
-	g[1] = raw1 * _gRes;
-	g[2] = raw2 * _gRes;
+	float gyro0 = (int16_t)((((int16_t)rawGyro[0]) << 8) | rawGyro[1]);
+	float gyro1 = (int16_t)((((int16_t)rawGyro[2]) << 8) | rawGyro[3]);
+	float gyro2 = (int16_t)((((int16_t)rawGyro[4]) << 8) | rawGyro[5]);
+	g[0] = gyro0 * _gRes;
+	g[1] = gyro1 * _gRes;
+	g[2] = gyro2 * _gRes;
 }
 
 float icm_temp_read(struct i2c_dt_spec dev_i2c)
 {
-	uint8_t rawCount[2];
-	i2c_burst_read_dt(&dev_i2c, ICM42688_TEMP_DATA0, &rawCount[0], 2);
+	uint8_t rawTemp[2];
+	i2c_burst_read_dt(&dev_i2c, ICM42688_TEMP_DATA0, &rawTemp[0], 2);
 	// Temperature in Degrees Centigrade = (TEMP_DATA / 132.48) + 25
-	float raw = (int16_t)((((int16_t)rawCount[0]) << 8) | rawCount[1]);
-	raw /= 132.48;
-	raw += 25;
-	return raw;
+	float temp = (int16_t)((((int16_t)rawTemp[0]) << 8) | rawTemp[1]);
+	temp /= 132.48;
+	temp += 25;
+	return temp;
 }
 
 void icm_setup_WOM(struct i2c_dt_spec dev_i2c)
 {
-	uint8_t temp;
-	i2c_reg_read_byte_dt(&dev_i2c, ICM42688_INT_STATUS, &temp); // clear reset done int flag
+	uint8_t interrupts;
+	i2c_reg_read_byte_dt(&dev_i2c, ICM42688_INT_STATUS, &interrupts); // clear reset done int flag
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INT_SOURCE0, 0x00); // disable default interrupt (RESET_DONE)
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_ACCEL_CONFIG0, AFS_8G << 5 | AODR_200Hz); // set accel ODR and FS
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_PWR_MGMT0, aMode_LP); // set accel and gyro modes
