@@ -12,6 +12,7 @@ vqf_coeffs_t coeffs;
 void vqf_init(float time)
 {
 	// TODO: store vqf state to retained on sensor write
+	init_params(&params);
 	initVqf(&params, &state, &coeffs, time, 0, 0);
 }
 
