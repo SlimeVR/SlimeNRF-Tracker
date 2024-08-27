@@ -137,6 +137,18 @@
 #define OP_MODE_G_SLEEP 0x04
 #define OP_MODE_G_LP    0x05 // Low Power
 
+#define FS_G_125DPS  0x00
+#define FS_G_250DPS  0x01
+#define FS_G_500DPS  0x02
+#define FS_G_1000DPS 0x03
+#define FS_G_2000DPS 0x04
+#define FS_G_4000DPS 0x0C
+
+#define FS_XL_2G  0x00
+#define FS_XL_4G  0x01
+#define FS_XL_8G  0x02
+#define FS_XL_16G 0x03
+
 int lsm_init(struct i2c_dt_spec dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
 void lsm_shutdown(struct i2c_dt_spec dev_i2c);
 

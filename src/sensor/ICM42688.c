@@ -14,27 +14,27 @@
 
 #include "ICM42688.h"
 
-static float _aRes = 16.0f/32768.0f; // Always 16G
-static float _gRes = 2000.0f/32768.0f; // Always 2000dps
-uint8_t icm_last_accel_odr = 0xff;
-uint8_t icm_last_gyro_odr = 0xff;
-const float icm_clock_reference = 32000;
-float icm_clock_scale = 1; // ODR is scaled by clock_rate/clock_reference
+static float accel_sensitivity = 16.0f / 32768.0f; // Always 16G
+static float gyro_sensitivity = 2000.0f / 32768.0f; // Always 2000dps
+static uint8_t last_accel_odr = 0xff;
+static uint8_t last_gyro_odr = 0xff;
+static const float clock_reference = 32000;
+static float clock_scale = 1; // ODR is scaled by clock_rate/clock_reference
 
 int icm_init(struct i2c_dt_spec dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
 {
 //	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INT_SOURCE0, 0x00); // disable default interrupt (RESET_DONE)
 	if (clock_rate > 0)
 	{
-		icm_clock_scale = clock_rate / icm_clock_reference;
+		clock_scale = clock_rate / clock_reference;
 		i2c_reg_write_byte_dt(&dev_i2c, ICM42688_REG_BANK_SEL, 0x01); // select register bank 1
 		i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INTF_CONFIG5, 0x04); // use CLKIN (set PIN9_FUNCTION to CLKIN)
 		i2c_reg_write_byte_dt(&dev_i2c, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
 		i2c_reg_update_byte_dt(&dev_i2c, ICM42688_INTF_CONFIG1, 0x04, 0x04); // use CLKIN (set RTC_MODE to require RTC clock input)
 //		i2c_reg_write_byte_dt(&dev_i2c, ICM42688_INTF_CONFIG1, 0x91 | 0x04); // use CLKIN (set RTC_MODE to require RTC clock input)
 	}
-	icm_last_accel_odr = 0xff; // reset last odr
-	icm_last_gyro_odr = 0xff; // reset last odr
+	last_accel_odr = 0xff; // reset last odr
+	last_gyro_odr = 0xff; // reset last odr
 	int err = icm_update_odr(dev_i2c, accel_time, gyro_time, accel_actual_time, gyro_actual_time);
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_ACCEL_CONFIG0, 0x44); // set gyro and accel bandwidth to ODR/10
 //	k_msleep(50); // 10ms Accel, 30ms Gyro startup
@@ -50,8 +50,8 @@ int icm_init(struct i2c_dt_spec dev_i2c, float clock_rate, float accel_time, flo
 
 void icm_shutdown(struct i2c_dt_spec dev_i2c)
 {
-	icm_last_accel_odr = 0xff; // reset last odr
-	icm_last_gyro_odr = 0xff; // reset last odr
+	last_accel_odr = 0xff; // reset last odr
+	last_gyro_odr = 0xff; // reset last odr
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_DEVICE_CONFIG, 0x01); // Don't need to wait for ICM to finish reset
 }
 
@@ -75,7 +75,7 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	{
 		aMode = aMode_LN;
 		ODR = 1 / accel_time;
-		ODR /= icm_clock_scale; // scale clock
+		ODR /= clock_scale; // scale clock
 	}
 
 	if (aMode != aMode_LN)
@@ -143,7 +143,7 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 		AODR = AODR_12_5Hz;
 		accel_time = 1.0 / 12.5;
 	}
-	accel_time *= icm_clock_scale; // scale clock
+	accel_time *= clock_scale; // scale clock
 
 	// Calculate gyro
 	if (gyro_time <= 0) // off
@@ -160,7 +160,7 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	{
 		gMode = gMode_LN;
 		ODR = 1 / gyro_time;
-		ODR /= icm_clock_scale; // scale clock
+		ODR /= clock_scale; // scale clock
 	}
 
 	if (gMode != gMode_LN)
@@ -228,19 +228,19 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 		GODR = GODR_12_5Hz;
 		gyro_time = 1.0 / 12.5;
 	}
-	gyro_time *= icm_clock_scale; // scale clock
+	gyro_time *= clock_scale; // scale clock
 
-	if (icm_last_accel_odr == AODR && icm_last_gyro_odr == GODR) // if both were already configured
+	if (last_accel_odr == AODR && last_gyro_odr == GODR) // if both were already configured
 		return 1;
 
 	// only if the power mode has changed
-	if ((icm_last_accel_odr == 0 ? 0 : 1) != (AODR == 0 ? 0 : 1) || (icm_last_gyro_odr == 0 ? 0 : 1) != (GODR == 0 ? 0 : 1))
+	if ((last_accel_odr == 0 ? 0 : 1) != (AODR == 0 ? 0 : 1) || (last_gyro_odr == 0 ? 0 : 1) != (GODR == 0 ? 0 : 1))
 	{ // TODO: can't tell difference between gyro off and gyro standby
 		i2c_reg_write_byte_dt(&dev_i2c, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
 		k_busy_wait(250); // wait >200us (datasheet 14.36)
 	}
-	icm_last_accel_odr = AODR;
-	icm_last_gyro_odr = GODR;
+	last_accel_odr = AODR;
+	last_gyro_odr = GODR;
 
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_ACCEL_CONFIG0, Ascale << 5 | AODR); // set accel ODR and FS
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_GYRO_CONFIG0, Gscale << 5 | GODR); // set gyro ODR and FS
@@ -279,7 +279,7 @@ int icm_fifo_process(uint16_t index, uint8_t *data, float g[3])
 	float raw[3];
 	for (int i = 0; i < 3; i++) { // gx, gy, gz
 		raw[i] = (int16_t)((((int16_t)data[index + (i * 2) + 1]) << 8) | data[index + (i * 2) + 2]);
-		raw[i] *= _gRes;
+		raw[i] *= gyro_sensitivity;
 	}
 	// data[index + 7] is temperature
 	// but it is lower precision
@@ -294,24 +294,24 @@ void icm_accel_read(struct i2c_dt_spec dev_i2c, float a[3])
 {
 	uint8_t rawAccel[6];
 	i2c_burst_read_dt(&dev_i2c, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6);
-	float accel0 = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
-	float accel1 = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
-	float accel2 = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
-	a[0] = accel0 * _aRes;
-	a[1] = accel1 * _aRes;
-	a[2] = accel2 * _aRes;
+	float accel_x = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
+	float accel_y = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
+	float accel_z = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
+	a[0] = accel_x * accel_sensitivity;
+	a[1] = accel_y * accel_sensitivity;
+	a[2] = accel_z * accel_sensitivity;
 }
 
 void icm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3])
 {
 	uint8_t rawGyro[6];
 	i2c_burst_read_dt(&dev_i2c, ICM42688_GYRO_DATA_X1, &rawGyro[0], 6);
-	float gyro0 = (int16_t)((((int16_t)rawGyro[0]) << 8) | rawGyro[1]);
-	float gyro1 = (int16_t)((((int16_t)rawGyro[2]) << 8) | rawGyro[3]);
-	float gyro2 = (int16_t)((((int16_t)rawGyro[4]) << 8) | rawGyro[5]);
-	g[0] = gyro0 * _gRes;
-	g[1] = gyro1 * _gRes;
-	g[2] = gyro2 * _gRes;
+	float gyro_x = (int16_t)((((int16_t)rawGyro[0]) << 8) | rawGyro[1]);
+	float gyro_y = (int16_t)((((int16_t)rawGyro[2]) << 8) | rawGyro[3]);
+	float gyro_z = (int16_t)((((int16_t)rawGyro[4]) << 8) | rawGyro[5]);
+	g[0] = gyro_x * gyro_sensitivity;
+	g[1] = gyro_y * gyro_sensitivity;
+	g[2] = gyro_z * gyro_sensitivity;
 }
 
 float icm_temp_read(struct i2c_dt_spec dev_i2c)
