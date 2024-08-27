@@ -564,6 +564,7 @@ void main_imu_wakeup(void)
 }
 
 // TODO: move to a calibration file
+// TODO: setup 6 sided calibration (bias and scale, and maybe gyro ZRO?), setup temp calibration (particulary for gyro ZRO)
 void sensor_offsetBias(struct i2c_dt_spec dev_i2c, float * dest1, float * dest2)
 {
 	float rawData[3];
