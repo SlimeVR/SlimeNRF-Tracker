@@ -235,7 +235,7 @@ int icm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 
 	// only if the power mode has changed
 	if ((icm_last_accel_odr == 0 ? 0 : 1) != (AODR == 0 ? 0 : 1) || (icm_last_gyro_odr == 0 ? 0 : 1) != (GODR == 0 ? 0 : 1))
-	{
+	{ // TODO: can't tell difference between gyro off and gyro standby
 		i2c_reg_write_byte_dt(&dev_i2c, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
 		k_busy_wait(250); // wait >200us (datasheet 14.36)
 	}
@@ -279,7 +279,6 @@ int icm_fifo_process(uint16_t index, uint8_t *data, float g[3])
 	float raw[3];
 	for (int i = 0; i < 3; i++) { // gx, gy, gz
 		raw[i] = (int16_t)((((int16_t)data[index + (i * 2) + 1]) << 8) | data[index + (i * 2) + 2]);
-//		raw[i] *= 2000.0f/32768.0f;
 		raw[i] *= _gRes;
 	}
 	// data[index + 7] is temperature
