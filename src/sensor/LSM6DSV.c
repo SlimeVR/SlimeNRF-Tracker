@@ -4,8 +4,8 @@
 
 #include "LSM6DSV.h"
 
-float _aRes = 16.0f/32768.0f; // Always 16G (FS = ±16 g: 0.488 mg/LSB)
-float _gRes = 0.070f; // Always 2000dps (FS = ±2000 dps: 70 mdps/LSB)
+static float _aRes = 16.0f/32768.0f; // Always 16G (FS = ±16 g: 0.488 mg/LSB)
+static float _gRes = 0.070f; // Always 2000dps (FS = ±2000 dps: 70 mdps/LSB)
 uint8_t dsv_last_accel_mode = 0xff;
 uint8_t dsv_last_gyro_mode = 0xff;
 uint8_t dsv_last_accel_odr = 0xff;
@@ -41,6 +41,7 @@ int lsm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	// Calculate accel
 	if (accel_time <= 0 || accel_time == INFINITY) // off, standby interpreted as off
 	{
+		OP_MODE_XL = OP_MODE_XL_HP;
 		ODR_XL = ODR_OFF;
 		ODR = 0;
 	}
@@ -118,18 +119,20 @@ int lsm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	// Calculate gyro
 	if (gyro_time <= 0) // off
 	{
+		OP_MODE_G = OP_MODE_G_HP;
 		ODR_G = ODR_OFF;
 		ODR = 0;
 	}
 	else if (gyro_time == INFINITY) // sleep
 	{
-		ODR_G = dsv_last_gyro_odr; // using last ODR
 		OP_MODE_G = OP_MODE_G_SLEEP;
+		ODR_G = dsv_last_gyro_odr; // using last ODR
 		ODR = 0;
 	}
 	else
 	{
 		OP_MODE_G = OP_MODE_G_HP;
+		ODR_G = 0; // the compiler complains unless I do this
 		ODR = 1 / gyro_time;
 	}
 

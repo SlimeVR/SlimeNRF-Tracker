@@ -14,8 +14,8 @@
 
 #include "ICM42688.h"
 
-float _aRes = 16.0f/32768.0f; // Always 16G
-float _gRes = 2000.0f/32768.0f; // Always 2000dps
+static float _aRes = 16.0f/32768.0f; // Always 16G
+static float _gRes = 2000.0f/32768.0f; // Always 2000dps
 uint8_t icm_last_accel_odr = 0xff;
 uint8_t icm_last_gyro_odr = 0xff;
 const float icm_clock_reference = 32000;
