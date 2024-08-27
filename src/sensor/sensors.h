@@ -4,6 +4,7 @@
 #include <zephyr/kernel.h>
 
 #include "ICM42688.h"
+#include "LSM6DSV.h"
 
 #include "MMC5983MA.h"
 
@@ -81,7 +82,7 @@ const sensor_imu_t *sensor_imus[] = {
 	&sensor_imu_icm42688,
 	NULL,
 	NULL,
-	NULL
+	&sensor_imu_lsm6dsv
 };
 const int i2c_dev_imu_addr_count = 2;
 const uint8_t i2c_dev_imu_addr[] = {
