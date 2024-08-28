@@ -4,8 +4,9 @@
 
 #include "LSM6DSV.h"
 
-static float accel_sensitivity = 16.0f / 32768.0f; // Always 16G (FS = ±16 g: 0.488 mg/LSB)
-static float gyro_sensitivity = 0.070f; // Always 2000dps (FS = ±2000 dps: 70 mdps/LSB)
+static const float accel_sensitivity = 16.0f / 32768.0f; // Always 16G (FS = ±16 g: 0.488 mg/LSB)
+static const float gyro_sensitivity = 0.070f; // Always 2000dps (FS = ±2000 dps: 70 mdps/LSB)
+
 static uint8_t last_accel_mode = 0xff;
 static uint8_t last_gyro_mode = 0xff;
 static uint8_t last_accel_odr = 0xff;

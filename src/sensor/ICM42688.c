@@ -14,8 +14,9 @@
 
 #include "ICM42688.h"
 
-static float accel_sensitivity = 16.0f / 32768.0f; // Always 16G
-static float gyro_sensitivity = 2000.0f / 32768.0f; // Always 2000dps
+static const float accel_sensitivity = 16.0f / 32768.0f; // Always 16G
+static const float gyro_sensitivity = 2000.0f / 32768.0f; // Always 2000dps
+
 static uint8_t last_accel_odr = 0xff;
 static uint8_t last_gyro_odr = 0xff;
 static const float clock_reference = 32000;
