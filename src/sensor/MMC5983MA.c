@@ -14,10 +14,13 @@
 
 #include "MMC5983MA.h"
 
-uint8_t mmc_last_odr = 0xff;
-float mmc_last_time = 0;
-uint8_t mmc_last_rawTemp;
-float mmc_bridge_offset[3] = {0};
+static const float sensitivity = (1.0f / 16384.0f); // mag sensitivity if using 18 bit data
+static const float offset = 131072.0f; // mag range unsigned to signed
+
+static uint8_t last_odr = 0xff;
+static float last_time = 0;
+static uint8_t last_rawTemp;
+static float bridge_offset[3] = {0};
 
 int mmc_init(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 {
@@ -27,7 +30,7 @@ int mmc_init(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 	// enable auto set/reset (bit 5 == 1)
 	i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, 0x20);
 
-	mmc_last_odr = 0xff; // reset last odr
+	last_odr = 0xff; // reset last odr
 	int err = mmc_update_odr(dev_i2c, time, actual_time);
 	return (err < 0 ? 0 : err);
 }
@@ -35,7 +38,7 @@ int mmc_init(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 void mmc_shutdown(struct i2c_dt_spec dev_i2c)
 {
 	// reset device
-	mmc_last_odr = 0xff; // reset last odr
+	last_odr = 0xff; // reset last odr
 	i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_1, 0x80); // Don't need to wait for MMC to finish reset
 }
 
@@ -45,7 +48,7 @@ int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 	uint8_t MODR;
 	uint8_t MBW;
 	uint8_t MSET = MSET_2000; // always use lowest SET/RESET interval
-	mmc_last_time = time;
+	last_time = time;
 
 	if (time <= 0) // off interpreted as oneshot
 		ODR = 0;
@@ -101,10 +104,10 @@ int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 		time = INFINITY;
 	}
 
-	if (mmc_last_odr == MODR)
+	if (last_odr == MODR)
 		return -1;
 	else
-		mmc_last_odr = MODR;
+		last_odr = MODR;
 
 	// set magnetometer bandwidth
 	i2c_reg_write_byte_dt(&dev_i2c, MMC5983MA_CONTROL_1, MBW);
@@ -130,9 +133,9 @@ void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3])
 		i2c_reg_read_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, &status);
 	uint32_t rawMag[3];
 	mmc_readData(dev_i2c, rawMag);
-	m[0] = ((float)rawMag[0] - MMC5983MA_offset) * MMC5983MA_mRes - mmc_bridge_offset[0];
-	m[1] = ((float)rawMag[1] - MMC5983MA_offset) * MMC5983MA_mRes - mmc_bridge_offset[1];
-	m[2] = ((float)rawMag[2] - MMC5983MA_offset) * MMC5983MA_mRes - mmc_bridge_offset[2];
+	m[0] = ((float)rawMag[0] - offset) * sensitivity - bridge_offset[0];
+	m[1] = ((float)rawMag[1] - offset) * sensitivity - bridge_offset[1];
+	m[2] = ((float)rawMag[2] - offset) * sensitivity - bridge_offset[2];
 }
 
 // MMC must trigger the measurement, which will take significant time
@@ -147,14 +150,14 @@ float mmc_temp_read(struct i2c_dt_spec dev_i2c)
 	temp -= 75;
 
 	// USING SET AND RESET TO REMOVE BRIDGE OFFSET in datasheet
-	if (mmc_last_rawTemp != rawTemp && mmc_last_odr > 1.0 / 50) // calculate offset at low motion only
+	if (last_rawTemp != rawTemp && last_odr > 1.0 / 50) // calculate offset at low motion only
 	{ // TODO: does the temp register have hysteresis?
 		float mPos[3], mNeg[3];
 		float actual_time;
 
-		mmc_last_rawTemp = rawTemp;
+		last_rawTemp = rawTemp;
 		for (int i = 0; i < 3; i++) // clear stored offset
-			mmc_bridge_offset[i] = 0;
+			bridge_offset[i] = 0;
 
 		mmc_update_odr(dev_i2c, INFINITY, &actual_time); // set oneshot mode
 
@@ -167,10 +170,10 @@ float mmc_temp_read(struct i2c_dt_spec dev_i2c)
 		mmc_mag_read(dev_i2c, mNeg);
 
 		for (int i = 0; i < 3; i++) // store bridge offset for future readings
-			mmc_bridge_offset[i] = (mPos[i] + mNeg[i]) / 2; // ((+H + Offset) + (-H + Offset)) / 2
+			bridge_offset[i] = (mPos[i] + mNeg[i]) / 2; // ((+H + Offset) + (-H + Offset)) / 2
 
 		mmc_SET(dev_i2c);
-		mmc_update_odr(dev_i2c, mmc_last_time, &actual_time); // reset odr
+		mmc_update_odr(dev_i2c, last_time, &actual_time); // reset odr
 	}
 
 	// enable auto set/reset (bit 5 == 1) and trigger measurement
