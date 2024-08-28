@@ -8,13 +8,13 @@
 &pinctrl {
 	i2c0_default: i2c0_default {
 		group1 {
-			psels = <NRF_PSEL(TWIM_SDA, 0, 9)>, <NRF_PSEL(TWIM_SCL, 0, 10)>;
+			psels = <NRF_PSEL(TWIM_SDA, 0, 6)>, <NRF_PSEL(TWIM_SCL, 0, 8)>;
 		};
 	};
 
 	i2c0_sleep: i2c0_sleep {
 		group1 {
-			psels = <NRF_PSEL(TWIM_SDA, 0, 9)>, <NRF_PSEL(TWIM_SCL, 0, 10)>;
+			psels = <NRF_PSEL(TWIM_SDA, 0, 6)>, <NRF_PSEL(TWIM_SCL, 0, 8)>;
 			low-power-enable;
 		};
 	};
@@ -67,8 +67,7 @@
 	};
 
 	zephyr,user {
-		dock-gpios = <&gpio0 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		int0-gpios = <&gpio1 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		int0-gpios = <&gpio0 17 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 		led-gpios = <&gpio0 15 GPIO_OPEN_SOURCE>;
 	};
 
