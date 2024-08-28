@@ -3,6 +3,7 @@
 
 #include <zephyr/kernel.h>
 
+#include "BMI270.h"
 #include "ICM42688.h"
 #include "LSM6DSV.h"
 
@@ -77,7 +78,7 @@ const char *dev_imu_names[] = {
 };
 const sensor_imu_t *sensor_imus[] = {
 	NULL, // not implemented
-	NULL,
+	&sensor_imu_bmi270,
 	NULL,
 	&sensor_imu_icm42688,
 	NULL,
