@@ -32,7 +32,7 @@ int mmc_init(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 
 	last_odr = 0xff; // reset last odr
 	int err = mmc_update_odr(dev_i2c, time, actual_time);
-	return (err < 0 ? 0 : err);
+	return (err < 0 ? err : 0);
 }
 
 void mmc_shutdown(struct i2c_dt_spec dev_i2c)

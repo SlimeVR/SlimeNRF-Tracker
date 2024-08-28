@@ -20,7 +20,7 @@ int lsm_init(struct i2c_dt_spec dev_i2c, float clock_rate, float accel_time, flo
 	last_gyro_odr = 0xff; // reset last odr
 	int err = lsm_update_odr(dev_i2c, accel_time, gyro_time, accel_actual_time, gyro_actual_time);
 	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_FIFO_CTRL4, 0x01); // enable FIFO mode
-	return (err < 0 ? 0 : err);
+	return (err < 0 ? err : 0);
 }
 
 void lsm_shutdown(struct i2c_dt_spec dev_i2c)

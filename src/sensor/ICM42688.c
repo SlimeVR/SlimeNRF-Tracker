@@ -47,7 +47,7 @@ int icm_init(struct i2c_dt_spec dev_i2c, float clock_rate, float accel_time, flo
 //	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_TMST_CONFIG, (0x23 | 0x02) ^ 0x02); // disable FSYNC
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FIFO_CONFIG1, 0x02); // enable FIFO gyro only
 	i2c_reg_write_byte_dt(&dev_i2c, ICM42688_FIFO_CONFIG, 1<<6); // begin FIFO stream
-	return (err < 0 ? 0 : err);
+	return (err < 0 ? err : 0);
 }
 
 void icm_shutdown(struct i2c_dt_spec dev_i2c)
