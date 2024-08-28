@@ -30,7 +30,9 @@ int main(void)
 	uint8_t reboot_counter = 0;
 	bool booting_from_shutdown = false;
 
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	gpio_pin_configure_dt(&dock, GPIO_INPUT);
+#endif
 
 	power_check(); // check the battery and dock first before continuing (4ms delta to read from ADC)
 
@@ -79,7 +81,11 @@ int main(void)
 		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF);
 		// TODO: scheduled power off
 		k_msleep(1250);
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 		bool docked = gpio_pin_get_dt(&dock);
+#else
+		bool docked = false;
+#endif
 		if (!docked) // TODO: should the tracker start again if docking state changes?
 			configure_system_off_chgstat();
 		else
@@ -140,7 +146,11 @@ int main(void)
 		int64_t time_begin = k_uptime_get();
 
 		//charging = gpio_pin_get_dt(&chgstat); // TODO: Charging detect doesn't work (hardware issue)
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 		bool docked = gpio_pin_get_dt(&dock);
+#else
+		bool docked = false;
+#endif
 
 		// TODO: move battery stuff to sys
 		int batt_mV;
