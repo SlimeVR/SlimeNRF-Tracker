@@ -19,15 +19,15 @@ IMUs:
 
 Bosch Sensortec
 -BMI160:68/69,00,D1
-+BMI270:68/69,00,24
+*BMI270:68/69,00,24
 -BMI323:68/69,00,43
 TDK InvenSense
 *ICM-42688-P:68/69,75,47
 *ICM-42688-V:68/69,75,DB
 STMicroelectronics
 -LSM6DS3:6A/6B,0F,69
--LSM6DSO:6A/6B,0F,6C
-+LSM6DSV:6A/6B,0F,70
++LSM6DSO:6A/6B,0F,6C
+*LSM6DSV:6A/6B,0F,70
 
 68/69,6A/6B
 00,75 (D1:BMI160,24:BMI270,43:BMI323;47:ICM-42688-P,DB:ICM-42688-V)
@@ -77,11 +77,11 @@ const char *dev_imu_names[] = {
 	"LSM6DSV"
 };
 const sensor_imu_t *sensor_imus[] = {
-	NULL, // not implemented
+	NULL, // will not implement, too low quality
 	&sensor_imu_bmi270,
 	NULL,
 	&sensor_imu_icm42688,
-	NULL,
+	NULL, // will not implement, too low quality
 	NULL,
 	&sensor_imu_lsm6dsv
 };
