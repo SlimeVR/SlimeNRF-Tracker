@@ -120,9 +120,9 @@
 #define ODR_240Hz   0x07
 #define ODR_480Hz   0x08
 #define ODR_960Hz   0x09
-#define ODR_1_92kHz  0x0A
-#define ODR_3_84kHz  0x0B
-#define ODR_7_68kHz  0x0C
+#define ODR_1_92kHz 0x0A
+#define ODR_3_84kHz 0x0B
+#define ODR_7_68kHz 0x0C
 
 #define OP_MODE_XL_HP     0x00 // High Performance
 #define OP_MODE_XL_HA     0x01 // High Accuracy

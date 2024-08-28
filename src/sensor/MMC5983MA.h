@@ -14,8 +14,7 @@
 
 #include "../sensor.h"
 
-//Register map for MMC5983MA'
-//http://www.memsic.com/userfiles/files/DataSheets/Magnetic-Sensors-Datasheets/MMC5983MA_Datasheet.pdf
+// http://www.memsic.com/userfiles/files/DataSheets/Magnetic-Sensors-Datasheets/MMC5983MA_Datasheet.pdf
 #define MMC5983MA_XOUT_0        0x00
 #define MMC5983MA_XOUT_1        0x01
 #define MMC5983MA_YOUT_0        0x02
@@ -30,8 +29,6 @@
 #define MMC5983MA_CONTROL_2     0x0B
 #define MMC5983MA_CONTROL_3     0x0C
 #define MMC5983MA_PRODUCT_ID    0x2F
-
-#define MMC5983MA_ADDRESS       0x30
 
 // Sample rates
 #define MODR_ONESHOT   0x00
@@ -58,9 +55,6 @@
 #define MSET_500   0x05
 #define MSET_1000  0x06
 #define MSET_2000  0x07
-
-#define MMC5983MA_mRes (1.0f / 16384.0f) // mag sensitivity if using 18 bit data
-#define MMC5983MA_offset 131072.0f // mag range unsigned to signed
 
 int mmc_init(struct i2c_dt_spec dev_i2c, float time, float *actual_time);
 void mmc_shutdown(struct i2c_dt_spec dev_i2c);

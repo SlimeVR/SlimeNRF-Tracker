@@ -14,9 +14,8 @@
 
 #include "../sensor.h"
 
-/* ICM42688 registers
-https://media.digikey.com/pdf/Data%20Sheets/TDK%20PDFs/ICM-42688-P_DS_Rev1.2.pdf
-*/
+// https://media.digikey.com/pdf/Data%20Sheets/TDK%20PDFs/ICM-42688-P_DS_Rev1.2.pdf
+
 // User Bank 0
 #define ICM42688_DEVICE_CONFIG             0x11
 #define ICM42688_DRIVE_CONFIG              0x13
@@ -134,8 +133,6 @@ https://media.digikey.com/pdf/Data%20Sheets/TDK%20PDFs/ICM-42688-P_DS_Rev1.2.pdf
 #define ICM42688_OFFSET_USER6              0x7D
 #define ICM42688_OFFSET_USER7              0x7E
 #define ICM42688_OFFSET_USER8              0x7F
-
-#define ICM42688_ADDRESS           0x68   // Address of ICM42688 accel/gyro when ADO = 0
 
 #define AFS_2G  0x03
 #define AFS_4G  0x02
