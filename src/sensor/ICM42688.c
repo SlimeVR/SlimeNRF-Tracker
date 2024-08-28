@@ -319,7 +319,7 @@ void icm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3])
 float icm_temp_read(struct i2c_dt_spec dev_i2c)
 {
 	uint8_t rawTemp[2];
-	i2c_burst_read_dt(&dev_i2c, ICM42688_TEMP_DATA0, &rawTemp[0], 2);
+	i2c_burst_read_dt(&dev_i2c, ICM42688_TEMP_DATA1, &rawTemp[0], 2);
 	// Temperature in Degrees Centigrade = (TEMP_DATA / 132.48) + 25
 	float temp = (int16_t)((((int16_t)rawTemp[0]) << 8) | rawTemp[1]);
 	temp /= 132.48;
