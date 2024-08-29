@@ -273,7 +273,7 @@ float bmi_temp_read(struct i2c_dt_spec dev_i2c)
 	return temp;
 }
 
-void bmi_setup_WOM(struct i2c_dt_spec dev_i2c)
+void bmi_setup_WOM(struct i2c_dt_spec dev_i2c) // Not Working
 {
 	uint8_t config[4] = {0};
 	uint16_t *ptr = (uint16_t *)config;
