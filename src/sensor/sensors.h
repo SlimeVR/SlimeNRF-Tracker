@@ -127,10 +127,10 @@ const sensor_mag_t *sensor_mags[] = {
 	NULL, // not implemented
 	NULL,
 	NULL,
-	&sensor_mag_mmc5983ma,
 	NULL,
 	NULL,
-	NULL
+	NULL,
+	&sensor_mag_mmc5983ma
 };
 const int i2c_dev_mag_addr_count = 6;
 const uint8_t i2c_dev_mag_addr[] = {
