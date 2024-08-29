@@ -273,22 +273,22 @@ float bmi_temp_read(struct i2c_dt_spec dev_i2c)
 	return temp;
 }
 
-void bmi_setup_WOM(struct i2c_dt_spec dev_i2c) // Not Working
+void bmi_setup_WOM(struct i2c_dt_spec dev_i2c)
 {
 	uint8_t config[4] = {0};
 	uint16_t *ptr = (uint16_t *)config;
 	ptr[0] = 0x7 << 13 | 0x000; // enable all axes, set detection duration to 0
 	ptr[1] = 0x1 << 15 | 0x7 << 11 | 0x28A; // enable any_motion, set out_conf, set threshold (1LSB equals to 0.48mg, 650 * 0.48mg is ~312mg)
-	uint8_t addr = BMI270_ANYMO_1;
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
-	k_usleep(450);
+	k_busy_wait(500);
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_ACC_CONF, ODR_200); // disable filters, set accel ODR
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_PWR_CTRL, 0x04); // enable accel
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_FEAT_PAGE, 0x01); // go to page 1
-	i2c_write_dt(&dev_i2c, &addr, 1); // Start write buffer
-	i2c_write_dt(&dev_i2c, &config[0], sizeof(config));
+	i2c_burst_write_dt(&dev_i2c, BMI270_ANYMO_1, config, sizeof(config)); // Start write buffer
+	i2c_reg_write_byte_dt(&dev_i2c, BMI270_INT1_IO_CTRL, 0x0C); // set INT1 active low, open-drain, output enabled
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_INT1_MAP_FEAT, 0x40); // enable any_motion_out (interrupt)
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_PWR_CONF, 0x01); // enable adv_power_save (suspend)
+	k_busy_wait(2000); // wait for sensor to settle
 }
 
 // write_config_file function from https://github.com/zephyrproject-rtos/zephyr/blob/main/drivers/sensor/bosch/bmi270/bmi270.c
