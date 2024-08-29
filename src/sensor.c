@@ -63,7 +63,7 @@ int sensor_init(void)
 		return 0; // already initialized
 
 	LOG_INF("Scanning bus for IMU");
-	int imu_id = sensor_scan_imu(sensor_imu_dev); // TODO: the dev addr should be stored to retained and reused to save time
+	int imu_id = sensor_scan_imu(&sensor_imu_dev); // TODO: the dev addr should be stored to retained and reused to save time
 	if (imu_id >= (int)(sizeof(dev_imu_names) / sizeof(dev_imu_names[0])))
 		LOG_WRN("Found unknown device");
 	else if (imu_id < 0)
@@ -90,7 +90,7 @@ int sensor_init(void)
 	}
 
 	LOG_INF("Scanning bus for magnetometer");
-	int mag_id = sensor_scan_mag(sensor_mag_dev);
+	int mag_id = sensor_scan_mag(&sensor_mag_dev);
 	if (mag_id >= (int)(sizeof(dev_mag_names) / sizeof(dev_mag_names[0])))
 		LOG_WRN("Found unknown device");
 	else if (mag_id < 0)
