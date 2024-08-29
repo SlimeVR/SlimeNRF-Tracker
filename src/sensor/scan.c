@@ -12,9 +12,9 @@ LOG_MODULE_REGISTER(sensor_scan, LOG_LEVEL_INF);
 // Otherwise it should use an address and imus already stored in volatile memory
 // Cannot gurantee storage in flash, it's probably okay to keep it volatile
 
-int sensor_scan(struct i2c_dt_spec i2c_dev, int dev_addr_count, const uint8_t dev_addr[], const uint8_t dev_reg[], const uint8_t dev_id[], const int dev_ids[])
+int sensor_scan(struct i2c_dt_spec *i2c_dev, int dev_addr_count, const uint8_t dev_addr[], const uint8_t dev_reg[], const uint8_t dev_id[], const int dev_ids[])
 {
-	const struct device *dev = i2c_dev.bus;
+	const struct device *dev = i2c_dev->bus;
 
 	uint16_t addr = 0;
 
@@ -33,7 +33,7 @@ int sensor_scan(struct i2c_dt_spec i2c_dev, int dev_addr_count, const uint8_t de
 		id_index++;
 		for (int j = 0; j < addr_count; j++)
 		{
-			if (i2c_dev.addr >= SCAN_ADDR_START && i2c_dev.addr <= SCAN_ADDR_STOP && i2c_dev.addr != addr)
+			if (i2c_dev->addr >= SCAN_ADDR_START && i2c_dev->addr <= SCAN_ADDR_STOP && i2c_dev->addr != addr)
 				continue; // if an address was provided try to scan it first
 			addr = dev_addr[addr_index + j];
 			LOG_DBG("Scanning address: %02X", addr);
@@ -53,7 +53,7 @@ int sensor_scan(struct i2c_dt_spec i2c_dev, int dev_addr_count, const uint8_t de
 				{
 					if (id == dev_id[id_ind + l])
 					{
-						i2c_dev.addr = addr;
+						i2c_dev->addr = addr;
 						return dev_ids[fnd_id + l];
 					}
 				}
@@ -76,9 +76,9 @@ int sensor_scan(struct i2c_dt_spec i2c_dev, int dev_addr_count, const uint8_t de
 		}
 	}
 
-	if (i2c_dev.addr >= SCAN_ADDR_START && i2c_dev.addr <= SCAN_ADDR_STOP) // preferred address failed, try again with full scan
+	if (i2c_dev->addr >= SCAN_ADDR_START && i2c_dev->addr <= SCAN_ADDR_STOP) // preferred address failed, try again with full scan
 	{
-		i2c_dev.addr = 0;
+		i2c_dev->addr = 0;
 		return sensor_scan(i2c_dev, dev_addr_count, dev_addr, dev_reg, dev_id, dev_ids);
 	}
 
