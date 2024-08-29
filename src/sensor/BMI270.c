@@ -298,7 +298,8 @@ int bmi_upload_config_file(struct i2c_dt_spec dev_i2c)
 	uint16_t count = sizeof(bmi270_config_file) / sizeof(bmi270_config_file[0]);
 	uint8_t init_addr[2] = {0};
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_INIT_CTRL, 0x00); // prepare config load
-	for (int i = 0; i < count; i += 64) {
+	for (int i = 0; i < count; i += 64)
+	{
 		init_addr[0] = (i / 2) & 0xF;
 		init_addr[1] = (i / 2) >> 4;
 		i2c_burst_write_dt(&dev_i2c, BMI270_INIT_ADDR_0, init_addr, 2);
