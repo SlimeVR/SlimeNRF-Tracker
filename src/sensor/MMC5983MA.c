@@ -50,7 +50,7 @@ int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time)
 	uint8_t MSET = MSET_2000; // always use lowest SET/RESET interval
 	last_time = time;
 
-	if (time <= 0) // off interpreted as oneshot
+	if (time <= 0 || time == INFINITY) // off interpreted as oneshot
 		ODR = 0;
 	else
 		ODR = 1 / time;
@@ -140,7 +140,7 @@ void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3])
 
 // MMC must trigger the measurement, which will take significant time
 // instead, the temperature is read from the last measurement and then another measurement is immediately triggered
-float mmc_temp_read(struct i2c_dt_spec dev_i2c)
+float mmc_temp_read(struct i2c_dt_spec dev_i2c) // TODO: Not working
 {
 	uint8_t rawTemp;
 	i2c_reg_read_byte_dt(&dev_i2c, MMC5983MA_TOUT, &rawTemp);
