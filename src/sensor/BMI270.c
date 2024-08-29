@@ -27,11 +27,11 @@ int bmi_init(struct i2c_dt_spec dev_i2c, float clock_rate, float accel_time, flo
 		int retry_count = 0;
 		while ((status & 0x7) != 0x1)
 		{
+			if (retry_count > 100)
+				return -1;
 			k_msleep(1);
 			i2c_reg_read_byte_dt(&dev_i2c, BMI270_INTERNAL_STATUS, &status);
 			retry_count++;
-			if (retry_count > 100)
-				return -1;
 		}
 	}
 	last_accel_odr = 0xff; // reset last odr
