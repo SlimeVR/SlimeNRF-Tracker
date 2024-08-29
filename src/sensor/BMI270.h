@@ -27,10 +27,13 @@
 #define BMI270_INT1_MAP_FEAT 0x56
 
 #define BMI270_INIT_CTRL 0x59
+#define BMI270_INIT_ADDR_0 0x5B
+#define BMI270_INIT_ADDR_1 0x5C
 #define BMI270_INIT_DATA 0x5E
 
 #define BMI270_PWR_CONF  0x7C
 #define BMI270_PWR_CTRL  0x7D
+#define BMI270_CMD       0x7E
 
 // accel only
 #define ODR_0p78 0x01
@@ -73,7 +76,7 @@ float bmi_temp_read(struct i2c_dt_spec dev_i2c);
 
 void bmi_setup_WOM(struct i2c_dt_spec dev_i2c);
 
-int bmi_upload_firmware(struct i2c_dt_spec dev_i2c);
+int bmi_upload_config_file(struct i2c_dt_spec dev_i2c);
 
 extern const sensor_imu_t sensor_imu_bmi270;
 

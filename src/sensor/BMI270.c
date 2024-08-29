@@ -17,11 +17,22 @@ int bmi_init(struct i2c_dt_spec dev_i2c, float clock_rate, float accel_time, flo
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
 	k_usleep(450);
 	i2c_reg_read_byte_dt(&dev_i2c, BMI270_INTERNAL_STATUS, &status);
-	if (status & 0x1 == 0x0) // ASIC is not initialized
+	if ((status & 0x7) != 0x1) // ASIC is not initialized
 	{
+		i2c_reg_write_byte_dt(&dev_i2c, BMI270_CMD, 0xB6); // softreset
+		k_msleep(2);
+		i2c_reg_write_byte_dt(&dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
+		k_usleep(450);
 		bmi_upload_config_file(dev_i2c);
-		while (status & 0x1 == 0x0)
+		int retry_count = 0;
+		while ((status & 0x7) != 0x1)
+		{
+			k_msleep(1);
 			i2c_reg_read_byte_dt(&dev_i2c, BMI270_INTERNAL_STATUS, &status);
+			retry_count++;
+			if (retry_count > 100)
+				return -1;
+		}
 	}
 	last_accel_odr = 0xff; // reset last odr
 	last_gyro_odr = 0xff; // reset last odr
@@ -283,15 +294,13 @@ void bmi_setup_WOM(struct i2c_dt_spec dev_i2c)
 int bmi_upload_config_file(struct i2c_dt_spec dev_i2c)
 {
 	uint16_t count = sizeof(bmi270_config_file) / sizeof(bmi270_config_file[0]);
-	uint16_t offset = 0;
-	uint8_t addr = BMI270_INIT_DATA;
+	uint8_t init_addr[2] = {0};
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_INIT_CTRL, 0x00); // prepare config load
-	i2c_write_dt(&dev_i2c, &addr, 1); // Start write buffer
-	while (count > 0)
-	{
-		i2c_write_dt(&dev_i2c, &bmi270_config_file[offset], count > 248 ? 248 : count); // Write less than 255 at a time (for nRF52832)
-		offset += 248;
-		count = count > 248 ? count - 248 : 0;
+	for (int i = 0; i < count; i += 64) {
+		init_addr[0] = (i / 2) & 0xF;
+		init_addr[1] = (i / 2) >> 4;
+		i2c_burst_write_dt(&dev_i2c, BMI270_INIT_ADDR_0, init_addr, 2);
+		i2c_burst_write_dt(&dev_i2c, BMI270_INIT_DATA, &bmi270_config_file[i], 64);
 	}
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_INIT_CTRL, 0x01); // complete config load
 	return 0;
