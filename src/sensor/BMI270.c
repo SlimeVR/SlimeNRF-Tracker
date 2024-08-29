@@ -291,6 +291,8 @@ void bmi_setup_WOM(struct i2c_dt_spec dev_i2c)
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_PWR_CONF, 0x01); // enable adv_power_save (suspend)
 }
 
+// write_config_file function from https://github.com/zephyrproject-rtos/zephyr/blob/main/drivers/sensor/bosch/bmi270/bmi270.c
+// saved my ass
 int bmi_upload_config_file(struct i2c_dt_spec dev_i2c)
 {
 	uint16_t count = sizeof(bmi270_config_file) / sizeof(bmi270_config_file[0]);
@@ -300,7 +302,7 @@ int bmi_upload_config_file(struct i2c_dt_spec dev_i2c)
 		init_addr[0] = (i / 2) & 0xF;
 		init_addr[1] = (i / 2) >> 4;
 		i2c_burst_write_dt(&dev_i2c, BMI270_INIT_ADDR_0, init_addr, 2);
-		i2c_burst_write_dt(&dev_i2c, BMI270_INIT_DATA, &bmi270_config_file[i], 64);
+		i2c_burst_write_dt(&dev_i2c, BMI270_INIT_DATA, &bmi270_config_file[i], 64); // 64 works, 128 doesn't? either way it takes forever
 	}
 	i2c_reg_write_byte_dt(&dev_i2c, BMI270_INIT_CTRL, 0x01); // complete config load
 	return 0;
