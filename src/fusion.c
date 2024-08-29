@@ -84,7 +84,7 @@ void fusion_update_gyro_sanity(float *g, float *m)
 {
 	if (FusionAhrsGetFlags(&ahrs).magneticRecovery)
 	{
-		if (gyro_sanity == 2 && vec_epsilon2(gyro_sanity_m.array, m, 0.01f))
+		if (gyro_sanity == 2 && v_epsilon(gyro_sanity_m.array, m, 0.01f))
 		{
 			// For whatever reason the gyro seems unreliable
 			// Reset the offset here so the tracker can probably at least turn off

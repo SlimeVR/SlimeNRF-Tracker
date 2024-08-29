@@ -1,7 +1,18 @@
 #include <math.h>
 #include <zephyr/kernel.h>
 
-void q_multiply(float *x, float *y, float *out)
+void q_normalize(const float *q, float *out)
+{
+	float mag = sqrtf(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+	if (mag == 0)
+		return;
+	out[0] = q[0]/mag;
+	out[1] = q[1]/mag;
+	out[2] = q[2]/mag;
+	out[3] = q[3]/mag;
+}
+
+void q_multiply(const float *x, const float *y, float *out)
 {
 	out[0] = x[0]*y[0] - x[1]*y[1] - x[2]*y[2] - x[3]*y[3];
 	out[1] = x[1]*y[0] + x[0]*y[1] - x[3]*y[2] + x[2]*y[3];
@@ -9,7 +20,7 @@ void q_multiply(float *x, float *y, float *out)
 	out[3] = x[3]*y[0] - x[2]*y[1] + x[1]*y[2] + x[0]*y[3];
 }
 
-void q_conj(float *q, float *out)
+void q_conj(const float *q, float *out)
 {
 	out[0] = q[0];
 	out[1] = -q[1];
@@ -17,16 +28,18 @@ void q_conj(float *q, float *out)
 	out[3] = -q[3];
 }
 
-float q_diff_mag(float *x, float *y)
+float q_diff_mag(const float *x, const float *y)
 {
 	float z[4];
 	float q[4];
 	q_conj(x, z);
 	q_multiply(z, y, q);
+	if (q[0] > 1)
+		return 0;
 	return fabsf(2 * acosf(q[0]));
 }
 
-float v_diff_mag(float *a, float *b)
+float v_diff_mag(const float *a, const float *b)
 {
 	float x = a[0] - b[0];
 	float y = a[1] - b[1];
@@ -34,16 +47,18 @@ float v_diff_mag(float *a, float *b)
 	return sqrtf(x*x + y*y + z*z);
 }
 
-bool q_epsilon(float *x, float *y, float eps)
+bool q_epsilon(const float *x, const float *y, float eps)
 {
 	float z[4];
 	float q[4];
 	q_conj(x, z);
 	q_multiply(z, y, q);
+	if (q[0] > 1)
+		return true;
 	return fabsf(2 * acosf(q[0])) < eps;
 }
 
-bool v_epsilon(float *a, float *b, float eps)
+bool v_epsilon(const float *a, const float *b, float eps)
 {
 	float x = a[0] - b[0];
 	float y = a[1] - b[1];
@@ -51,32 +66,7 @@ bool v_epsilon(float *a, float *b, float eps)
 	return sqrtf(x*x + y*y + z*z) < eps;
 }
 
-// TODO: fix this mess
-bool quat_epsilon(float *q, float *q2)
-{
-	return q_epsilon(q, q2,0.0002);
-}
-
-bool quat_epsilon_coarse(float *q, float *q2)
-{
-	return q_epsilon(q, q2, 0.001);
-}
-
-bool quat_epsilon_coarse2(float *q, float *q2)
-{
-	return q_epsilon(q, q2, 0.01);
-}
-
-bool vec_epsilon(float *a, float *a2)
-{
-	return v_epsilon(a, a2, 0.1);
-}
-
-bool vec_epsilon2(float *a, float *a2, float eps)
-{
-	return v_epsilon(a, a2, eps);
-}
-
+// TODO: does this need to be moved?
 void apply_BAinv(float xyz[3], float BAinv[4][3])
 {
 	float temp[3];

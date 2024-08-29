@@ -243,7 +243,7 @@ bool wait_for_motion(const struct i2c_dt_spec imu, bool motion, int samples)
 		LOG_INF("Accelerometer: %.5f %.5f %.5f", a[0], a[1], a[2]);
 		k_msleep(500);
 		(*sensor_imu->accel_read)(imu, a);
-		if (vec_epsilon(a, last_a) != motion)
+		if (v_epsilon(a, last_a, 0.1) != motion)
 		{
 			LOG_INF("No motion detected");
 			counts++;
@@ -476,9 +476,10 @@ void main_imu_thread(void)
 			float lin_a[3] = {0};
 			(*sensor_fusion->get_lin_a)(lin_a);
 			(*sensor_fusion->get_quat)(q);
+			q_normalize(q, q); // safe to use self as output
 
 			// Check the IMU gyroscope
-			if ((*sensor_fusion->get_gyro_sanity)() == 0 ? quat_epsilon_coarse(q, last_q) : quat_epsilon_coarse2(q, last_q)) // Probably okay to use the constantly updating last_q
+			if ((*sensor_fusion->get_gyro_sanity)() == 0 ? q_epsilon(q, last_q, 0.001) : q_epsilon(q, last_q, 0.01)) // Probably okay to use the constantly updating last_q
 			{
 				int64_t imu_timeout = CLAMP(last_data_time, 1 * 1000, 15 * 1000); // Ramp timeout from last_data_time
 				if (k_uptime_get() - last_data_time > imu_timeout) // No motion in last 1s - 10s
@@ -521,7 +522,7 @@ void main_imu_thread(void)
 			}
 
 			// Send packet with new orientation
-			if (!(quat_epsilon(q, last_q)))
+			if (!(q_epsilon(q, last_q, 0.0002)))
 			{
 				memcpy(last_q, q, sizeof(q));
 				float q_offset[4];
