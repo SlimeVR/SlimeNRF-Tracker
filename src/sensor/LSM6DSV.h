@@ -68,18 +68,18 @@
 #define FS_XL_8G  0x02
 #define FS_XL_16G 0x03
 
-int lsm_init(struct i2c_dt_spec dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
-void lsm_shutdown(struct i2c_dt_spec dev_i2c);
+int lsm_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
+void lsm_shutdown(const struct i2c_dt_spec *dev_i2c);
 
-int lsm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
+int lsm_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
 
-uint16_t lsm_fifo_read(struct i2c_dt_spec dev_i2c, uint8_t *data);
+uint16_t lsm_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data);
 int lsm_fifo_process(uint16_t index, uint8_t *data, float g[3]);
-void lsm_accel_read(struct i2c_dt_spec dev_i2c, float a[3]);
-void lsm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3]);
-float lsm_temp_read(struct i2c_dt_spec dev_i2c);
+void lsm_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3]);
+void lsm_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3]);
+float lsm_temp_read(const struct i2c_dt_spec *dev_i2c);
 
-void lsm_setup_WOM(struct i2c_dt_spec dev_i2c);
+void lsm_setup_WOM(const struct i2c_dt_spec *dev_i2c);
 
 extern const sensor_imu_t sensor_imu_lsm6dsv;
 

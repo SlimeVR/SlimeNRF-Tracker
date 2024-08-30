@@ -64,20 +64,20 @@
 #define RANGE_250  0x03
 #define RANGE_125  0x04
 
-int bmi_init(struct i2c_dt_spec dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
-void bmi_shutdown(struct i2c_dt_spec dev_i2c);
+int bmi_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
+void bmi_shutdown(const struct i2c_dt_spec *dev_i2c);
 
-int bmi_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
+int bmi_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
 
-uint16_t bmi_fifo_read(struct i2c_dt_spec dev_i2c, uint8_t *data);
+uint16_t bmi_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data);
 int bmi_fifo_process(uint16_t index, uint8_t *data, float g[3]);
-void bmi_accel_read(struct i2c_dt_spec dev_i2c, float a[3]);
-void bmi_gyro_read(struct i2c_dt_spec dev_i2c, float g[3]);
-float bmi_temp_read(struct i2c_dt_spec dev_i2c);
+void bmi_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3]);
+void bmi_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3]);
+float bmi_temp_read(const struct i2c_dt_spec *dev_i2c);
 
-void bmi_setup_WOM(struct i2c_dt_spec dev_i2c);
+void bmi_setup_WOM(const struct i2c_dt_spec *dev_i2c);
 
-int bmi_upload_config_file(struct i2c_dt_spec dev_i2c);
+int bmi_upload_config_file(const struct i2c_dt_spec *dev_i2c);
 
 extern const sensor_imu_t sensor_imu_bmi270;
 

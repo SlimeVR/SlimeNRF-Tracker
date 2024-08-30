@@ -12,25 +12,25 @@ static uint8_t last_gyro_mode = 0xff;
 static uint8_t last_accel_odr = 0xff;
 static uint8_t last_gyro_odr = 0xff;
 
-int lsm_init(struct i2c_dt_spec dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
+int lsm_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
 {
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_CTRL6, FS_G_2000DPS); // set gyro FS
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_CTRL8, FS_XL_16G); // set accel FS
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL6, FS_G_2000DPS); // set gyro FS
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL8, FS_XL_16G); // set accel FS
 	last_accel_odr = 0xff; // reset last odr
 	last_gyro_odr = 0xff; // reset last odr
 	int err = lsm_update_odr(dev_i2c, accel_time, gyro_time, accel_actual_time, gyro_actual_time);
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_FIFO_CTRL4, 0x01); // enable FIFO mode
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_FIFO_CTRL4, 0x01); // enable FIFO mode
 	return (err < 0 ? err : 0);
 }
 
-void lsm_shutdown(struct i2c_dt_spec dev_i2c)
+void lsm_shutdown(const struct i2c_dt_spec *dev_i2c)
 {
 	last_accel_odr = 0xff; // reset last odr
 	last_gyro_odr = 0xff; // reset last odr
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_CTRL3, 0x01); // SW_RESET
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL3, 0x01); // SW_RESET
 }
 
-int lsm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
+int lsm_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
 {
 	int ODR;
 	uint8_t OP_MODE_XL;
@@ -209,10 +209,10 @@ int lsm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	last_accel_odr = ODR_XL;
 	last_gyro_odr = ODR_G;
 
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_CTRL1, OP_MODE_XL << 4 | ODR_XL); // set accel ODR and mode
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_CTRL2, OP_MODE_G << 4 | ODR_G); // set gyro ODR and mode
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL1, OP_MODE_XL << 4 | ODR_XL); // set accel ODR and mode
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL2, OP_MODE_G << 4 | ODR_G); // set gyro ODR and mode
 
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_FIFO_CTRL3, 0x00 << 0 | ODR_G << 4); // set accel Not batched, set gyro batch rate
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_FIFO_CTRL3, 0x00 << 0 | ODR_G << 4); // set accel Not batched, set gyro batch rate
 
 	*accel_actual_time = accel_time;
 	*gyro_actual_time = gyro_time;
@@ -220,14 +220,14 @@ int lsm_update_odr(struct i2c_dt_spec dev_i2c, float accel_time, float gyro_time
 	return 0;
 }
 
-uint16_t lsm_fifo_read(struct i2c_dt_spec dev_i2c, uint8_t *data)
+uint16_t lsm_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data)
 {
 	uint8_t rawCount[2];
-	i2c_burst_read_dt(&dev_i2c, LSM6DSV_FIFO_STATUS1, &rawCount[0], 2);
+	i2c_burst_read_dt(dev_i2c, LSM6DSV_FIFO_STATUS1, &rawCount[0], 2);
 	uint16_t count = (uint16_t)((rawCount[1] & 1) << 8 | rawCount[0]); // Turn the 16 bits into a unsigned 16-bit value
 	count += 4; // Add a few read buffer packets, since the FIFO may contain more data than when we begin reading (allowing 4ms of transaction time for 1000hz ODR)
 	for (int i = 0; i < count; i++)
-		i2c_burst_read_dt(&dev_i2c, LSM6DSV_FIFO_DATA_OUT_TAG, &data[i * 7], 7); // Packet size is always 7 bytes
+		i2c_burst_read_dt(dev_i2c, LSM6DSV_FIFO_DATA_OUT_TAG, &data[i * 7], 7); // Packet size is always 7 bytes
 	return count;
 }
 
@@ -245,10 +245,10 @@ int lsm_fifo_process(uint16_t index, uint8_t *data, float g[3])
 	return 0;
 }
 
-void lsm_accel_read(struct i2c_dt_spec dev_i2c, float a[3])
+void lsm_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3])
 {
 	uint8_t rawAccel[6];
-	i2c_burst_read_dt(&dev_i2c, LSM6DSV_OUTX_L_A, &rawAccel[0], 6);
+	i2c_burst_read_dt(dev_i2c, LSM6DSV_OUTX_L_A, &rawAccel[0], 6);
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
 		a[i] = (int16_t)((((int16_t)rawAccel[(i * 2) + 1]) << 8) | rawAccel[i * 2]);
@@ -256,10 +256,10 @@ void lsm_accel_read(struct i2c_dt_spec dev_i2c, float a[3])
 	}
 }
 
-void lsm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3])
+void lsm_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3])
 {
 	uint8_t rawGyro[6];
-	i2c_burst_read_dt(&dev_i2c, LSM6DSV_OUTX_L_G, &rawGyro[0], 6);
+	i2c_burst_read_dt(dev_i2c, LSM6DSV_OUTX_L_G, &rawGyro[0], 6);
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
 		g[i] = (int16_t)((((int16_t)rawGyro[(i * 2) + 1]) << 8) | rawGyro[i * 2]);
@@ -267,10 +267,10 @@ void lsm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3])
 	}
 }
 
-float lsm_temp_read(struct i2c_dt_spec dev_i2c)
+float lsm_temp_read(const struct i2c_dt_spec *dev_i2c)
 {
 	uint8_t rawTemp[2];
-	i2c_burst_read_dt(&dev_i2c, LSM6DSV_OUT_TEMP_L, &rawTemp[0], 2);
+	i2c_burst_read_dt(dev_i2c, LSM6DSV_OUT_TEMP_L, &rawTemp[0], 2);
 	// TSen Temperature sensitivity 256 LSB/°C
 	// The output of the temperature sensor is 0 LSB (typ.) at 25°C
 	float temp = (int16_t)((((int16_t)rawTemp[1]) << 8) | rawTemp[0]);
@@ -279,18 +279,18 @@ float lsm_temp_read(struct i2c_dt_spec dev_i2c)
 	return temp;
 }
 
-void lsm_setup_WOM(struct i2c_dt_spec dev_i2c)
+void lsm_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 { // TODO: should be off by the time WOM will be setup
-//	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_CTRL1, ODR_OFF); // set accel off
-//	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_CTRL2, ODR_OFF); // set gyro off
+//	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL1, ODR_OFF); // set accel off
+//	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL2, ODR_OFF); // set gyro off
 
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_TAP_CFG0, 0x10); // use HPF for wake-up
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_WAKE_UP_THS, 0x28); // set threshold, 40 * 7.8125 mg is ~312 mg
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_MD1_CFG, 0x20); // route wake-up to INT1
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_FUNCTIONS_ENABLE, 0x80); // enable interrupts
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_TAP_CFG0, 0x10); // use HPF for wake-up
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_WAKE_UP_THS, 0x28); // set threshold, 40 * 7.8125 mg is ~312 mg
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_MD1_CFG, 0x20); // route wake-up to INT1
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_FUNCTIONS_ENABLE, 0x80); // enable interrupts
 
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_CTRL8, FS_XL_8G); // set accel FS
-	i2c_reg_write_byte_dt(&dev_i2c, LSM6DSV_CTRL1, OP_MODE_XL_LP1 << 4 | ODR_240Hz); // set accel low power mode 1, set accel ODR (enable accel)
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL8, FS_XL_8G); // set accel FS
+	i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL1, OP_MODE_XL_LP1 << 4 | ODR_240Hz); // set accel low power mode 1, set accel ODR (enable accel)
 }
 
 const sensor_imu_t sensor_imu_lsm6dsv = {

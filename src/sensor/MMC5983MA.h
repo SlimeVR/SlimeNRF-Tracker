@@ -48,18 +48,18 @@
 #define MSET_1000  0x06
 #define MSET_2000  0x07
 
-int mmc_init(struct i2c_dt_spec dev_i2c, float time, float *actual_time);
-void mmc_shutdown(struct i2c_dt_spec dev_i2c);
+int mmc_init(const struct i2c_dt_spec *dev_i2c, float time, float *actual_time);
+void mmc_shutdown(const struct i2c_dt_spec *dev_i2c);
 
-int mmc_update_odr(struct i2c_dt_spec dev_i2c, float time, float *actual_time);
+int mmc_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual_time);
 
-void mmc_mag_oneshot(struct i2c_dt_spec dev_i2c);
-void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3]);
-float mmc_temp_read(struct i2c_dt_spec dev_i2c);
+void mmc_mag_oneshot(const struct i2c_dt_spec *dev_i2c);
+void mmc_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3]);
+float mmc_temp_read(const struct i2c_dt_spec *dev_i2c);
 
-void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t *destination);
-void mmc_SET(struct i2c_dt_spec dev_i2c);
-void mmc_RESET(struct i2c_dt_spec dev_i2c);
+void mmc_readData(const struct i2c_dt_spec *dev_i2c, uint32_t *destination);
+void mmc_SET(const struct i2c_dt_spec *dev_i2c);
+void mmc_RESET(const struct i2c_dt_spec *dev_i2c);
 
 extern const sensor_mag_t sensor_mag_mmc5983ma;
 
