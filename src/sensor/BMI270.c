@@ -209,13 +209,11 @@ uint16_t bmi_fifo_read(struct i2c_dt_spec dev_i2c, uint8_t *data)
 	count += 24; // Add a few read buffer packets, since the FIFO may contain more data than when we begin reading (allowing 4ms of transaction time for 1000hz ODR)
 	uint16_t packets = count / 6; // FIFO packet size is 6 bytes for gyro only
 	uint16_t offset = 0;
-	uint8_t addr = BMI270_FIFO_DATA;
-	i2c_write_dt(&dev_i2c, &addr, 1); // Start read buffer
 	while (count > 0)
 	{
-		i2c_read_dt(&dev_i2c, &data[offset], count > 248 ? 248 : count); // Read less than 255 at a time (for nRF52832)
-		offset += 248;
-		count = count > 248 ? count - 248 : 0;
+		i2c_burst_read_dt(&dev_i2c, BMI270_FIFO_DATA, &data[offset], count > 64 ? 64 : count); // Read less than 255 at a time (for nRF52832)
+		offset += 64;
+		count = count > 64 ? count - 64 : 0;
 	}
 	return packets;
 }
