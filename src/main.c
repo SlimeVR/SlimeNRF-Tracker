@@ -112,7 +112,7 @@ int main(void)
 	}
 
 #if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
-	if (reset_mode >= 3) // DFU_MAGIC_UF2_RESET, Reset mode DFU
+	if (reset_mode == 3 || reset_mode == 4) // DFU_MAGIC_UF2_RESET, Reset mode DFU
 	{
 		LOG_INF("DFU requested");
 		NRF_POWER->GPREGRET = 0x57;
