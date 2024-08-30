@@ -133,9 +133,8 @@ void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3])
 		i2c_reg_read_byte_dt(&dev_i2c, MMC5983MA_CONTROL_0, &status);
 	uint32_t rawMag[3];
 	mmc_readData(dev_i2c, rawMag);
-	m[0] = ((float)rawMag[0] - offset) * sensitivity - bridge_offset[0];
-	m[1] = ((float)rawMag[1] - offset) * sensitivity - bridge_offset[1];
-	m[2] = ((float)rawMag[2] - offset) * sensitivity - bridge_offset[2];
+	for (int i = 0; i < 3; i++) // x, y, z
+		m[i] = ((float)rawMag[i] - offset) * sensitivity - bridge_offset[i];
 }
 
 // MMC must trigger the measurement, which will take significant time
@@ -181,13 +180,13 @@ float mmc_temp_read(struct i2c_dt_spec dev_i2c) // TODO: Not working
 	return temp;
 }
 
-void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t * destination)
+void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t *data)
 {
 	uint8_t rawData[7]; // x/y/z mag register data stored here
 	i2c_burst_read_dt(&dev_i2c, MMC5983MA_XOUT_0, &rawData[0], 7); // Read the 7 raw data registers into data array
-	destination[0] = (uint32_t)(rawData[0] << 10 | rawData[1] << 2 | (rawData[6] & 0xC0) >> 6); // Turn the 18 bits into a unsigned 32-bit value
-	destination[1] = (uint32_t)(rawData[2] << 10 | rawData[3] << 2 | (rawData[6] & 0x30) >> 4); // Turn the 18 bits into a unsigned 32-bit value
-	destination[2] = (uint32_t)(rawData[4] << 10 | rawData[5] << 2 | (rawData[6] & 0x0C) >> 2); // Turn the 18 bits into a unsigned 32-bit value
+	data[0] = (uint32_t)(rawData[0] << 10 | rawData[1] << 2 | (rawData[6] & 0xC0) >> 6); // Turn the 18 bits into a unsigned 32-bit value
+	data[1] = (uint32_t)(rawData[2] << 10 | rawData[3] << 2 | (rawData[6] & 0x30) >> 4); // Turn the 18 bits into a unsigned 32-bit value
+	data[2] = (uint32_t)(rawData[4] << 10 | rawData[5] << 2 | (rawData[6] & 0x0C) >> 2); // Turn the 18 bits into a unsigned 32-bit value
 }
 
 void mmc_SET(struct i2c_dt_spec dev_i2c)

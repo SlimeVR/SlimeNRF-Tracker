@@ -57,7 +57,7 @@ void mmc_mag_oneshot(struct i2c_dt_spec dev_i2c);
 void mmc_mag_read(struct i2c_dt_spec dev_i2c, float m[3]);
 float mmc_temp_read(struct i2c_dt_spec dev_i2c);
 
-void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t * destination);
+void mmc_readData(struct i2c_dt_spec dev_i2c, uint32_t *destination);
 void mmc_SET(struct i2c_dt_spec dev_i2c);
 void mmc_RESET(struct i2c_dt_spec dev_i2c);
 

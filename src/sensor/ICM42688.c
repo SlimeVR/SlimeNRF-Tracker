@@ -279,15 +279,15 @@ int icm_fifo_process(uint16_t index, uint8_t *data, float g[3])
 		return 1; // Skip empty packets
 	// combine into 16 bit values
 	float raw[3];
-	for (int i = 0; i < 3; i++) { // gx, gy, gz
+	for (int i = 0; i < 3; i++) // x, y, z
 		raw[i] = (int16_t)((((int16_t)data[index + (i * 2) + 1]) << 8) | data[index + (i * 2) + 2]);
-		raw[i] *= gyro_sensitivity;
-	}
 	// data[index + 7] is temperature
 	// but it is lower precision (also it is disabled)
 	// Temperature in Degrees Centigrade = (FIFO_TEMP_DATA / 2.07) + 25
 	if (raw[0] < -32766 || raw[1] < -32766 || raw[2] < -32766)
 		return 1; // Skip invalid data
+	for (int i = 0; i < 3; i++) // x, y, z
+		raw[i] *= gyro_sensitivity;
 	memcpy(g, raw, sizeof(raw));
 	return 0;
 }
@@ -296,24 +296,22 @@ void icm_accel_read(struct i2c_dt_spec dev_i2c, float a[3])
 {
 	uint8_t rawAccel[6];
 	i2c_burst_read_dt(&dev_i2c, ICM42688_ACCEL_DATA_X1, &rawAccel[0], 6);
-	float accel_x = (int16_t)((((int16_t)rawAccel[0]) << 8) | rawAccel[1]);
-	float accel_y = (int16_t)((((int16_t)rawAccel[2]) << 8) | rawAccel[3]);
-	float accel_z = (int16_t)((((int16_t)rawAccel[4]) << 8) | rawAccel[5]);
-	a[0] = accel_x * accel_sensitivity;
-	a[1] = accel_y * accel_sensitivity;
-	a[2] = accel_z * accel_sensitivity;
+	for (int i = 0; i < 3; i++) // x, y, z
+	{
+		a[i] = (int16_t)((((int16_t)rawAccel[i * 2]) << 8) | rawAccel[(i * 2) + 1]);
+		a[i] *= accel_sensitivity;
+	}
 }
 
 void icm_gyro_read(struct i2c_dt_spec dev_i2c, float g[3])
 {
 	uint8_t rawGyro[6];
 	i2c_burst_read_dt(&dev_i2c, ICM42688_GYRO_DATA_X1, &rawGyro[0], 6);
-	float gyro_x = (int16_t)((((int16_t)rawGyro[0]) << 8) | rawGyro[1]);
-	float gyro_y = (int16_t)((((int16_t)rawGyro[2]) << 8) | rawGyro[3]);
-	float gyro_z = (int16_t)((((int16_t)rawGyro[4]) << 8) | rawGyro[5]);
-	g[0] = gyro_x * gyro_sensitivity;
-	g[1] = gyro_y * gyro_sensitivity;
-	g[2] = gyro_z * gyro_sensitivity;
+	for (int i = 0; i < 3; i++) // x, y, z
+	{
+		g[i] = (int16_t)((((int16_t)rawGyro[i * 2]) << 8) | rawGyro[(i * 2) + 1]);
+		g[i] *= gyro_sensitivity;
+	}
 }
 
 float icm_temp_read(struct i2c_dt_spec dev_i2c)
