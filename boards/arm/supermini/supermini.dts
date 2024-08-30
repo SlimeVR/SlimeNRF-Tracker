@@ -31,6 +31,19 @@
 			low-power-enable;
 		};
 	};
+
+	pwm1_default: pwm1_default {
+		group1 {
+			psels = <NRF_PIN_DISCONNECTED>;
+		};
+	};
+
+	pwm1_sleep: pwm1_sleep {
+		group1 {
+			psels = <NRF_PIN_DISCONNECTED>;
+			low-power-enable;
+		};
+	};
 };
 //end
 
@@ -55,7 +68,7 @@
 	pwmclock: pwmclock {
 		compatible = "pwm-clock";
 		#clock-cells = <1>;
-		pwms = <&pwm0 1 PWM_HZ(32768) PWM_POLARITY_NORMAL>;
+		pwms = <&pwm1 0 PWM_HZ(32768) PWM_POLARITY_NORMAL>;
 	};
 
 	battery-divider {
@@ -144,6 +157,13 @@
 	status = "okay";
 	pinctrl-0 = <&pwm0_default>;
 	pinctrl-1 = <&pwm0_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&pwm1 {
+	status = "okay";
+	pinctrl-0 = <&pwm1_default>;
+	pinctrl-1 = <&pwm1_sleep>;
 	pinctrl-names = "default", "sleep";
 };
 
