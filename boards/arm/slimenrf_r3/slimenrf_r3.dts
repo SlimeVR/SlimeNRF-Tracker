@@ -118,6 +118,8 @@
 &i2c0 {
 	compatible = "nordic,nrf-twim";
 	status = "okay";
+	zephyr,concat-buf-size = <255>; // probable max for nrf52832
+	zephyr,flash-buf-max-size = <255>; // probable max for nrf52832
 	clock-frequency = <I2C_BITRATE_FAST>;
 	pinctrl-0 = <&i2c0_default>;
 	pinctrl-1 = <&i2c0_sleep>;
