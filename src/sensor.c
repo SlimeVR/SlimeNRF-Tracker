@@ -62,6 +62,10 @@ int sensor_init(void)
 	if (sensor_sensor_init)
 		return 0; // already initialized
 
+	sys_read(); // In case ram not validated yet
+
+	sensor_scan_read();
+
 	LOG_INF("Scanning bus for IMU");
 	int imu_id = sensor_scan_imu(&sensor_imu_dev); // TODO: the dev addr should be stored to retained and reused to save time
 	if (imu_id >= (int)(sizeof(dev_imu_names) / sizeof(dev_imu_names[0])))
@@ -117,8 +121,34 @@ int sensor_init(void)
 		mag_available = false; // marked as not available
 	}
 
+	sensor_scan_write();
+
 	sensor_sensor_init = true; // successfully initialized
 	return 0;
+}
+
+void sensor_scan_read(void) // TODO: move some of this to sys?
+{
+	if (retained.imu_addr != 0)
+		sensor_imu_dev.addr = retained.imu_addr;
+	if (retained.mag_addr != 0)
+		sensor_mag_dev.addr = retained.mag_addr;
+	LOG_INF("IMU address: 0x%02x", sensor_imu_dev.addr);
+	LOG_INF("Magnetometer address: 0x%02x", sensor_mag_dev.addr);
+}
+
+void sensor_scan_write(void) // TODO: move some of this to sys?
+{
+	retained.imu_addr = sensor_imu_dev.addr;
+	retained.mag_addr = sensor_mag_dev.addr;
+	retained_update();
+}
+
+void sensor_scan_clear(void) // TODO: move some of this to sys?
+{
+	retained.imu_addr = 0;
+	retained.mag_addr = 0;
+	retained_update();
 }
 
 void sensor_retained_read(void) // TODO: move some of this to sys?

@@ -67,6 +67,9 @@ void configure_system_off_chgstat(void)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
 #endif
+	// Clear sensor addresses
+	LOG_INF("Requested sensor scan on next boot");
+	sensor_scan_clear();
 	sensor_retained_write();
 	// Set system off
 	LOG_INF("Powering off nRF");
@@ -86,6 +89,9 @@ void configure_system_off_dock(void)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
 #endif
+	// Clear sensor addresses
+	LOG_INF("Requested sensor scan on next boot");
+	sensor_scan_clear();
 	sensor_retained_write();
 	// Set system off
 	LOG_INF("Powering off nRF");

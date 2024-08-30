@@ -24,6 +24,9 @@ struct retained_data {
 	bool fusion_data_stored;
 	uint8_t fusion_data[364]; // MAX(sizeof(FusionAhrs)+sizeof(FusionOffset), sizeof(vqf_state_t))
 
+	uint16_t imu_addr;
+	uint16_t mag_addr;
+
 	/* CRC used to validate the retained data.  This must be
 	 * stored little-endian, and covers everything up to but not
 	 * including this field.
