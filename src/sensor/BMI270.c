@@ -267,7 +267,7 @@ float bmi_temp_read(const struct i2c_dt_spec *dev_i2c)
 	return temp;
 }
 
-void bmi_setup_WOM(const struct i2c_dt_spec *dev_i2c)
+void bmi_setup_WOM(const struct i2c_dt_spec *dev_i2c) // TODO: seems too sensitive? try to match icm at least
 {
 	uint8_t config[4] = {0};
 	uint16_t *ptr = (uint16_t *)config;
