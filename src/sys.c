@@ -34,12 +34,20 @@ void configure_system_off_WOM()
 	set_led(SYS_LED_PATTERN_OFF);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
-	// Configure WOM interrupt
+	// Configure dock
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
 #endif
+	// Configure sw0 interrupt
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured sw0 interrupt");
+#endif
+	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured WOM interrupt");
 	sensor_retained_write();
 	// Set system off
 	sensor_setup_WOM(); // enable WOM feature
@@ -66,6 +74,13 @@ void configure_system_off_chgstat(void)
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured dock interrupt");
+#endif
+	// Configure sw0 interrupt
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured sw0 interrupt");
 #endif
 	// Clear sensor addresses
 	LOG_INF("Requested sensor scan on next boot");
@@ -88,6 +103,13 @@ void configure_system_off_dock(void)
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
+	LOG_INF("Configured dock interrupt");
+#endif
+	// Configure sw0 interrupt
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured sw0 interrupt");
 #endif
 	// Clear sensor addresses
 	LOG_INF("Requested sensor scan on next boot");
