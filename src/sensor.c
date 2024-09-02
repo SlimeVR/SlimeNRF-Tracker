@@ -45,6 +45,10 @@ float mag_actual_time;
 bool sensor_fusion_init;
 bool sensor_sensor_init;
 
+bool sensor_sensor_scanning;
+
+bool main_suspended;
+
 bool mag_available;
 bool mag_enabled = MAG_ENABLED; // TODO: toggle from server
 
@@ -59,8 +63,11 @@ K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 
 
 int sensor_init(void)
 {
+	while (sensor_sensor_scanning)
+		k_usleep(1); // already scanning
 	if (sensor_sensor_init)
 		return 0; // already initialized
+	sensor_sensor_scanning = true;
 
 	sys_read(); // In case ram not validated yet
 
@@ -80,6 +87,7 @@ int sensor_init(void)
 		{
 			LOG_ERR("IMU not supported");
 			sensor_imu = NULL;
+			sensor_sensor_scanning = false; // done
 			return -1; // an IMU was detected but not supported
 		}
 		else
@@ -90,6 +98,7 @@ int sensor_init(void)
 	else
 	{
 		sensor_imu = NULL;
+		sensor_sensor_scanning = false; // done
 		return -1; // no IMU detected! something is very wrong
 	}
 
@@ -124,6 +133,7 @@ int sensor_init(void)
 	sensor_scan_write();
 
 	sensor_sensor_init = true; // successfully initialized
+	sensor_sensor_scanning = false; // done
 	return 0;
 }
 
@@ -579,12 +589,14 @@ void wait_for_threads(void)
 {
 	if (threads_running || main_running)
 		while (main_running)
-			k_msleep(1); // bane of my existence. don't use k_yield()!!!!!!
-//			k_usleep(1);
+			k_usleep(1); // bane of my existence. don't use k_yield()!!!!!!
 }
 
 void main_imu_suspend(void)
 {
+	main_suspended = true;
+	while (sensor_sensor_scanning)
+		k_usleep(1); // try not to interrupt scanning
 	k_thread_suspend(main_imu_thread_id);
 	main_running = false;
 	LOG_INF("Suspended main IMU thread");
@@ -592,7 +604,8 @@ void main_imu_suspend(void)
 
 void main_imu_wakeup(void)
 {
-	k_wakeup(main_imu_thread_id);
+	if (!main_suspended) // don't wake up if pending suspension
+		k_wakeup(main_imu_thread_id);
 }
 
 // TODO: move to a calibration file
