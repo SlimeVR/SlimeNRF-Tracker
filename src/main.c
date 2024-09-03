@@ -41,6 +41,7 @@ int main(void)
 
 #if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
 	(*dbl_reset_mem) = DFU_DBL_RESET_APP; // Skip DFU
+	ram_range_retain(dbl_reset_mem, sizeof(dbl_reset_mem), true);
 #endif
 
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"

@@ -39,6 +39,8 @@ struct retained_data {
  */
 extern struct retained_data retained;
 
+int ram_range_retain(const void *ptr, size_t len, bool enable);
+
 /* Check whether the retained data is valid, and if not reset it.
  *
  * @return true if and only if the data was valid and reflects state

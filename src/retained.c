@@ -60,7 +60,7 @@
  *
  * @param enable true to enable retention, false to clear retention
  */
-static int ram_range_retain(const void *ptr,
+int ram_range_retain(const void *ptr,
 			    size_t len,
 			    bool enable)
 {
