@@ -151,11 +151,11 @@ const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET_OR(LED0_NODE, {0});
 
 void set_led(enum sys_led_pattern led_pattern)
 {
+	pwm_set_pulse_dt(&pwm_led, 0);
+	gpio_pin_set_dt(&led, 0);
 	if (led_pattern == SYS_LED_PATTERN_OFF)
 	{
 		k_thread_suspend(led_thread_id);
-		pwm_set_pulse_dt(&pwm_led, 0);
-		gpio_pin_set_dt(&led, 0);
 	}
 	else
 	{
@@ -200,10 +200,10 @@ void led_thread(void)
 				k_msleep(200);
 			break;
 		case SYS_LED_PATTERN_ONESHOT_POWEROFF:
-			if (led_pattern_state++ > 0 && led_pattern_state < 22)
+			if (led_pattern_state++ > 0)
 				pwm_set_pulse_dt(&pwm_led, PWM_MSEC(22 - led_pattern_state));
 			else
-				pwm_set_pulse_dt(&pwm_led, 0);
+				gpio_pin_set_dt(&led, 0);
 			if (led_pattern_state == 22)
 				k_thread_suspend(led_thread_id);
 			else if (led_pattern_state == 1)
