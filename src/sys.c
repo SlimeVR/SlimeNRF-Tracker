@@ -154,6 +154,7 @@ void set_led(enum sys_led_pattern led_pattern)
 	if (led_pattern == SYS_LED_PATTERN_OFF)
 	{
 		k_thread_suspend(led_thread_id);
+		pwm_set_pulse_dt(&pwm_led, 0);
 		gpio_pin_set_dt(&led, 0);
 	}
 	else
@@ -202,7 +203,7 @@ void led_thread(void)
 			if (led_pattern_state++ > 0 && led_pattern_state < 22)
 				pwm_set_pulse_dt(&pwm_led, PWM_MSEC(22 - led_pattern_state));
 			else
-				gpio_pin_set_dt(&led, 0);
+				pwm_set_pulse_dt(&pwm_led, 0);
 			if (led_pattern_state == 22)
 				k_thread_suspend(led_thread_id);
 			else if (led_pattern_state == 1)

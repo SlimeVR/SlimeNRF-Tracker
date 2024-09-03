@@ -89,7 +89,7 @@ int main(void)
 		reboot_counter_write(reboot_counter);
 		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF);
 		// TODO: scheduled power off
-		k_msleep(1250);
+		k_msleep(1500);
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // If alternate button is available and still pressed, wait for the user to stop pressing the button
 		if (gpio_pin_get_dt(&button0))
 		{
