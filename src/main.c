@@ -70,6 +70,10 @@ int main(void)
 		k_msleep(1000); // Wait before clearing counter and continuing
 		reboot_counter = 100;
 		reboot_counter_write(reboot_counter);
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // If alternate button is available long press is possible
+		if (!gpio_pin_get_dt(&button0)) // Only need to check once, if the button is pressed again an interrupt is triggered from before
+			reset_mode = -1; // Cancel reset_mode (shutdown)
+#endif
 	}
 // 0ms or 1000ms for reboot counter
 
@@ -82,6 +86,15 @@ int main(void)
 		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF);
 		// TODO: scheduled power off
 		k_msleep(1250);
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // If alternate button is available and still pressed, wait for the user to stop pressing the button
+		if (gpio_pin_get_dt(&button0))
+		{
+			set_led(SYS_LED_PATTERN_LONG);
+			while (gpio_pin_get_dt(&button0))
+				k_msleep(1);
+			set_led(SYS_LED_PATTERN_OFF);
+		}
+#endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 		bool docked = gpio_pin_get_dt(&dock);
 #else
