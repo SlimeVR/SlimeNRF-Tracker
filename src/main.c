@@ -75,7 +75,7 @@ int main(void)
 		reboot_counter = 100;
 		reboot_counter_write(reboot_counter);
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // If alternate button is available long press is possible
-		if (!gpio_pin_get_dt(&button0)) // Only need to check once, if the button is pressed again an interrupt is triggered from before
+		if (!gpio_pin_get_dt(&button0) && reset_mode == 0) // Only need to check once, if the button is pressed again an interrupt is triggered from before
 			reset_mode = -1; // Cancel reset_mode (shutdown)
 #endif
 	}
