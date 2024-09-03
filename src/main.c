@@ -39,7 +39,7 @@ int main(void)
 //	start_time = k_uptime_get(); // Need to get start time for imu startup delay
 	set_led(SYS_LED_PATTERN_ON); // Boot LED
 
-#if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
+#if CONFIG_BUILD_OUTPUT_UF2 && !(IGNORE_RESET && DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios)) // Using Adafruit bootloader
 	(*dbl_reset_mem) = DFU_DBL_RESET_APP; // Skip DFU
 	ram_range_retain(dbl_reset_mem, sizeof(dbl_reset_mem), true);
 #endif
@@ -47,8 +47,11 @@ int main(void)
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
 	const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
 	gpio_pin_configure_dt(&button0, GPIO_INPUT);
+#if IGNORE_RESET
 	reset_reason = gpio_pin_get_dt(&button0); // overwrite reset_reason
-//	reset_reason |= gpio_pin_get_dt(&button0);
+#else
+	reset_reason |= gpio_pin_get_dt(&button0);
+#endif
 	gpio_pin_interrupt_configure_dt(&button0, GPIO_INT_EDGE_TO_ACTIVE);
 	gpio_init_callback(&button_cb_data, button_pressed, BIT(button0.pin));
 	gpio_add_callback(button0.port, &button_cb_data);
@@ -126,7 +129,7 @@ int main(void)
 		reset_mode = 0; // Clear reset mode
 	}
 
-#if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
+#if CONFIG_BUILD_OUTPUT_UF2 // Using Adafruit bootloader
 	if (reset_mode == 3 || reset_mode == 4) // DFU_MAGIC_UF2_RESET, Reset mode DFU
 	{
 		LOG_INF("DFU requested");

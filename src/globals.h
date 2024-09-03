@@ -28,6 +28,7 @@ extern bool main_data;
 
 #define USER_SHUTDOWN_ENABLED true
 #define MAG_ENABLED true
+#define IGNORE_RESET true // If sw0 available, don't change any reset behavior
 
 // TODO: only scan/detect new imus on reset event, write to nvs
 
