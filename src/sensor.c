@@ -308,7 +308,7 @@ int main_imu_init(void)
 {
 	int err;
 	// TODO: on any errors set main_ok false and skip (make functions return nonzero)
-// 5ms delta (???) from entering loop
+// 5ms (???) from entering loop
 // skip sleep, surely this wont cause issues :D
 /*
 	int64_t time_delta = k_uptime_get() - start_time;
@@ -338,13 +338,13 @@ int main_imu_init(void)
 	err = (*sensor_imu->init)(&sensor_imu_dev, clock_actual_rate, tickrate / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
 	if (err < 0)
 		return err;
-// 55-66ms delta to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
+// 55-66ms to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 	if (mag_available && mag_enabled)
 	{
 		err = (*sensor_mag->init)(&sensor_mag_dev, tickrate / 1000.0, &mag_actual_time);								 // configure with ~200Hz ODR
 		if (err < 0)
 			return err;
-// 0-1ms delta to setup mmc
+// 0-1ms to setup mmc
 	}
 	LOG_INF("Initialized main IMUs");
 

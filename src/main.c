@@ -34,9 +34,9 @@ int main(void)
 	gpio_pin_configure_dt(&dock, GPIO_INPUT);
 #endif
 
-	power_check(); // check the battery and dock first before continuing (4ms delta to read from ADC)
+	power_check(); // check the battery and dock first before continuing (4ms to read from ADC)
 
-//	start_time = k_uptime_get(); // Need to get start time for imu startup delta
+//	start_time = k_uptime_get(); // Need to get start time for imu startup delay
 	set_led(SYS_LED_PATTERN_ON); // Boot LED
 
 #if CONFIG_BOARD_SUPERMINI // Using Adafruit bootloader
@@ -71,7 +71,7 @@ int main(void)
 		reboot_counter = 100;
 		reboot_counter_write(reboot_counter);
 	}
-// 0ms or 1000ms delta for reboot counter
+// 0ms or 1000ms for reboot counter
 
 #if USER_SHUTDOWN_ENABLED
 	if (reset_mode == 0 && !booting_from_shutdown) // Reset mode user shutdown
@@ -96,7 +96,7 @@ int main(void)
 #endif
 
 	sys_read();
-// 5-6ms delta to initialize NVS (only done when needed)
+// 5-6ms to initialize NVS (only done when needed)
 
 	set_led(SYS_LED_PATTERN_OFF);
 
@@ -128,7 +128,7 @@ int main(void)
 	esb_initialize();
 	tx_payload.noack = false;
 	//timer_init();
-// 1ms delta to start ESB
+// 1ms to start ESB
 
 	unsigned int last_batt_pptt[16] = {10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001};
 	int8_t last_batt_pptt_i = 0;
