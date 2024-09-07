@@ -215,7 +215,7 @@ void sensor_calibrate_imu(void)
 	LOG_INF("Calibrating main accelerometer and gyroscope zero rate offset");
 	// TODO: Add LED flashies
 	LOG_INF("Rest the device on a stable surface");
-	if (!wait_for_motion(&sensor_imu_dev, false, 20)) // Wait for accelerometer to settle, timeout 10s
+	if (!wait_for_motion(&sensor_imu_dev, false, 6)) // Wait for accelerometer to settle, timeout 3s
 		return; // Timeout, calibration failed
 
 	set_led(SYS_LED_PATTERN_ON); // scuffed led
