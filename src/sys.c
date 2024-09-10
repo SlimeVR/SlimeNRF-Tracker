@@ -27,7 +27,7 @@ LOG_MODULE_REGISTER(sys, LOG_LEVEL_INF);
 K_THREAD_DEFINE(led_thread_id, 512, led_thread, NULL, NULL, NULL, 6, 0, 0);
 
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
-K_THREAD_DEFINE(button_thread_id, 512, button_thread, NULL, NULL, NULL, 6, 0, 0);
+K_THREAD_DEFINE(button_thread_id, 256, button_thread, NULL, NULL, NULL, 6, 0, 0);
 #endif
 
 void configure_system_off_WOM()
@@ -332,7 +332,7 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 	}
 	else
 	{
-		if (press_time != 0 && k_uptime_get() - press_time > 100) // Debounce
+		if (press_time != 0 && k_uptime_get() - press_time > 50) // Debounce
 			sys_reboot(SYS_REBOOT_COLD); // treat like pin reset but without pin reset reason
 		press_time = 0;
 	}
@@ -367,11 +367,13 @@ bool button_read(void)
 
 void button_thread(void)
 {
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
 	sys_button_init();
 	while (1)
 	{
 		k_msleep(10);
-		if (press_time != 0 && k_uptime_get() - press_time > 100 && button_read()) // Button is being pressed
+		if (press_time != 0 && k_uptime_get() - press_time > 50 && button_read()) // Button is being pressed
 			sys_reboot(SYS_REBOOT_COLD);
 	}
+#endif
 }
