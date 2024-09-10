@@ -7,7 +7,6 @@
 #include "battery.h"
 
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/sys/reboot.h>
 
 #define DFU_DBL_RESET_MEM 0x20007F7C
 #define DFU_DBL_RESET_APP 0x4ee5677e
@@ -15,13 +14,6 @@
 uint32_t* dbl_reset_mem = ((uint32_t*) DFU_DBL_RESET_MEM);
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
-
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
-void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
-{
-	sys_reboot(SYS_REBOOT_COLD); // treat like pin reset but without pin reset reason
-}
-#endif
 
 int main(void)
 {
@@ -44,17 +36,10 @@ int main(void)
 	ram_range_retain(dbl_reset_mem, sizeof(dbl_reset_mem), true);
 #endif
 
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
-	const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
-	gpio_pin_configure_dt(&button0, GPIO_INPUT);
 #if IGNORE_RESET
-	reset_reason = gpio_pin_get_dt(&button0); // overwrite reset_reason
+	reset_reason = button_read(); // overwrite reset_reason
 #else
-	reset_reason |= gpio_pin_get_dt(&button0);
-#endif
-	gpio_pin_interrupt_configure_dt(&button0, GPIO_INT_EDGE_TO_ACTIVE);
-	gpio_init_callback(&button_cb_data, button_pressed, BIT(button0.pin));
-	gpio_add_callback(button0.port, &button_cb_data);
+	reset_reason |= button_read();
 #endif
 
 	if (reset_reason & 0x01) // Count pin resets
@@ -75,7 +60,7 @@ int main(void)
 		reboot_counter = 100;
 		reboot_counter_write(reboot_counter);
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // If alternate button is available long press is possible
-		if (!gpio_pin_get_dt(&button0) && reset_mode == 0) // Only need to check once, if the button is pressed again an interrupt is triggered from before
+		if (!button_read() && reset_mode == 0) // Only need to check once, if the button is pressed again an interrupt is triggered from before
 			reset_mode = -1; // Cancel reset_mode (shutdown)
 #endif
 	}
@@ -90,15 +75,13 @@ int main(void)
 		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF);
 		// TODO: scheduled power off
 		k_msleep(1500);
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // If alternate button is available and still pressed, wait for the user to stop pressing the button
-		if (gpio_pin_get_dt(&button0))
+		if (button_read()) // If alternate button is available and still pressed, wait for the user to stop pressing the button
 		{
 			set_led(SYS_LED_PATTERN_LONG);
-			while (gpio_pin_get_dt(&button0))
+			while (button_read())
 				k_msleep(1);
 			set_led(SYS_LED_PATTERN_OFF);
 		}
-#endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 		bool docked = gpio_pin_get_dt(&dock);
 #else

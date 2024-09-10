@@ -9,6 +9,7 @@
 #include <zephyr/storage/flash_map.h>
 #include <zephyr/fs/nvs.h>
 #include <hal/nrf_gpio.h>
+#include <zephyr/sys/reboot.h>
 
 #include "sys.h"
 
@@ -24,6 +25,10 @@ struct nvs_fs fs;
 LOG_MODULE_REGISTER(sys, LOG_LEVEL_INF);
 
 K_THREAD_DEFINE(led_thread_id, 512, led_thread, NULL, NULL, NULL, 6, 0, 0);
+
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+K_THREAD_DEFINE(button_thread_id, 512, button_thread, NULL, NULL, NULL, 6, 0, 0);
+#endif
 
 void configure_system_off_WOM()
 {
@@ -311,4 +316,62 @@ int set_sensor_clock(bool enable, float rate, float *actual_rate)
 	if (!err)
 		*actual_rate = enable ? rate : 0; // the system probably could provide the correct rate
 	return err;
+}
+
+
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
+
+int64_t press_time;
+
+void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
+{
+	if (gpio_pin_get_dt(&button0))
+	{
+		press_time = k_uptime_get();
+	}
+	else
+	{
+		if (press_time != 0 && k_uptime_get() - press_time > 100) // Debounce
+			sys_reboot(SYS_REBOOT_COLD); // treat like pin reset but without pin reset reason
+		press_time = 0;
+	}
+}
+#endif
+
+bool button_init;
+
+void sys_button_init(void)
+{
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+	if (!button_init)
+	{
+		gpio_pin_configure_dt(&button0, GPIO_INPUT);
+		gpio_pin_interrupt_configure_dt(&button0, GPIO_INT_EDGE_BOTH);
+		gpio_init_callback(&button_cb_data, button_pressed, BIT(button0.pin));
+		gpio_add_callback(button0.port, &button_cb_data);
+		button_init = true;
+	}
+#endif
+}
+
+bool button_read(void)
+{
+#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+	sys_button_init();
+	return gpio_pin_get_dt(&button0);
+#else
+	return false;
+#endif
+}
+
+void button_thread(void)
+{
+	sys_button_init();
+	while (1)
+	{
+		k_msleep(10);
+		if (press_time != 0 && k_uptime_get() - press_time > 100 && button_read()) // Button is being pressed
+			sys_reboot(SYS_REBOOT_COLD);
+	}
 }
