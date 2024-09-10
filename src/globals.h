@@ -26,8 +26,8 @@ extern bool main_running;
 extern bool main_ok;
 extern bool main_data;
 
-#define USER_SHUTDOWN_ENABLED true
-#define MAG_ENABLED true
+#define USER_SHUTDOWN_ENABLED true // Allow user to use reset or sw0 to shutdown
+#define MAG_ENABLED true // Use magnetometer if it is present
 #define IGNORE_RESET true // If sw0 available, don't change any reset behavior
 
 // TODO: only scan/detect new imus on reset event, write to nvs
