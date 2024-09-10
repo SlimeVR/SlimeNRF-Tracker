@@ -50,7 +50,11 @@ bool sensor_sensor_scanning;
 bool main_suspended;
 
 bool mag_available;
+#ifdef MAG_ENABLED
 bool mag_enabled = MAG_ENABLED; // TODO: toggle from server
+#else
+bool mag_enabled = false;
+#endif
 
 const sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion; // TODO: change from server
 
