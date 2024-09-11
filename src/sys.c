@@ -326,7 +326,7 @@ int64_t press_time;
 
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
-	if (gpio_pin_get_dt(&button0))
+	if (button_read())
 	{
 		press_time = k_uptime_get();
 	}
