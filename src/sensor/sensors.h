@@ -24,6 +24,7 @@ Bosch Sensortec
 TDK InvenSense
 *ICM-42688-P:68/69,75,47
 *ICM-42688-V:68/69,75,DB
++ICM-45686:68/69,72,E9
 STMicroelectronics
 -LSM6DS3:6A/6B,0F,69
 +LSM6DSO:6A/6B,0F,6C
@@ -39,11 +40,11 @@ QST Corporation
 -QMC5883L:0B,OD,FF
 Bosch Sensortec
 -BMM150:10/11/12/13,40,32
--BMM350:14/15/16/17,00,33
++BMM350:14/15/16/17,00,33
 STMicroelectronics
 -IIS2MDC:1E,4F,40
 -LIS2MDL:1E,4F,40
--LIS3MDL:1C/1E,0F,3D
++LIS3MDL:1C/1E,0F,3D
 memsic
 -MMC5603NJ:30,39,10
 -MMC5633NJL:30,39,10
@@ -63,6 +64,7 @@ enum dev_imu {
 	IMU_BMI270,
 	IMU_BMI323,
 	IMU_ICM42688,
+	IMU_ICM45686,
 	IMU_LSM6DS3,
 	IMU_LSM6DSO,
 	IMU_LSM6DSV
@@ -72,6 +74,7 @@ const char *dev_imu_names[] = {
 	"BMI270",
 	"BMI323",
 	"ICM-42688-P/ICM-42688-V",
+	"ICM-45686",
 	"LSM6DS3",
 	"LSM6DSO",
 	"LSM6DSV"
@@ -81,6 +84,7 @@ const sensor_imu_t *sensor_imus[] = {
 	&sensor_imu_bmi270,
 	NULL,
 	&sensor_imu_icm42688,
+	NULL,
 	NULL, // will not implement, too low quality
 	NULL,
 	&sensor_imu_lsm6dsv
@@ -91,16 +95,18 @@ const uint8_t i2c_dev_imu_addr[] = {
 	2, 0x6A,0x6B
 };
 const uint8_t i2c_dev_imu_reg[] = {
-	2, 0x00,0x75,
+	3, 0x00,0x72,0x75,
 	1, 0x0F
 };
 const uint8_t i2c_dev_imu_id[] = {
 	3, 0xD1,0x24,0x43, // 0x00
+	1, 0xE9, // 0x72
 	2, 0x47,0xDB, // 0x75
 	3, 0x69,0x6C,0x70 // 0x0F
 };
 const int i2c_dev_imu[] = {
 	IMU_BMI160, IMU_BMI270, IMU_BMI323,
+	IMU_ICM45686,
 	IMU_ICM42688, IMU_ICM42688, // ICM-42688-P, ICM-42688-V
 	IMU_LSM6DS3, IMU_LSM6DSO, IMU_LSM6DSV
 };
