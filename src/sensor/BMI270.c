@@ -1,5 +1,6 @@
 #include <math.h>
 
+#include <zephyr/logging/log.h>
 #include <zephyr/drivers/i2c.h>
 
 #include "BMI270.h"
@@ -11,36 +12,46 @@ static const float gyro_sensitivity = 2000.0f / 32768.0f; // Always 2000dps
 static uint8_t last_accel_odr = 0xff;
 static uint8_t last_gyro_odr = 0xff;
 
+LOG_MODULE_REGISTER(BMI270, LOG_LEVEL_DBG);
+
 int bmi_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
 {
 	uint8_t status;
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
+	int err = i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
 	k_usleep(450);
-	i2c_reg_read_byte_dt(dev_i2c, BMI270_INTERNAL_STATUS, &status);
+	err |= i2c_reg_read_byte_dt(dev_i2c, BMI270_INTERNAL_STATUS, &status);
 	if ((status & 0x7) != 0x1) // ASIC is not initialized
 	{
-		i2c_reg_write_byte_dt(dev_i2c, BMI270_CMD, 0xB6); // softreset
+		LOG_DBG("ASIC not initialized, uploading config file");
+		err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_CMD, 0xB6); // softreset
 		k_msleep(2);
-		i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
+		err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
 		k_usleep(450);
-		bmi_upload_config_file(dev_i2c);
+		err |= bmi_upload_config_file(dev_i2c);
 		int retry_count = 0;
 		while ((status & 0x7) != 0x1)
 		{
 			if (retry_count > 100)
+			{
+				LOG_ERR("Failed to initialize ASIC");
 				return -1;
+			};
 			k_msleep(1);
-			i2c_reg_read_byte_dt(dev_i2c, BMI270_INTERNAL_STATUS, &status);
+			err |= i2c_reg_read_byte_dt(dev_i2c, BMI270_INTERNAL_STATUS, &status);
+			LOG_DBG("Status: 0x%02X", status);
 			retry_count++;
 		}
+		LOG_DBG("ASIC initialized");
 	}
 	last_accel_odr = 0xff; // reset last odr
 	last_gyro_odr = 0xff; // reset last odr
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_ACC_RANGE, RANGE_16G);
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_GYR_RANGE, RANGE_2000);
-	int err = bmi_update_odr(dev_i2c, accel_time, gyro_time, accel_actual_time, gyro_actual_time);
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_FIFO_CONFIG_0, 0x01); // stop FIFO when full, do not return sensortime frame
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_FIFO_CONFIG_1, 0x80); // enable gyro data in FIFO, don't store header
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_ACC_RANGE, RANGE_16G);
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_GYR_RANGE, RANGE_2000);
+	err |= bmi_update_odr(dev_i2c, accel_time, gyro_time, accel_actual_time, gyro_actual_time);
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_FIFO_CONFIG_0, 0x01); // stop FIFO when full, do not return sensortime frame
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_FIFO_CONFIG_1, 0x80); // enable gyro data in FIFO, don't store header
+	if (err)
+		LOG_ERR("I2C error");
 	return (err < 0 ? err : 0);
 }
 
@@ -48,8 +59,10 @@ void bmi_shutdown(const struct i2c_dt_spec *dev_i2c) // this does not reset the 
 {
 	last_accel_odr = 0xff; // reset last odr
 	last_gyro_odr = 0xff; // reset last odr
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CTRL, 0x00); // disable all sensors
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x01); // enable adv_power_save (suspend)
+	int err = i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CTRL, 0x00); // disable all sensors
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x01); // enable adv_power_save (suspend)
+	if (err)
+		LOG_ERR("I2C error");
 }
 
 int bmi_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
@@ -188,12 +201,15 @@ int bmi_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gy
 	last_accel_odr = acc_odr;
 	last_gyro_odr = gyr_odr;
 
+	int err = 0;
 	if (acc_odr != 0)
-		i2c_reg_write_byte_dt(dev_i2c, BMI270_ACC_CONF, 0xA0 | acc_odr);
+		err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_ACC_CONF, 0xA0 | acc_odr);
 	if (gyr_odr != 0)
-		i2c_reg_write_byte_dt(dev_i2c, BMI270_GYR_CONF, 0xE0 | gyr_odr); // set performance opt. noise performance
+		err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_GYR_CONF, 0xE0 | gyr_odr); // set performance opt. noise performance
 	
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CTRL, 0x08 | (acc_odr != 0 ? 0x04 : 0) | (gyr_odr != 0 ? 0x02 : 0)); // enable temp, set accel and gyro power
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CTRL, 0x08 | (acc_odr != 0 ? 0x04 : 0) | (gyr_odr != 0 ? 0x02 : 0)); // enable temp, set accel and gyro power
+	if (err)
+		LOG_ERR("I2C error");
 
 	*accel_actual_time = accel_time;
 	*gyro_actual_time = gyro_time;
@@ -204,17 +220,19 @@ int bmi_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gy
 uint16_t bmi_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data)
 {
 	uint8_t rawCount[2];
-	i2c_burst_read_dt(dev_i2c, BMI270_FIFO_LENGTH_0, &rawCount[0], 2);
+	int err = i2c_burst_read_dt(dev_i2c, BMI270_FIFO_LENGTH_0, &rawCount[0], 2);
 	uint16_t count = (uint16_t)((rawCount[1] & 1) << 8 | rawCount[0]); // Turn the 16 bits into a unsigned 16-bit value
 	count += 24; // Add a few read buffer packets, since the FIFO may contain more data than when we begin reading (allowing 4ms of transaction time for 1000hz ODR)
 	uint16_t packets = count / 6; // FIFO packet size is 6 bytes for gyro only
 	uint16_t offset = 0;
 	while (count > 0)
 	{
-		i2c_burst_read_dt(dev_i2c, BMI270_FIFO_DATA, &data[offset], count > 64 ? 64 : count); // Read less than 255 at a time (for nRF52832)
+		err |= i2c_burst_read_dt(dev_i2c, BMI270_FIFO_DATA, &data[offset], count > 64 ? 64 : count); // Read less than 255 at a time (for nRF52832)
 		offset += 64;
 		count = count > 64 ? count - 64 : 0;
 	}
+	if (err)
+		LOG_ERR("I2C error");
 	return packets;
 }
 
@@ -234,7 +252,9 @@ int bmi_fifo_process(uint16_t index, uint8_t *data, float g[3])
 void bmi_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3])
 {
 	uint8_t rawAccel[6];
-	i2c_burst_read_dt(dev_i2c, BMI270_DATA_8, &rawAccel[0], 6);
+	int err = i2c_burst_read_dt(dev_i2c, BMI270_DATA_8, &rawAccel[0], 6);
+	if (err)
+		LOG_ERR("I2C error");
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
 		a[i] = (int16_t)((((int16_t)rawAccel[(i * 2) + 1]) << 8) | rawAccel[i * 2]);
@@ -245,7 +265,9 @@ void bmi_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3])
 void bmi_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3])
 {
 	uint8_t rawGyro[6];
-	i2c_burst_read_dt(dev_i2c, BMI270_DATA_14, &rawGyro[0], 6);
+	int err = i2c_burst_read_dt(dev_i2c, BMI270_DATA_14, &rawGyro[0], 6);
+	if (err)
+		LOG_ERR("I2C error");
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
 		g[i] = (int16_t)((((int16_t)rawGyro[(i * 2) + 1]) << 8) | rawGyro[i * 2]);
@@ -256,7 +278,9 @@ void bmi_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3])
 float bmi_temp_read(const struct i2c_dt_spec *dev_i2c)
 {
 	uint8_t rawTemp[2];
-	i2c_burst_read_dt(dev_i2c, BMI270_TEMPERATURE_0, &rawTemp[0], 2);
+	int err = i2c_burst_read_dt(dev_i2c, BMI270_TEMPERATURE_0, &rawTemp[0], 2);
+	if (err)
+		LOG_ERR("I2C error");
 	if (rawTemp[0] == 0x00 && rawTemp[1] == 0x80)
 		return 23; // TODO: invalid temperature, what to return?
 	// 0x0000 -> 23°C
@@ -273,16 +297,19 @@ void bmi_setup_WOM(const struct i2c_dt_spec *dev_i2c) // TODO: seems too sensiti
 	uint16_t *ptr = (uint16_t *)config;
 	ptr[0] = 0x7 << 13 | 0x000; // enable all axes, set detection duration to 0
 	ptr[1] = 0x1 << 15 | 0x7 << 11 | 0x28A; // enable any_motion, set out_conf, set threshold (1LSB equals to 0.48mg, 650 * 0.48mg is ~312mg)
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
+	int err = i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
 	k_busy_wait(500);
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_ACC_CONF, ODR_200); // disable filters, set accel ODR
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CTRL, 0x04); // enable accel
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_FEAT_PAGE, 0x01); // go to page 1
-	i2c_burst_write_dt(dev_i2c, BMI270_ANYMO_1, config, sizeof(config)); // Start write buffer
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_INT1_IO_CTRL, 0x0C); // set INT1 active low, open-drain, output enabled
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_INT1_MAP_FEAT, 0x40); // enable any_motion_out (interrupt)
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x01); // enable adv_power_save (suspend)
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_ACC_CONF, ODR_200); // disable filters, set accel ODR
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CTRL, 0x04); // enable accel
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_FEAT_PAGE, 0x01); // go to page 1
+	err |= i2c_burst_write_dt(dev_i2c, BMI270_ANYMO_1, config, sizeof(config)); // Start write buffer
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_INT1_IO_CTRL, 0x0C); // set INT1 active low, open-drain, output enabled
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_INT1_MAP_FEAT, 0x40); // enable any_motion_out (interrupt)
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x01); // enable adv_power_save (suspend)
+	if (err)
+		LOG_ERR("I2C error");
 	k_busy_wait(2000); // wait for sensor to settle
+	LOG_DBG("WOM setup complete");
 }
 
 // write_config_file function from https://github.com/zephyrproject-rtos/zephyr/blob/main/drivers/sensor/bosch/bmi270/bmi270.c
@@ -291,15 +318,18 @@ int bmi_upload_config_file(const struct i2c_dt_spec *dev_i2c)
 {
 	uint16_t count = sizeof(bmi270_config_file) / sizeof(bmi270_config_file[0]);
 	uint8_t init_addr[2] = {0};
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_INIT_CTRL, 0x00); // prepare config load
+	int err = i2c_reg_write_byte_dt(dev_i2c, BMI270_INIT_CTRL, 0x00); // prepare config load
 	for (int i = 0; i < count; i += 64)
 	{
 		init_addr[0] = (i / 2) & 0xF;
 		init_addr[1] = (i / 2) >> 4;
-		i2c_burst_write_dt(dev_i2c, BMI270_INIT_ADDR_0, init_addr, 2);
-		i2c_burst_write_dt(dev_i2c, BMI270_INIT_DATA, &bmi270_config_file[i], 64); // 64 works, 128 doesn't? either way it takes forever
+		err |= i2c_burst_write_dt(dev_i2c, BMI270_INIT_ADDR_0, init_addr, 2);
+		err |= i2c_burst_write_dt(dev_i2c, BMI270_INIT_DATA, &bmi270_config_file[i], 64); // 64 works, 128 doesn't? either way it takes forever
 	}
-	i2c_reg_write_byte_dt(dev_i2c, BMI270_INIT_CTRL, 0x01); // complete config load
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_INIT_CTRL, 0x01); // complete config load
+	if (err)
+		LOG_ERR("I2C error");
+	LOG_DBG("Completed config load");
 	return 0;
 }
 
