@@ -18,7 +18,7 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 int main(void)
 {
-#if IGNORE_RESET
+#if IGNORE_RESET && DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios)
 	bool reset_pin_reset = false;
 #else
 	bool reset_pin_reset = NRF_POWER->RESETREAS & 0x01;
