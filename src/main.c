@@ -42,18 +42,19 @@ int main(void)
 	uint8_t reboot_counter = reboot_counter_read();
 	bool booting_from_shutdown = reboot_counter == 0; // 0 means from user shutdown or failed ram validation;
 
-	if (booting_from_shutdown || reset_pin_reset || button_read()) // Count pin resets
+	if (booting_from_shutdown)
+		set_led(SYS_LED_PATTERN_ONESHOT_POWERON);
+
+	if (reset_pin_reset || button_read()) // Count pin resets
 	{
-		if (reboot_counter > 200)
-			reboot_counter = 200; // How did you get here
 		if (reboot_counter == 0)
 			reboot_counter = 100;
+		else if (reboot_counter > 200)
+			reboot_counter = 200; // How did you get here
 		reset_mode = reboot_counter - 100;
 		reboot_counter++;
 		reboot_counter_write(reboot_counter);
 		LOG_INF("Reset count: %u", reboot_counter);
-		if (booting_from_shutdown)
-			set_led(SYS_LED_PATTERN_ONESHOT_POWERON);
 		k_msleep(1000); // Wait before clearing counter and continuing
 		reboot_counter_write(100);
 		if (!reset_pin_reset && !button_read() && reset_mode == 0) // Only need to check once, if the button is pressed again an interrupt is triggered from before
