@@ -18,10 +18,12 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 int main(void)
 {
-	int32_t reset_reason = NRF_POWER->RESETREAS;
+#if IGNORE_RESET
+	bool reset_pin_reset = false;
+#else
+	bool reset_pin_reset = NRF_POWER->RESETREAS & 0x01;
+#endif
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
-	uint8_t reboot_counter = 0;
-	bool booting_from_shutdown = false;
 
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	gpio_pin_configure_dt(&dock, GPIO_INPUT);
@@ -37,18 +39,13 @@ int main(void)
 	ram_range_retain(dbl_reset_mem, sizeof(dbl_reset_mem), true);
 #endif
 
-#if IGNORE_RESET
-	reset_reason = button_read(); // overwrite reset_reason
-#else
-	reset_reason |= button_read();
-#endif
+	uint8_t reboot_counter = reboot_counter_read();
+	bool booting_from_shutdown = reboot_counter == 0; // 0 means from user shutdown or failed ram validation;
 
-	if (reset_reason & 0x01) // Count pin resets
+	if (booting_from_shutdown || reset_pin_reset || button_read()) // Count pin resets
 	{
-		reboot_counter = reboot_counter_read();
 		if (reboot_counter > 200)
 			reboot_counter = 200; // How did you get here
-		booting_from_shutdown = reboot_counter == 0 ? true : false; // 0 means from user shutdown or failed ram validation
 		if (reboot_counter == 0)
 			reboot_counter = 100;
 		reset_mode = reboot_counter - 100;
@@ -58,12 +55,9 @@ int main(void)
 		if (booting_from_shutdown)
 			set_led(SYS_LED_PATTERN_ONESHOT_POWERON);
 		k_msleep(1000); // Wait before clearing counter and continuing
-		reboot_counter = 100;
-		reboot_counter_write(reboot_counter);
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // If alternate button is available long press is possible
-		if (!button_read() && reset_mode == 0) // Only need to check once, if the button is pressed again an interrupt is triggered from before
+		reboot_counter_write(100);
+		if (!reset_pin_reset && !button_read() && reset_mode == 0) // Only need to check once, if the button is pressed again an interrupt is triggered from before
 			reset_mode = -1; // Cancel reset_mode (shutdown)
-#endif
 	}
 // 0ms or 1000ms for reboot counter
 
@@ -71,8 +65,7 @@ int main(void)
 	if (reset_mode == 0 && !booting_from_shutdown) // Reset mode user shutdown
 	{
 		LOG_INF("User shutdown requested");
-		reboot_counter = 0;
-		reboot_counter_write(reboot_counter);
+		reboot_counter_write(0);
 		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF);
 		// TODO: scheduled power off
 		k_msleep(1500);
