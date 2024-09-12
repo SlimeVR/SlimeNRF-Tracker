@@ -247,7 +247,7 @@ uint16_t lsm_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data)
 int lsm_fifo_process(uint16_t index, uint8_t *data, float g[3])
 {
 	index *= 7; // Packet size 7 bytes
-	if (data[index] != 0x01)
+	if ((data[index] >> 3) != 0x01)
 		return 1; // Ignore all packets except Gyroscope NC (Gyroscope uncompressed data)
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
