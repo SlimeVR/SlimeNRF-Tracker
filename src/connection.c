@@ -2,7 +2,7 @@
 #include "util.h"
 #include "esb.h"
 
-void connection_write_packet_0(float *q, float *a)
+void connection_write_packet_0(float *q, float *a) // TODO: tracker_id, batt, batt_v should be passed in
 {
 	uint8_t data[20] = {0};
 	data[0] = 0; // TODO: packet id
