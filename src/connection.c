@@ -19,6 +19,5 @@ void connection_write_packet_0(float *q, float *a)
 	buf[4] = TO_FIXED_7(a[0]);
 	buf[5] = TO_FIXED_7(a[1]);
 	buf[6] = TO_FIXED_7(a[2]);
-//	memcpy(data[4], buf, sizeof(buf));
 	esb_write(data);
 }
