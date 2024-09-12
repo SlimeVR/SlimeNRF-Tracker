@@ -57,6 +57,4 @@ extern bool send_data;
 extern uint16_t led_clock;
 extern uint32_t led_clock_offset;
 
-extern struct gpio_callback button_cb_data;
-
 #endif

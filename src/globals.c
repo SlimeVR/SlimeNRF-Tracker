@@ -43,5 +43,3 @@ bool send_data = false;
 
 uint16_t led_clock = 0;
 uint32_t led_clock_offset = 0;
-
-struct gpio_callback button_cb_data;

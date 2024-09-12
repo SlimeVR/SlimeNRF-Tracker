@@ -363,6 +363,7 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 #endif
 
 bool button_init;
+struct gpio_callback button_cb_data;
 
 void sys_button_init(void)
 {
