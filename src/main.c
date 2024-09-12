@@ -26,7 +26,7 @@ int main(void)
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 
 	sys_gpio_init();
-	
+
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	bool docked = gpio_pin_get_dt(&dock);
 #else
@@ -42,6 +42,12 @@ int main(void)
 #else
 	bool charged = false;
 #endif
+
+	int batt_mV;
+	uint32_t batt_pptt = read_batt_mV(&batt_mV);
+
+	bool battery_available = batt_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
+	bool plugged = batt_mV > 4500; // Separate detection of vin
 
 //	start_time = k_uptime_get(); // Need to get start time for imu startup delay
 	set_led(SYS_LED_PATTERN_ON); // Boot LED
@@ -75,7 +81,7 @@ int main(void)
 // 0ms or 1000ms for reboot counter
 
 #if USER_SHUTDOWN_ENABLED
-	if (reset_mode == 0 && !booting_from_shutdown && !charging && !charged) // Reset mode user shutdown, only if unplugged and undocked
+	if (reset_mode == 0 && !booting_from_shutdown && !charging && !charged && !plugged) // Reset mode user shutdown, only if unplugged and undocked
 	{
 		LOG_INF("User shutdown requested");
 		reboot_counter_write(0);
