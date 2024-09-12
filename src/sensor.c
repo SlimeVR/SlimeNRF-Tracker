@@ -222,7 +222,7 @@ void sensor_calibrate_imu(void)
 	if (!wait_for_motion(&sensor_imu_dev, false, 6)) // Wait for accelerometer to settle, timeout 3s
 		return; // Timeout, calibration failed
 
-	set_led(SYS_LED_PATTERN_ON); // scuffed led
+	set_led(SYS_LED_PATTERN_ON);
 	k_msleep(500); // Delay before beginning acquisition
 
 	LOG_INF("Reading data");
@@ -243,7 +243,7 @@ void sensor_calibrate_imu(void)
 	{
 		retained.fusion_data_stored = false; // Invalidate retained fusion data
 	}
-	set_led(SYS_LED_PATTERN_OFF); // scuffed led
+	set_led(SYS_LED_PATTERN_OFF);
 }
 
 void sensor_calibrate_mag(void)
@@ -449,7 +449,7 @@ void main_imu_thread(void)
 					last_magCal = new_magCal;
 				}
 				if (magCal == 0b111111)
-					set_led(SYS_LED_PATTERN_ON); // TODO: will interfere with things
+					set_led(SYS_LED_PATTERN_ON);
 			}
 
 			if (mag_available && mag_enabled && reconfig) // TODO: get rid of reconfig?
