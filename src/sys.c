@@ -14,6 +14,10 @@
 
 #include "sys.h"
 
+#ifndef M_PI
+#define M_PI 3.141592653589793238462643383279502884f
+#endif
+
 struct nvs_fs fs;
 
 #define NVS_PARTITION		storage_partition
