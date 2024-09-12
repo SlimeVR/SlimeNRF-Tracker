@@ -8,7 +8,7 @@
 #define TO_FIXED_15(x) ((int16_t)SATURATE_INT16((x) * (1 << 15)))
 #define TO_FIXED_10(x) ((int16_t)((x) * (1 << 10)))
 #define TO_FIXED_7(x) ((int16_t)SATURATE_INT16((x) * (1 << 7)))
-#define FIXED_14_TO_DOUBLE(x) (((double)(x)) / (1 << 14))
+#define FIXED_15_TO_DOUBLE(x) (((double)(x)) / (1 << 15))
 #define FIXED_10_TO_DOUBLE(x) (((double)(x)) / (1 << 10))
 #define FIXED_7_TO_DOUBLE(x) (((double)(x)) / (1 << 7))
 
