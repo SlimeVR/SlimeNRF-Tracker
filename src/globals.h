@@ -16,7 +16,6 @@ extern int tickrate;
 
 extern uint8_t batt;
 extern uint8_t batt_v;
-extern uint32_t batt_pptt;
 extern bool batt_low;
 
 extern const struct gpio_dt_spec dock;
