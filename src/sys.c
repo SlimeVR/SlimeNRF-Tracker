@@ -2,6 +2,7 @@
 #include "sensor.h"
 #include "battery.h"
 
+#include <math.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/sys/poweroff.h>
@@ -148,7 +149,9 @@ void power_check(void)
 // TODO: temporary move button to main
 
 enum sys_led_pattern current_led_pattern;
+enum sys_led_pattern persistent_led_pattern = SYS_LED_PATTERN_OFF_PERSIST;
 int led_pattern_state;
+int led_pattern_state_persist;
 
 const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
 const struct gpio_dt_spec led = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, led_gpios, led0);
@@ -158,16 +161,20 @@ void set_led(enum sys_led_pattern led_pattern)
 {
 	pwm_set_pulse_dt(&pwm_led, 0);
 	gpio_pin_set_dt(&led, 0);
-	if (led_pattern == SYS_LED_PATTERN_OFF)
+	if (led_pattern >= SYS_LED_PATTERN_OFF_PERSIST)
 	{
-		k_thread_suspend(led_thread_id);
+		persistent_led_pattern = led_pattern;
+		led_pattern_state_persist = 0;
 	}
 	else
 	{
 		current_led_pattern = led_pattern;
 		led_pattern_state = 0;
-		k_thread_resume(led_thread_id);
 	}
+	if (current_led_pattern == SYS_LED_PATTERN_OFF && persistent_led_pattern == SYS_LED_PATTERN_OFF_PERSIST)
+		k_thread_suspend(led_thread_id);
+	else
+		k_thread_resume(led_thread_id);
 }
 
 void led_thread(void)
@@ -175,9 +182,10 @@ void led_thread(void)
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 	while (1)
 	{
-		switch (current_led_pattern)
+		switch (current_led_pattern != SYS_LED_PATTERN_OFF ? current_led_pattern : persistent_led_pattern)
 		{
 		case SYS_LED_PATTERN_ON:
+		case SYS_LED_PATTERN_ON_PERSIST:
 			gpio_pin_set_dt(&led, 1);
 			k_thread_suspend(led_thread_id);
 			break;
@@ -191,16 +199,11 @@ void led_thread(void)
 			gpio_pin_set_dt(&led, led_pattern_state);
 			k_msleep(500);
 			break;
-		case SYS_LED_PATTERN_ACTIVE:
-			led_pattern_state = (led_pattern_state + 1) % 2;
-			gpio_pin_set_dt(&led, led_pattern_state);
-			k_msleep(led_pattern_state == 1 ? 300 : 9700);
-			break;
 		case SYS_LED_PATTERN_ONESHOT_POWERON:
 			led_pattern_state++;
 			gpio_pin_set_dt(&led, led_pattern_state % 2);
 			if (led_pattern_state == 6)
-				k_thread_suspend(led_thread_id);
+				current_led_pattern = SYS_LED_PATTERN_OFF;
 			else
 				k_msleep(200);
 			break;
@@ -210,11 +213,22 @@ void led_thread(void)
 			else
 				gpio_pin_set_dt(&led, 0);
 			if (led_pattern_state == 22)
-				k_thread_suspend(led_thread_id);
+				current_led_pattern = SYS_LED_PATTERN_OFF;
 			else if (led_pattern_state == 1)
 				k_msleep(250);
 			else
 				k_msleep(50);
+			break;
+		case SYS_LED_PATTERN_PULSE_PERSIST:
+			led_pattern_state_persist = (led_pattern_state_persist + 1) % 100;
+			float led_value = sinf(led_pattern_state_persist * (M_PI / 100));
+			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(20 * led_value));
+			k_msleep(50);
+			break;
+		case SYS_LED_PATTERN_ACTIVE_PERSIST:
+			led_pattern_state_persist = (led_pattern_state_persist + 1) % 2;
+			gpio_pin_set_dt(&led, led_pattern_state_persist);
+			k_msleep(led_pattern_state_persist == 1 ? 300 : 9700);
 			break;
 		default:
 			k_thread_suspend(led_thread_id);
