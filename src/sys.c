@@ -455,6 +455,7 @@ void power_thread(void)
 		uint32_t batt_pptt = read_batt_mV(&batt_mV);
 
 		bool battery_available = batt_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
+		bool plugged = batt_mV > 4500; // Separate detection of vin
 
 		if (battery_available && batt_pptt == 0 && !docked)
 			configure_system_off_chgstat();
@@ -492,6 +493,19 @@ void power_thread(void)
 		if (docked) // TODO: keep sending battery state while plugged and docked?
 		// TODO: move to interrupts? (Then you do not need to do the above)
 			configure_system_off_dock();
+
+		if (charging)
+			set_led(SYS_LED_PATTERN_PULSE_PERSIST);
+		else if (charged)
+			set_led(SYS_LED_PATTERN_ON_PERSIST);
+		else if (plugged)
+			set_led(SYS_LED_PATTERN_PULSE_PERSIST);
+//		else if (batt < 10)
+//			set_led(SYS_LED_PATTERN_LONG);
+//		else
+//			set_led(SYS_LED_PATTERN_ACTIVE_PERSIST);
+		else
+			set_led(SYS_LED_PATTERN_OFF_PERSIST);
 
 		if (system_off_main) // System off on extended no movement
 			configure_system_off_WOM();
