@@ -78,10 +78,15 @@ void configure_system_off_chgstat(void)
 	set_led(SYS_LED_PATTERN_OFF_PERSIST);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
-//	// Configure chgstat interrupt
-//	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
-//	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_PULLUP);
-//	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chgstat_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	// Configure chgstat interrupt
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_SENSE_LOW);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_SENSE_LOW);
+#endif
 	// Configure dock interrupt
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
@@ -112,6 +117,15 @@ void configure_system_off_dock(void)
 	set_led(SYS_LED_PATTERN_OFF_PERSIST);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
+	// Configure chgstat interrupt
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_SENSE_LOW);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_SENSE_LOW);
+#endif
 	// Configure dock interrupt
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
