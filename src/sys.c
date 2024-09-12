@@ -42,6 +42,7 @@ void configure_system_off_WOM()
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
+	set_led(SYS_LED_PATTERN_OFF_PERSIST);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure dock
@@ -74,6 +75,7 @@ void configure_system_off_chgstat(void)
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
+	set_led(SYS_LED_PATTERN_OFF_PERSIST);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
 //	// Configure chgstat interrupt
@@ -107,6 +109,7 @@ void configure_system_off_dock(void)
 	main_imu_suspend();
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
+	set_led(SYS_LED_PATTERN_OFF_PERSIST);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure dock interrupt
