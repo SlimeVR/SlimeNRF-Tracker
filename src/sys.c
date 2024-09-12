@@ -212,7 +212,6 @@ void led_thread(void)
 		switch (current_led_pattern != SYS_LED_PATTERN_OFF ? current_led_pattern : persistent_led_pattern)
 		{
 		case SYS_LED_PATTERN_ON:
-		case SYS_LED_PATTERN_ON_PERSIST:
 			gpio_pin_set_dt(&led, 1);
 			k_thread_suspend(led_thread_id);
 			break;
@@ -245,6 +244,10 @@ void led_thread(void)
 				k_msleep(250);
 			else
 				k_msleep(50);
+			break;
+		case SYS_LED_PATTERN_ON_PERSIST:
+			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(4)); // 20% duty cycle, should look like ~50% brightness
+			k_thread_suspend(led_thread_id);
 			break;
 		case SYS_LED_PATTERN_PULSE_PERSIST:
 			led_pattern_state_persist = (led_pattern_state_persist + 1) % 100;
