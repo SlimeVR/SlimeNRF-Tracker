@@ -255,7 +255,6 @@ void esb_pair(void)
 			esb_write_payload(&tx_payload_pair); // TODO: Does this still fail after a while?
 			esb_start_tx();
 			k_msleep(1000);
-			power_check();
 		}
 		set_led(SYS_LED_PATTERN_OFF);
 		LOG_INF("Paired");
