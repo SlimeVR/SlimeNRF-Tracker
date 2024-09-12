@@ -25,8 +25,16 @@ int main(void)
 #endif
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios) // configure if exists
 	gpio_pin_configure_dt(&dock, GPIO_INPUT);
+#endif
+
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios) // configure if exists
+	gpio_pin_configure_dt(&chg, GPIO_INPUT);
+#endif
+
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios) // configure if exists
+	gpio_pin_configure_dt(&stby, GPIO_INPUT);
 #endif
 
 	power_check(); // check the battery and dock first before continuing (4ms to read from ADC)

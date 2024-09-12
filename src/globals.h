@@ -20,6 +20,8 @@ extern uint32_t batt_pptt;
 extern bool batt_low;
 
 extern const struct gpio_dt_spec dock;
+extern const struct gpio_dt_spec chg;
+extern const struct gpio_dt_spec stby;
 
 extern bool threads_running;
 extern bool main_running;

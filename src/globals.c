@@ -13,6 +13,8 @@ uint32_t batt_pptt;
 bool batt_low = false;
 
 const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, dock_gpios, {0});
+const struct gpio_dt_spec chg = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, chg_gpios, {0});
+const struct gpio_dt_spec stby = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, stby_gpios, {0});
 
 bool threads_running = false;
 bool main_running = false;
