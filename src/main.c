@@ -26,6 +26,22 @@ int main(void)
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 
 	sys_gpio_init();
+	
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
+	bool docked = gpio_pin_get_dt(&dock);
+#else
+	bool docked = false;
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
+	bool charging = gpio_pin_get_dt(&chg);
+#else
+	bool charging = false;
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
+	bool charged = gpio_pin_get_dt(&stby);
+#else
+	bool charged = false;
+#endif
 
 //	start_time = k_uptime_get(); // Need to get start time for imu startup delay
 	set_led(SYS_LED_PATTERN_ON); // Boot LED
@@ -41,7 +57,7 @@ int main(void)
 	if (booting_from_shutdown)
 		set_led(SYS_LED_PATTERN_ONESHOT_POWERON);
 
-	if (reset_pin_reset || button_read()) // Count pin resets
+	if ((reset_pin_reset || button_read()) && !docked) // Count pin resets while not docked
 	{
 		if (reboot_counter == 0)
 			reboot_counter = 100;
@@ -59,7 +75,7 @@ int main(void)
 // 0ms or 1000ms for reboot counter
 
 #if USER_SHUTDOWN_ENABLED
-	if (reset_mode == 0 && !booting_from_shutdown) // Reset mode user shutdown
+	if (reset_mode == 0 && !booting_from_shutdown && !charging && !charged) // Reset mode user shutdown, only if unplugged and undocked
 	{
 		LOG_INF("User shutdown requested");
 		reboot_counter_write(0);
