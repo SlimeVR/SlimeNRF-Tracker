@@ -38,6 +38,8 @@ K_THREAD_DEFINE(button_thread_id, 256, button_thread, NULL, NULL, NULL, 6, 0, 0)
 K_THREAD_DEFINE(power_thread_id, 512, power_thread, NULL, NULL, NULL, 6, 0, 0);
 
 // TODO: well now sys file is kinda crowded
+// TODO: the gpio sense is weird, maybe the device will turn back on immediately after shutdown or after (attempting to) enter WOM
+// there should be a better system of how to handle all system_off cases and all the sense pins
 
 void configure_system_off_WOM()
 {
@@ -49,9 +51,22 @@ void configure_system_off_WOM()
 	set_led(SYS_LED_PATTERN_OFF_PERSIST);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
-	// Configure dock
+	// Configure chgstat interrupt
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured chg interrupt");
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured stby interrupt");
+#endif
+	// Configure dock interrupt
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL);
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured dock interrupt");
 #endif
 	// Configure sw0 interrupt
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
@@ -86,10 +101,12 @@ void configure_system_off_chgstat(void)
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured chg interrupt");
 #endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured stby interrupt");
 #endif
 	// Configure dock interrupt
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
@@ -125,10 +142,12 @@ void configure_system_off_dock(void)
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured chg interrupt");
 #endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured stby interrupt");
 #endif
 	// Configure dock interrupt
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
