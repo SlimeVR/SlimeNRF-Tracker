@@ -48,4 +48,8 @@ void sys_button_init(void);
 bool button_read(void);
 void button_thread(void);
 
+void power_thread(void);
+
+void sys_gpio_init(void);
+
 #endif
