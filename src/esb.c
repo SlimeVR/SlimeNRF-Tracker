@@ -8,6 +8,8 @@
 #include "esb.h"
 
 struct esb_payload rx_payload;
+struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
+														  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 struct esb_payload tx_payload_pair = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0);
 
@@ -280,6 +282,7 @@ void esb_reset_pair(void)
 
 void esb_write(uint8_t *data)
 {
+	tx_payload.noack = false;
 	memcpy(tx_payload.data, data, sizeof(tx_payload.data));
 	esb_flush_tx();
 	main_data = true;

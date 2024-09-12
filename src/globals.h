@@ -8,15 +8,12 @@
 
 #include "retained.h"
 
-extern struct esb_payload tx_payload;
-
 #define ZEPHYR_USER_NODE DT_PATH(zephyr_user)
 
 extern int tickrate;
 
 extern uint8_t batt;
 extern uint8_t batt_v;
-extern bool batt_low;
 
 extern const struct gpio_dt_spec dock;
 extern const struct gpio_dt_spec chg;
@@ -31,8 +28,6 @@ extern bool main_data;
 #define MAG_ENABLED true // Use magnetometer if it is present
 #define IGNORE_RESET true // If sw0 available, don't change any reset behavior
 
-// TODO: only scan/detect new imus on reset event, write to nvs
-
 extern float q3[4]; // correction quat
 
 extern int tracker_id;
@@ -42,7 +37,6 @@ extern int64_t led_time_off;
 extern uint8_t reset_mode;
 extern uint8_t last_reset;
 extern bool system_off_main;
-//extern bool charging;
 
 #define LAST_RESET_LIMIT 10
 

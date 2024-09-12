@@ -117,7 +117,6 @@ int main(void)
 	esb_pair();
 
 	esb_initialize();
-	tx_payload.noack = false;
 	//timer_init();
 // 1ms to start ESB
 

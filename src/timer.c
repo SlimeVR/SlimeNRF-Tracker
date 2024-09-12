@@ -12,7 +12,7 @@ void timer_handler(nrf_timer_event_t event_type, void *p_context)
 			last_reset++;
 			if (send_data)
 			{ // scuffed check
-				esb_write_payload(&tx_payload); // Add transmission to queue
+//				esb_write_payload(&tx_payload); // Add transmission to queue
 				esb_start_tx();
 				send_data = false;
 			}
