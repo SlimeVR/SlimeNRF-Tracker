@@ -166,6 +166,8 @@ const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET_OR(LED0_NODE, {0});
 
 void set_led(enum sys_led_pattern led_pattern)
 {
+	if (led_pattern == current_led_pattern || led_pattern == persistent_led_pattern)
+		return;
 	pwm_set_pulse_dt(&pwm_led, 0);
 	gpio_pin_set_dt(&led, 0);
 	if (led_pattern >= SYS_LED_PATTERN_OFF_PERSIST)
