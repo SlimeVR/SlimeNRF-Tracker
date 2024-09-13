@@ -45,7 +45,7 @@ void configure_system_off_WOM()
 {
 	LOG_INF("System off requested (WOM)");
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, int0_gpios)
-	main_imu_suspend();
+	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF);
 	set_led(SYS_LED_PATTERN_OFF_PERSIST);

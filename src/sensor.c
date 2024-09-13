@@ -530,6 +530,7 @@ void main_imu_thread(void)
 				{
 					LOG_INF("No motion from main IMUs in %llds", imu_timeout/1000);
 					system_off_main = true;
+					main_suspended = true; // TODO: auto suspend, the device should configure WOM ASAP but it does not
 				}
 				else if (powerstate == 0 && k_uptime_get() - last_data_time > 500) // No motion in last 500ms
 				{
@@ -601,6 +602,8 @@ void main_imu_suspend(void)
 	main_suspended = true;
 	while (sensor_sensor_scanning)
 		k_usleep(1); // try not to interrupt scanning
+	while (main_running) // TODO: change to detect if i2c is busy
+		k_usleep(1); // try not to interrupt anything actually
 	k_thread_suspend(main_imu_thread_id);
 	main_running = false;
 	LOG_INF("Suspended main IMU thread");
