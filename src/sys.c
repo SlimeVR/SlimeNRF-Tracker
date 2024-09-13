@@ -41,7 +41,7 @@ K_THREAD_DEFINE(power_thread_id, 1024, power_thread, NULL, NULL, NULL, 6, 0, 0);
 // TODO: the gpio sense is weird, maybe the device will turn back on immediately after shutdown or after (attempting to) enter WOM
 // there should be a better system of how to handle all system_off cases and all the sense pins
 
-void configure_system_off_WOM()
+void configure_system_off_WOM() // TODO: should not really shut off while plugged in
 {
 	LOG_INF("System off requested (WOM)");
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, int0_gpios)
