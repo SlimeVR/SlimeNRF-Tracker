@@ -592,9 +592,8 @@ void main_imu_thread(void)
 
 void wait_for_threads(void)
 {
-	if (threads_running || main_running)
-		while (main_running)
-			k_usleep(1); // bane of my existence. don't use k_yield()!!!!!!
+	while (main_running)
+		k_usleep(1); // bane of my existence. don't use k_yield()!!!!!!
 }
 
 void main_imu_suspend(void)

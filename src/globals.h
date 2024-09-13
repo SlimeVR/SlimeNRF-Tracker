@@ -19,7 +19,6 @@ extern const struct gpio_dt_spec dock;
 extern const struct gpio_dt_spec chg;
 extern const struct gpio_dt_spec stby;
 
-extern bool threads_running;
 extern bool main_running;
 extern bool main_ok;
 extern bool main_data;

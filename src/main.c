@@ -151,7 +151,6 @@ int main(void)
 
 		wait_for_threads(); // TODO:
 		main_imu_wakeup();
-		threads_running = true;
 
 		// Get time elapsed and sleep/yield until next tick
 		int64_t time_delta = k_uptime_get() - time_begin;

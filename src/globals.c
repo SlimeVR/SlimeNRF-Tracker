@@ -14,7 +14,6 @@ const struct gpio_dt_spec chg = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, chg_gpios,
 const struct gpio_dt_spec stby = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, stby_gpios, {0});
 
 // TODO: move to sensor
-bool threads_running = false;
 bool main_running = false;
 bool main_ok = false;
 bool main_data = false;
