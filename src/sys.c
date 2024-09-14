@@ -452,8 +452,6 @@ void power_thread(void)
 
 	while (1)
 	{
-		k_msleep(100);
-
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 		bool docked = gpio_pin_get_dt(&dock);
 #else
@@ -528,6 +526,8 @@ void power_thread(void)
 
 		if (system_off_main) // System off on extended no movement
 			configure_system_off_WOM();
+
+		k_msleep(100);
 	}
 }
 
