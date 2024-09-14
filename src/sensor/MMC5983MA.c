@@ -15,7 +15,7 @@
 
 #include "MMC5983MA.h"
 
-static const float sensitivity = (1.0f / 16384.0f); // mag sensitivity if using 18 bit data
+static const float sensitivity = (1.0f / 16384.0f); // mag sensitivity if using 18 bit data (16384 Counts/G)
 static const float offset = 131072.0f; // mag range unsigned to signed
 
 static uint8_t last_odr = 0xff;
