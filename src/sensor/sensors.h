@@ -7,6 +7,8 @@
 #include "ICM42688.h"
 #include "LSM6DSV.h"
 
+#include "LIS2MDL.h"
+#include "LIS3MDL.h"
 #include "MMC5983MA.h"
 
 #include "scan.h"
@@ -43,8 +45,8 @@ Bosch Sensortec
 +BMM350:14/15/16/17,00,33
 STMicroelectronics
 -IIS2MDC:1E,4F,40
--LIS2MDL:1E,4F,40
-+LIS3MDL:1C/1E,0F,3D
+*LIS2MDL:1E,4F,40
+*LIS3MDL:1C/1E,0F,3D
 memsic
 -MMC5603NJ:30,39,10
 -MMC5633NJL:30,39,10
@@ -133,8 +135,8 @@ const sensor_mag_t *sensor_mags[] = {
 	NULL, // not implemented
 	NULL,
 	NULL,
-	NULL,
-	NULL,
+	&sensor_mag_lis3mdl,
+	&sensor_mag_lis2mdl,
 	NULL,
 	&sensor_mag_mmc5983ma
 };
