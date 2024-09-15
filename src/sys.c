@@ -41,16 +41,9 @@ K_THREAD_DEFINE(power_thread_id, 1024, power_thread, NULL, NULL, NULL, 6, 0, 0);
 // TODO: the gpio sense is weird, maybe the device will turn back on immediately after shutdown or after (attempting to) enter WOM
 // there should be a better system of how to handle all system_off cases and all the sense pins
 
-void configure_system_off_WOM() // TODO: should not really shut off while plugged in
+// TODO: configuring system off should be consolidated
+static void configure_sense_pins(void)
 {
-	LOG_INF("System off requested (WOM)");
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, int0_gpios)
-	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
-	sensor_shutdown();
-	set_led(SYS_LED_PATTERN_OFF);
-	set_led(SYS_LED_PATTERN_OFF_PERSIST);
-	float actual_clock_rate;
-	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure chgstat interrupt
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
@@ -64,8 +57,16 @@ void configure_system_off_WOM() // TODO: should not really shut off while plugge
 #endif
 	// Configure dock interrupt
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	if (dock_read())
+	{
+		nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
+		nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
+	}
+	else
+	{
+		nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
+		nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
+	}
 	LOG_INF("Configured dock interrupt");
 #endif
 	// Configure sw0 interrupt
@@ -74,6 +75,20 @@ void configure_system_off_WOM() // TODO: should not really shut off while plugge
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_SENSE_LOW);
 	LOG_INF("Configured sw0 interrupt");
 #endif
+}
+
+void configure_system_off_WOM() // TODO: should not really shut off while plugged in
+{
+	LOG_INF("System off requested (WOM)");
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, int0_gpios)
+	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
+	sensor_shutdown();
+	set_led(SYS_LED_PATTERN_OFF);
+	set_led(SYS_LED_PATTERN_OFF_PERSIST);
+	float actual_clock_rate;
+	set_sensor_clock(false, 0, &actual_clock_rate);
+	// Configure interrupts
+	configure_sense_pins();
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
@@ -97,29 +112,8 @@ void configure_system_off_chgstat(void)
 	set_led(SYS_LED_PATTERN_OFF_PERSIST);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
-	// Configure chgstat interrupt
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured chg interrupt");
-#endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_PULLUP);
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured stby interrupt");
-#endif
-	// Configure dock interrupt
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured dock interrupt");
-#endif
-	// Configure sw0 interrupt
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_PULLUP);
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured sw0 interrupt");
-#endif
+	// Configure interrupts
+	configure_sense_pins();
 	// Clear sensor addresses
 	LOG_INF("Requested sensor scan on next boot");
 	sensor_scan_clear();
@@ -138,29 +132,8 @@ void configure_system_off_dock(void)
 	set_led(SYS_LED_PATTERN_OFF_PERSIST);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
-	// Configure chgstat interrupt
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured chg interrupt");
-#endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_PULLUP);
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured stby interrupt");
-#endif
-	// Configure dock interrupt
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
-	LOG_INF("Configured dock interrupt");
-#endif
-	// Configure sw0 interrupt
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_PULLUP);
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured sw0 interrupt");
-#endif
+	// Configure interrupts
+	configure_sense_pins();
 	// Clear sensor addresses
 	LOG_INF("Requested sensor scan on next boot");
 	sensor_scan_clear();
