@@ -100,8 +100,9 @@ int lis2_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual
 void lis2_mag_oneshot(const struct i2c_dt_spec *dev_i2c)
 {
 	// write MD_SINGLE again to trigger a measurement
-	last_odr = 0xff;
-	lis2_update_odr(dev_i2c, last_time, &last_time);
+	int err = i2c_reg_write_byte_dt(dev_i2c, LIS2MDL_CFG_REG_A, last_odr << 2 | MD_SINGLE); // set mag ODR and MD
+	if (err)
+		LOG_ERR("I2C error");
 }
 
 void lis2_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])

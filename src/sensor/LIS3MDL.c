@@ -153,8 +153,9 @@ int lis3_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual
 void lis3_mag_oneshot(const struct i2c_dt_spec *dev_i2c)
 {
 	// write MD_SINGLE again to trigger a measurement (not clear in datasheet?)
-	last_odr = 0xff;
-	lis3_update_odr(dev_i2c, last_time, &last_time);
+	int err = i2c_reg_write_byte_dt(dev_i2c, LIS3MDL_CTRL_REG3, MD_SINGLE_CONV);
+	if (err)
+		LOG_ERR("I2C error");
 }
 
 void lis3_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
