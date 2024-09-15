@@ -107,6 +107,8 @@ int main(void)
 	}
 #endif
 
+	k_msleep(1); // fix some weird issue with the device bootlooping
+
 	clocks_start();
 
 	esb_pair();
