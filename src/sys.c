@@ -170,26 +170,6 @@ void configure_system_off_dock(void)
 	sys_poweroff();
 }
 
-void power_check(void)
-{
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
-	bool docked = gpio_pin_get_dt(&dock);
-#else
-	bool docked = false;
-#endif
-	int batt_mV;
-	uint32_t batt_pptt = read_batt_mV(&batt_mV);
-	bool battery_available = batt_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
-	if (battery_available)
-		LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
-	else
-		LOG_INF("Battery not available (%dmV)", batt_mV);
-	if (battery_available && batt_pptt == 0 && !docked)
-		configure_system_off_chgstat();
-	else if (docked) // TODO: on some boards there is actual power path, try to use the LED in this case
-		configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
-}
-
 static enum sys_led_pattern current_led_pattern;
 static enum sys_led_pattern persistent_led_pattern = SYS_LED_PATTERN_OFF_PERSIST;
 static int led_pattern_state;
@@ -418,6 +398,16 @@ void button_thread(void)
 #endif
 }
 
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
+static const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
+static const struct gpio_dt_spec chg = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chg_gpios);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
+static const struct gpio_dt_spec stby = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, stby_gpios);
+#endif
+
 static int sys_gpio_init(void)
 {
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
@@ -435,6 +425,43 @@ static int sys_gpio_init(void)
 
 SYS_INIT(sys_gpio_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
+bool dock_read(void)
+{
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
+	return gpio_pin_get_dt(&dock);
+#else
+	return false;
+#endif
+}
+
+bool chg_read(void)
+{
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
+	return gpio_pin_get_dt(&chg);
+#else
+	return false;
+#endif
+}
+
+bool stby_read(void)
+{
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
+	return gpio_pin_get_dt(&stby);
+#else
+	return false;
+#endif
+}
+
+static bool plugged = false;
+static bool power_init = false;
+
+bool vin_read(void) // blocking
+{
+	while (!power_init)
+		k_usleep(1); // wait for first battery read
+	return plugged;
+}
+
 static unsigned int last_batt_pptt[16] = {10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001};
 static int8_t last_batt_pptt_i = 0;
 
@@ -442,30 +469,32 @@ void power_thread(void)
 {
 	while (1)
 	{
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
-		bool docked = gpio_pin_get_dt(&dock);
-#else
-		bool docked = false;
-#endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
-		bool charging = gpio_pin_get_dt(&chg);
-#else
-		bool charging = false;
-#endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
-		bool charged = gpio_pin_get_dt(&stby);
-#else
-		bool charged = false;
-#endif
+		bool docked = dock_read();
+		bool charging = chg_read();
+		bool charged = stby_read();
 
 		int batt_mV;
 		uint32_t batt_pptt = read_batt_mV(&batt_mV);
 
 		bool battery_available = batt_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
-		bool plugged = batt_mV > 4500; // Separate detection of vin
+		plugged = batt_mV > 4500; // Separate detection of vin
+
+		if (!power_init) // log battery state once
+		{
+			if (battery_available)
+				LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
+			else
+				LOG_INF("Battery not available (%dmV)", batt_mV);
+			power_init = true;
+		}
 
 		if (battery_available && batt_pptt == 0 && !docked)
 			configure_system_off_chgstat();
+		else if (docked) // TODO: keep sending battery state while plugged and docked?
+		// TODO: move to interrupts? (Then you do not need to do the above)
+		// TODO: on some boards there is actual power path, try to use the LED in this case
+			configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
+
 		last_batt_pptt[last_batt_pptt_i] = batt_pptt;
 		last_batt_pptt_i++;
 		last_batt_pptt_i %= 15;
@@ -496,10 +525,6 @@ void power_thread(void)
 			batt_v = 255;
 		else
 			batt_v = batt_mV; // 0-255 -> 2.45-5.00V
-
-		if (docked) // TODO: keep sending battery state while plugged and docked?
-		// TODO: move to interrupts? (Then you do not need to do the above)
-			configure_system_off_dock();
 
 		if (charging)
 			set_led(SYS_LED_PATTERN_PULSE_PERSIST);

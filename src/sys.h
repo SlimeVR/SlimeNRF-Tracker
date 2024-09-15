@@ -25,7 +25,6 @@ enum sys_led_pattern {
 void configure_system_off_WOM(void);
 void configure_system_off_chgstat(void);
 void configure_system_off_dock(void);
-void power_check(void);
 
 void set_led(enum sys_led_pattern led_pattern);
 void led_thread(void);
@@ -39,6 +38,11 @@ int set_sensor_clock(bool enable, float rate, float *actual_rate);
 
 bool button_read(void);
 void button_thread(void);
+
+bool dock_read(void);
+bool chg_read(void);
+bool stby_read(void);
+bool vin_read(void);
 
 void power_thread(void);
 

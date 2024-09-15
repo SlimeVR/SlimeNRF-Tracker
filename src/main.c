@@ -1,10 +1,8 @@
 #include "globals.h"
 #include "sys.h"
 //#include "timer.h"
-//#include "util.h"
 #include "esb.h"
 #include "sensor.h"
-#include "battery.h"
 
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/sys/reboot.h>
@@ -25,28 +23,6 @@ int main(void)
 #endif
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
-	bool docked = gpio_pin_get_dt(&dock);
-#else
-	bool docked = false;
-#endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
-	bool charging = gpio_pin_get_dt(&chg);
-#else
-	bool charging = false;
-#endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
-	bool charged = gpio_pin_get_dt(&stby);
-#else
-	bool charged = false;
-#endif
-
-	int batt_mV;
-	uint32_t batt_pptt = read_batt_mV(&batt_mV);
-
-	bool battery_available = batt_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
-	bool plugged = batt_mV > 4500; // Separate detection of vin
-
 //	start_time = k_uptime_get(); // Need to get start time for imu startup delay
 	set_led(SYS_LED_PATTERN_ON); // Boot LED
 
@@ -60,6 +36,8 @@ int main(void)
 
 	if (booting_from_shutdown)
 		set_led(SYS_LED_PATTERN_ONESHOT_POWERON);
+
+	bool docked = dock_read();
 
 	if ((reset_pin_reset || button_read()) && !docked) // Count pin resets while not docked
 	{
@@ -79,6 +57,10 @@ int main(void)
 // 0ms or 1000ms for reboot counter
 
 #if USER_SHUTDOWN_ENABLED
+	bool charging = chg_read();
+	bool charged = stby_read();
+	bool plugged = vin_read();
+
 	if (reset_mode == 0 && !booting_from_shutdown && !charging && !charged && !plugged) // Reset mode user shutdown, only if unplugged and undocked
 	{
 		LOG_INF("User shutdown requested");
@@ -93,11 +75,7 @@ int main(void)
 				k_msleep(1);
 			set_led(SYS_LED_PATTERN_OFF);
 		}
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
-		bool docked = gpio_pin_get_dt(&dock);
-#else
-		bool docked = false;
-#endif
+		bool docked = dock_read();
 		if (!docked) // TODO: should the tracker start again if docking state changes?
 			configure_system_off_chgstat();
 		else

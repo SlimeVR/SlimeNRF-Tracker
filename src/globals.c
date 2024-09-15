@@ -8,11 +8,6 @@ int tickrate = 6;
 uint8_t batt;
 uint8_t batt_v;
 
-// TODO: move to sys
-const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, dock_gpios, {0});
-const struct gpio_dt_spec chg = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, chg_gpios, {0});
-const struct gpio_dt_spec stby = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, stby_gpios, {0});
-
 // TODO: move to sensor
 bool main_running = false;
 bool main_ok = false;
