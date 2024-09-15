@@ -198,7 +198,7 @@ void sensor_shutdown(void) // Communicate all imus to shut down
 	if (!err)
 		(*sensor_imu->shutdown)(&sensor_imu_dev);
 	else
-		LOG_ERR("Failed to shutdown sensor");
+		LOG_ERR("Failed to shutdown sensors");
 	if (mag_available)
 		(*sensor_mag->shutdown)(&sensor_mag_dev);
 };
@@ -313,7 +313,6 @@ int main_imu_init(void)
 	err = sensor_init(); // IMUs discovery
 	if (err)
 		return err;
-	LOG_INF("Found main IMUs");
 	(*sensor_imu->shutdown)(&sensor_imu_dev);
 	if (mag_available)
 		(*sensor_mag->shutdown)(&sensor_mag_dev);
@@ -336,7 +335,7 @@ int main_imu_init(void)
 			return err;
 // 0-1ms to setup mmc
 	}
-	LOG_INF("Initialized main IMUs");
+	LOG_INF("Initialized sensors");
 
 	do
 	{
@@ -348,7 +347,6 @@ int main_imu_init(void)
 	} while (false); // TODO: ????? why is this here
 
 	// Setup fusion
-	LOG_INF("Initialize fusion");
 	sensor_retained_read();
 	(*sensor_fusion->init)(gyro_actual_time);
 	if (retained.fusion_data_stored)
@@ -442,11 +440,11 @@ void main_imu_thread(void)
 				{
 				case 0:
 					set_LN();
-					LOG_INF("Switching main IMUs to low noise");
+					LOG_INF("Switching sensors to low noise");
 					break;
 				case 1:
 					set_LP();
-					LOG_INF("Switching main IMUs to low power");
+					LOG_INF("Switching sensors to low power");
 					(*sensor_mag->update_odr)(&sensor_mag_dev, INFINITY, &mag_actual_time); // standby/oneshot
 					break;
 				};
@@ -512,13 +510,13 @@ void main_imu_thread(void)
 				int64_t imu_timeout = CLAMP(last_data_time, 1 * 1000, 15 * 1000); // Ramp timeout from last_data_time
 				if (k_uptime_get() - last_data_time > imu_timeout) // No motion in last 1s - 10s
 				{
-					LOG_INF("No motion from main IMUs in %llds", imu_timeout/1000);
+					LOG_INF("No motion from sensors in %llds", imu_timeout/1000);
 					system_off_main = true;
 					main_suspended = true; // TODO: auto suspend, the device should configure WOM ASAP but it does not
 				}
 				else if (powerstate == 0 && k_uptime_get() - last_data_time > 500) // No motion in last 500ms
 				{
-					LOG_INF("No motion from main IMUs in 500ms");
+					LOG_INF("No motion from sensors in 500ms");
 					powerstate = 1;
 				}
 			}
@@ -589,7 +587,7 @@ void main_imu_suspend(void)
 		k_usleep(1); // try not to interrupt anything actually
 	k_thread_suspend(main_imu_thread_id);
 	main_running = false;
-	LOG_INF("Suspended main IMU thread");
+	LOG_INF("Suspended sensor thread");
 }
 
 void main_imu_wakeup(void)
