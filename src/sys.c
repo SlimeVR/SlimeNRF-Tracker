@@ -83,8 +83,7 @@ void configure_system_off_WOM() // TODO: should not really shut off while plugge
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, int0_gpios)
 	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
 	sensor_shutdown();
-	set_led(SYS_LED_PATTERN_OFF);
-	set_led(SYS_LED_PATTERN_OFF_PERSIST);
+	set_led(SYS_LED_PATTERN_OFF_FORCE);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure interrupts
@@ -108,8 +107,7 @@ void configure_system_off_chgstat(void)
 	LOG_INF("System off requested (chgstat)");
 	main_imu_suspend();
 	sensor_shutdown();
-	set_led(SYS_LED_PATTERN_OFF);
-	set_led(SYS_LED_PATTERN_OFF_PERSIST);
+	set_led(SYS_LED_PATTERN_OFF_FORCE);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure interrupts
@@ -128,8 +126,7 @@ void configure_system_off_dock(void)
 	LOG_INF("System off requested (dock)");
 	main_imu_suspend();
 	sensor_shutdown();
-	set_led(SYS_LED_PATTERN_OFF);
-	set_led(SYS_LED_PATTERN_OFF_PERSIST);
+	set_led(SYS_LED_PATTERN_OFF_FORCE);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure interrupts
@@ -143,7 +140,7 @@ void configure_system_off_dock(void)
 	sys_poweroff();
 }
 
-static enum sys_led_pattern current_led_pattern;
+static enum sys_led_pattern current_led_pattern = SYS_LED_PATTERN_OFF;
 static enum sys_led_pattern persistent_led_pattern = SYS_LED_PATTERN_OFF_PERSIST;
 static int led_pattern_state;
 static int led_pattern_state_persist;
