@@ -159,8 +159,6 @@ void set_led(enum sys_led_pattern led_pattern)
 {
 	if (led_pattern == current_led_pattern || led_pattern == persistent_led_pattern)
 		return;
-	pwm_set_pulse_dt(&pwm_led, 0);
-	gpio_pin_set_dt(&led, 0);
 	if (led_pattern >= SYS_LED_PATTERN_OFF_PERSIST)
 	{
 		persistent_led_pattern = led_pattern;
@@ -171,16 +169,24 @@ void set_led(enum sys_led_pattern led_pattern)
 		current_led_pattern = led_pattern;
 		led_pattern_state = 0;
 	}
-	if (current_led_pattern == SYS_LED_PATTERN_OFF && persistent_led_pattern == SYS_LED_PATTERN_OFF_PERSIST)
+	if (current_led_pattern == SYS_LED_PATTERN_OFF_FORCE || (current_led_pattern == SYS_LED_PATTERN_OFF && persistent_led_pattern == SYS_LED_PATTERN_OFF_PERSIST))
+	{
+		pwm_set_pulse_dt(&pwm_led, 0);
+		gpio_pin_set_dt(&led, 0);
 		k_thread_suspend(led_thread_id);
+	}
 	else
+	{
 		k_thread_resume(led_thread_id);
+	}
 }
 
 void led_thread(void)
 {
 	while (1)
 	{
+		pwm_set_pulse_dt(&pwm_led, 0);
+		gpio_pin_set_dt(&led, 0);
 		switch (current_led_pattern != SYS_LED_PATTERN_OFF ? current_led_pattern : persistent_led_pattern)
 		{
 		case SYS_LED_PATTERN_ON:
@@ -201,7 +207,7 @@ void led_thread(void)
 			led_pattern_state++;
 			gpio_pin_set_dt(&led, led_pattern_state % 2);
 			if (led_pattern_state == 6)
-				current_led_pattern = SYS_LED_PATTERN_OFF;
+				set_led(SYS_LED_PATTERN_OFF);
 			else
 				k_msleep(200);
 			break;
@@ -211,7 +217,7 @@ void led_thread(void)
 			else
 				gpio_pin_set_dt(&led, 0);
 			if (led_pattern_state == 22)
-				current_led_pattern = SYS_LED_PATTERN_OFF;
+				set_led(SYS_LED_PATTERN_OFF_FORCE);
 			else if (led_pattern_state == 1)
 				k_msleep(250);
 			else
@@ -220,6 +226,11 @@ void led_thread(void)
 		case SYS_LED_PATTERN_ON_PERSIST:
 			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(4)); // 20% duty cycle, should look like ~50% brightness
 			k_thread_suspend(led_thread_id);
+			break;
+		case SYS_LED_PATTERN_LONG_PERSIST:
+			led_pattern_state_persist = (led_pattern_state_persist + 1) % 2;
+			pwm_set_pulse_dt(&pwm_led, led_pattern_state_persist == 1 ? PWM_MSEC(4) : 0); // 20% duty cycle, should look like ~50% brightness
+			k_msleep(500);
 			break;
 		case SYS_LED_PATTERN_PULSE_PERSIST:
 			led_pattern_state_persist = (led_pattern_state_persist + 1) % 100;
@@ -505,12 +516,12 @@ void power_thread(void)
 			set_led(SYS_LED_PATTERN_ON_PERSIST);
 		else if (plugged)
 			set_led(SYS_LED_PATTERN_PULSE_PERSIST);
-//		else if (batt < 10)
-//			set_led(SYS_LED_PATTERN_LONG);
-//		else
-//			set_led(SYS_LED_PATTERN_ACTIVE_PERSIST);
+		else if (batt < 10)
+			set_led(SYS_LED_PATTERN_LONG_PERSIST);
 		else
-			set_led(SYS_LED_PATTERN_OFF_PERSIST);
+			set_led(SYS_LED_PATTERN_ACTIVE_PERSIST);
+//		else
+//			set_led(SYS_LED_PATTERN_OFF_PERSIST);
 
 		if (system_off_main) // System off on extended no movement
 			configure_system_off_WOM();
