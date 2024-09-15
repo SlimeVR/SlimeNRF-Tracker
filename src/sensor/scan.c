@@ -51,6 +51,14 @@ int sensor_scan(struct i2c_dt_spec *i2c_dev, int dev_addr_count, const uint8_t d
 				uint8_t reg = dev_reg[reg_index + k];
 				uint8_t id;
 				LOG_DBG("Scanning register: 0x%02X", reg);
+				if (reg == 0x40 && addr >= 0x10 && addr <= 0x13) // edge case for BMM150
+				{
+					int err = i2c_reg_write_byte(dev, addr, 0x4B, 0x01); // BMM150 cannot read chip id without power control enabled
+					if (err)
+						break;
+					LOG_DBG("Power up BMM150");
+//					k_msleep(3); // BMM150 start-up
+				}
 				int err = i2c_reg_read_byte(dev, addr, reg, &id);
 				LOG_DBG("Read value: 0x%02X", id);
 				if (err)

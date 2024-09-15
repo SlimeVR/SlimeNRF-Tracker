@@ -7,6 +7,7 @@
 #include "ICM42688.h"
 #include "LSM6DSV.h"
 
+#include "BMM150.h"
 #include "BMM350.h"
 #include "LIS2MDL.h"
 #include "LIS3MDL.h"
@@ -42,7 +43,7 @@ Magnetometers:
 QST Corporation
 -QMC5883L:0B,OD,FF
 Bosch Sensortec
-+BMM150:10/11/12/13,40,32
+*BMM150:10/11/12/13,40,32
 *BMM350:14/15/16/17,00,33
 STMicroelectronics
 *IIS2MDC:1E,4F,40
@@ -134,7 +135,7 @@ const char *dev_mag_names[] = {
 };
 const sensor_mag_t *sensor_mags[] = {
 	NULL, // not implemented
-	NULL,
+	&sensor_mag_bmm150,
 	&sensor_mag_bmm350,
 	&sensor_mag_lis3mdl,
 	&sensor_mag_lis2mdl,
