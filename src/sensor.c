@@ -310,29 +310,13 @@ int main_imu_init(void)
 {
 	int err;
 	// TODO: on any errors set main_ok false and skip (make functions return nonzero)
-// 5ms (???) from entering loop
-// skip sleep, surely this wont cause issues :D
-/*
-	int64_t time_delta = k_uptime_get() - start_time;
-	if (time_delta < 11)
-		k_msleep(11 - time_delta);
-	//k_msleep(11);														 // Wait for start up (1ms for ICM, 10ms for MMC -> 10ms)
-*/
 	err = sensor_init(); // IMUs discovery
 	if (err)
 		return err;
 	LOG_INF("Found main IMUs");
-	// TODO: This may change!!
-	//i2c_reg_write_byte_dt(&main_imu, ICM42688_DEVICE_CONFIG, 0x01); // i dont wanna wait on icm!!
 	(*sensor_imu->shutdown)(&sensor_imu_dev);
-	// TODO: This may change!!
-	//i2c_reg_write_byte_dt(&main_mag, MMC5983MA_CONTROL_1, 0x80); // Reset MMC now to avoid waiting 10ms later
 	if (mag_available)
 		(*sensor_mag->shutdown)(&sensor_mag_dev);
-	//icm_reset(main_imu);												 // software reset ICM42688 to default registers
-	// TODO: Does int flag need to be read at all
-	//uint8_t temp;
-	//i2c_reg_read_byte_dt(&main_imu, ICM42688_INT_STATUS, &temp); // clear reset done int flag
 
 	float clock_actual_rate;
 	set_sensor_clock(true, 32768, &clock_actual_rate); // enable the clock source for IMU if present
