@@ -195,8 +195,11 @@ static enum sys_led_pattern persistent_led_pattern = SYS_LED_PATTERN_OFF_PERSIST
 static int led_pattern_state;
 static int led_pattern_state_persist;
 
-static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, led_gpios, led0);
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, led_gpios)
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
+#else
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
+#endif
 static const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET_OR(LED0_NODE, {0});
 
 void set_led(enum sys_led_pattern led_pattern)
@@ -339,7 +342,9 @@ void sys_write(uint16_t id, void *retained_ptr, const void *data, size_t len)
 	retained_update();
 }
 
-static const struct gpio_dt_spec clk_en = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, clk_gpios, {0});
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, clk_gpios)
+static const struct gpio_dt_spec clk_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, clk_gpios);
+#endif
 static const struct pwm_dt_spec clk_out = PWM_DT_SPEC_GET_OR(CLKOUT_NODE, {0});
 
 // return 0 if clock applied, -1 if failed (because there is no clk_en or clk_out)
