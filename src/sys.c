@@ -246,8 +246,12 @@ void led_thread(void)
 	}
 }
 
+static bool nvs_init = false;
+
 static inline void sys_nvs_init(void)
 {
+	if (nvs_init)
+		return;
 	struct flash_pages_info info;
 	fs.flash_device = NVS_PARTITION_DEVICE;
 	fs.offset = NVS_PARTITION_OFFSET; // Start NVS FS here
@@ -255,6 +259,7 @@ static inline void sys_nvs_init(void)
 	fs.sector_size = info.size; // Sector size equal to page size
 	fs.sector_count = 4U; // 4 sectors
 	nvs_mount(&fs);
+	nvs_init = true;
 }
 
 static int sys_retained_init(void)
@@ -298,6 +303,7 @@ void reboot_counter_write(uint8_t reboot_counter)
 // write to retained and nvs
 void sys_write(uint16_t id, void *retained_ptr, const void *data, size_t len)
 {
+	sys_nvs_init();
 	memcpy(retained_ptr, data, len);
 	nvs_write(&fs, id, data, len);
 	retained_update();
