@@ -25,6 +25,10 @@ static float bridge_offset[3] = {0};
 
 LOG_MODULE_REGISTER(MMC5983MA, LOG_LEVEL_DBG);
 
+static void mmc_readData(const struct i2c_dt_spec *dev_i2c, uint32_t *data);
+static void mmc_SET(const struct i2c_dt_spec *dev_i2c);
+static void mmc_RESET(const struct i2c_dt_spec *dev_i2c);
+
 int mmc_init(const struct i2c_dt_spec *dev_i2c, float time, float *actual_time)
 {
 	// moved here, it is mmc specific
@@ -196,7 +200,7 @@ float mmc_temp_read(const struct i2c_dt_spec *dev_i2c) // TODO: Not working
 	return temp;
 }
 
-void mmc_readData(const struct i2c_dt_spec *dev_i2c, uint32_t *data)
+static void mmc_readData(const struct i2c_dt_spec *dev_i2c, uint32_t *data)
 {
 	uint8_t rawData[7]; // x/y/z mag register data stored here
 	int err = i2c_burst_read_dt(dev_i2c, MMC5983MA_XOUT_0, &rawData[0], 7); // Read the 7 raw data registers into data array
@@ -207,7 +211,7 @@ void mmc_readData(const struct i2c_dt_spec *dev_i2c, uint32_t *data)
 	data[2] = (uint32_t)(rawData[4] << 10 | rawData[5] << 2 | (rawData[6] & 0x0C) >> 2); // Turn the 18 bits into a unsigned 32-bit value
 }
 
-void mmc_SET(const struct i2c_dt_spec *dev_i2c)
+static void mmc_SET(const struct i2c_dt_spec *dev_i2c)
 {
 	int err = i2c_reg_write_byte_dt(dev_i2c, MMC5983MA_CONTROL_0, 0x08);
 	if (err)
@@ -215,7 +219,7 @@ void mmc_SET(const struct i2c_dt_spec *dev_i2c)
 	k_busy_wait(1); // self clearing after 500 ns
 }
 
-void mmc_RESET(const struct i2c_dt_spec *dev_i2c)
+static void mmc_RESET(const struct i2c_dt_spec *dev_i2c)
 {
 	int err = i2c_reg_write_byte_dt(dev_i2c, MMC5983MA_CONTROL_0, 0x10);
 	if (err)

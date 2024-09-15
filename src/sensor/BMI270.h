@@ -77,8 +77,6 @@ float bmi_temp_read(const struct i2c_dt_spec *dev_i2c);
 
 void bmi_setup_WOM(const struct i2c_dt_spec *dev_i2c);
 
-int bmi_upload_config_file(const struct i2c_dt_spec *dev_i2c);
-
 extern const sensor_imu_t sensor_imu_bmi270;
 
 #endif

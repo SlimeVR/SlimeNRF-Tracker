@@ -14,6 +14,8 @@ static uint8_t last_gyro_odr = 0xff;
 
 LOG_MODULE_REGISTER(BMI270, LOG_LEVEL_DBG);
 
+static int upload_config_file(const struct i2c_dt_spec *dev_i2c);
+
 int bmi_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
 {
 	uint8_t status;
@@ -27,7 +29,7 @@ int bmi_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_ti
 		k_msleep(2);
 		err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
 		k_usleep(450);
-		err |= bmi_upload_config_file(dev_i2c);
+		err |= upload_config_file(dev_i2c);
 		int retry_count = 0;
 		while ((status & 0x7) != 0x1)
 		{
@@ -314,7 +316,7 @@ void bmi_setup_WOM(const struct i2c_dt_spec *dev_i2c) // TODO: seems too sensiti
 
 // write_config_file function from https://github.com/zephyrproject-rtos/zephyr/blob/main/drivers/sensor/bosch/bmi270/bmi270.c
 // saved my ass
-int bmi_upload_config_file(const struct i2c_dt_spec *dev_i2c)
+static int upload_config_file(const struct i2c_dt_spec *dev_i2c)
 {
 	uint16_t count = sizeof(bmi270_config_file) / sizeof(bmi270_config_file[0]);
 	uint8_t init_addr[2] = {0};
