@@ -245,7 +245,7 @@ int icm_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gy
 
 	int err = 0;
 	// only if the power mode has changed
-	if ((last_accel_odr == 0 ? 0 : 1) != (AODR == 0 ? 0 : 1) || (last_gyro_odr == 0 ? 0 : 1) != (GODR == 0 ? 0 : 1))
+	if (last_accel_odr == 0xff || last_gyro_odr == 0xff || (last_accel_odr == 0 ? 0 : 1) != (AODR == 0 ? 0 : 1) || (last_gyro_odr == 0 ? 0 : 1) != (GODR == 0 ? 0 : 1))
 	{ // TODO: can't tell difference between gyro off and gyro standby
 		err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_PWR_MGMT0, gMode << 2 | aMode); // set accel and gyro modes
 		k_busy_wait(250); // wait >200us (datasheet 14.36)
