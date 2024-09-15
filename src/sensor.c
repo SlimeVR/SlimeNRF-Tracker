@@ -18,6 +18,8 @@
 
 struct i2c_dt_spec sensor_imu_dev = I2C_DT_SPEC_GET(SENSOR_IMU_NODE);
 struct i2c_dt_spec sensor_mag_dev = I2C_DT_SPEC_GET(SENSOR_MAG_NODE);
+static uint8_t sensor_imu_dev_reg = 0xFF;
+static uint8_t sensor_mag_dev_reg = 0xFF;
 
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
 float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
@@ -76,7 +78,7 @@ int sensor_init(void)
 	sensor_scan_read();
 
 	LOG_INF("Scanning bus for IMU");
-	int imu_id = sensor_scan_imu(&sensor_imu_dev); // TODO: the dev addr should be stored to retained and reused to save time
+	int imu_id = sensor_scan_imu(&sensor_imu_dev, &sensor_imu_dev_reg);
 	if (imu_id >= (int)(sizeof(dev_imu_names) / sizeof(dev_imu_names[0])))
 		LOG_WRN("Found unknown device");
 	else if (imu_id < 0)
@@ -105,7 +107,7 @@ int sensor_init(void)
 	}
 
 	LOG_INF("Scanning bus for magnetometer");
-	int mag_id = sensor_scan_mag(&sensor_mag_dev);
+	int mag_id = sensor_scan_mag(&sensor_mag_dev, &sensor_mag_dev_reg);
 	if (mag_id >= (int)(sizeof(dev_mag_names) / sizeof(dev_mag_names[0])))
 		LOG_WRN("Found unknown device");
 	else if (mag_id < 0)
@@ -142,24 +144,34 @@ int sensor_init(void)
 void sensor_scan_read(void) // TODO: move some of this to sys?
 {
 	if (retained.imu_addr != 0)
+	{
 		sensor_imu_dev.addr = retained.imu_addr;
+		sensor_imu_dev_reg = retained.imu_reg;
+	}
 	if (retained.mag_addr != 0)
+	{
 		sensor_mag_dev.addr = retained.mag_addr;
-	LOG_INF("IMU address: 0x%02x", sensor_imu_dev.addr);
-	LOG_INF("Magnetometer address: 0x%02x", sensor_mag_dev.addr);
+		sensor_mag_dev_reg = retained.mag_reg;
+	}
+	LOG_INF("IMU address: 0x%02x, register: 0x%02x", sensor_imu_dev.addr, sensor_imu_dev_reg);
+	LOG_INF("Magnetometer address: 0x%02x, register: 0x%02x", sensor_mag_dev.addr, sensor_mag_dev_reg);
 }
 
 void sensor_scan_write(void) // TODO: move some of this to sys?
 {
 	retained.imu_addr = sensor_imu_dev.addr;
 	retained.mag_addr = sensor_mag_dev.addr;
+	retained.imu_reg = sensor_imu_dev_reg;
+	retained.mag_reg = sensor_mag_dev_reg;
 	retained_update();
 }
 
 void sensor_scan_clear(void) // TODO: move some of this to sys?
 {
-	retained.imu_addr = 0;
-	retained.mag_addr = 0;
+	retained.imu_addr = 0x00;
+	retained.mag_addr = 0x00;
+	retained.imu_reg = 0xFF;
+	retained.mag_reg = 0xFF;
 	retained_update();
 }
 

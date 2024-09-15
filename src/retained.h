@@ -27,6 +27,9 @@ struct retained_data {
 	uint16_t imu_addr;
 	uint16_t mag_addr;
 
+	uint8_t imu_reg;
+	uint8_t mag_reg;
+
 	/* CRC used to validate the retained data.  This must be
 	 * stored little-endian, and covers everything up to but not
 	 * including this field.

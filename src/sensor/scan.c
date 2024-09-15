@@ -12,7 +12,7 @@ LOG_MODULE_REGISTER(sensor_scan, LOG_LEVEL_INF);
 // Otherwise it should use an address and imus already stored in volatile memory
 // Cannot gurantee storage in flash, it's probably okay to keep it volatile
 
-int sensor_scan(struct i2c_dt_spec *i2c_dev, int dev_addr_count, const uint8_t dev_addr[], const uint8_t dev_reg[], const uint8_t dev_id[], const int dev_ids[])
+int sensor_scan(struct i2c_dt_spec *i2c_dev, uint8_t *i2c_dev_reg, int dev_addr_count, const uint8_t dev_addr[], const uint8_t dev_reg[], const uint8_t dev_id[], const int dev_ids[])
 {
 	if (i2c_dev->addr >= 0xFF) // ignoring device
 	{
@@ -49,27 +49,31 @@ int sensor_scan(struct i2c_dt_spec *i2c_dev, int dev_addr_count, const uint8_t d
 			for (int k = 0; k < reg_count; k++)
 			{
 				uint8_t reg = dev_reg[reg_index + k];
-				uint8_t id;
-				LOG_DBG("Scanning register: 0x%02X", reg);
-				if (reg == 0x40 && addr >= 0x10 && addr <= 0x13) // edge case for BMM150
+				if (*i2c_dev_reg == 0xFF || *i2c_dev_reg == reg)
 				{
-					int err = i2c_reg_write_byte(dev, addr, 0x4B, 0x01); // BMM150 cannot read chip id without power control enabled
+					uint8_t id;
+					LOG_DBG("Scanning register: 0x%02X", reg);
+					if (reg == 0x40 && addr >= 0x10 && addr <= 0x13) // edge case for BMM150
+					{
+						int err = i2c_reg_write_byte(dev, addr, 0x4B, 0x01); // BMM150 cannot read chip id without power control enabled
+						if (err)
+							break;
+						LOG_DBG("Power up BMM150");
+//						k_msleep(3); // BMM150 start-up
+					}
+					int err = i2c_reg_read_byte(dev, addr, reg, &id);
+					LOG_DBG("Read value: 0x%02X", id);
 					if (err)
 						break;
-					LOG_DBG("Power up BMM150");
-//					k_msleep(3); // BMM150 start-up
-				}
-				int err = i2c_reg_read_byte(dev, addr, reg, &id);
-				LOG_DBG("Read value: 0x%02X", id);
-				if (err)
-					break;
-				for (int l = 0; l < id_cnt; l++)
-				{
-					if (id == dev_id[id_ind + l])
+					for (int l = 0; l < id_cnt; l++)
 					{
-						i2c_dev->addr = addr;
-						LOG_INF("Valid device found at address: 0x%02X", addr);
-						return dev_ids[fnd_id + l];
+						if (id == dev_id[id_ind + l])
+						{
+							i2c_dev->addr = addr;
+							*i2c_dev_reg = reg;
+							LOG_INF("Valid device found at address: 0x%02X (register: 0x%02x)", addr, reg);
+							return dev_ids[fnd_id + l];
+						}
 					}
 				}
 				id_ind += id_cnt;
@@ -91,11 +95,12 @@ int sensor_scan(struct i2c_dt_spec *i2c_dev, int dev_addr_count, const uint8_t d
 		}
 	}
 
-	if (i2c_dev->addr >= SCAN_ADDR_START && i2c_dev->addr <= SCAN_ADDR_STOP) // preferred address failed, try again with full scan
+	if ((i2c_dev->addr >= SCAN_ADDR_START && i2c_dev->addr <= SCAN_ADDR_STOP) || *i2c_dev_reg != 0xFF) // preferred address or register failed, try again with full scan
 	{
 		LOG_WRN("No device found at address: 0x%02X", i2c_dev->addr);
 		i2c_dev->addr = 0;
-		return sensor_scan(i2c_dev, dev_addr_count, dev_addr, dev_reg, dev_id, dev_ids);
+		*i2c_dev_reg = 0xFF;
+		return sensor_scan(i2c_dev, i2c_dev_reg, dev_addr_count, dev_addr, dev_reg, dev_id, dev_ids);
 	}
 
 	i2c_dev->addr = 0xFF; // no device found, mark as ignored
