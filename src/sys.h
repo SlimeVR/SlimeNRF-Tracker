@@ -26,30 +26,20 @@ void configure_system_off_WOM(void);
 void configure_system_off_chgstat(void);
 void configure_system_off_dock(void);
 void power_check(void);
-// TODO: temporary move button to main
-//void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
 
 void set_led(enum sys_led_pattern led_pattern);
 void led_thread(void);
 
-void sys_retained_init(void);
-void sys_nvs_init(void);
-
 uint8_t reboot_counter_read(void);
 void reboot_counter_write(uint8_t reboot_counter);
 
-void sys_read(void);
 void sys_write(uint16_t id, void *ptr, const void *data, size_t len);
 
 int set_sensor_clock(bool enable, float rate, float *actual_rate);
-
-void sys_button_init(void);
 
 bool button_read(void);
 void button_thread(void);
 
 void power_thread(void);
-
-void sys_gpio_init(void);
 
 #endif

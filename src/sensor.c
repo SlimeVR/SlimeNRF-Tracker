@@ -73,8 +73,6 @@ int sensor_init(void)
 		return 0; // already initialized
 	sensor_sensor_scanning = true;
 
-	sys_read(); // In case ram not validated yet
-
 	sensor_scan_read();
 
 	LOG_INF("Scanning bus for IMU");
@@ -351,8 +349,6 @@ int main_imu_init(void)
 // 0-1ms to setup mmc
 	}
 	LOG_INF("Initialized main IMUs");
-
-	sys_read(); // In case calibrations haven't loaded yet
 
 	do
 	{

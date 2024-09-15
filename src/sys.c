@@ -18,7 +18,7 @@
 #define M_PI 3.141592653589793238462643383279502884f
 #endif
 
-struct nvs_fs fs;
+static struct nvs_fs fs;
 
 #define NVS_PARTITION		storage_partition
 #define NVS_PARTITION_DEVICE	FIXED_PARTITION_DEVICE(NVS_PARTITION)
@@ -27,7 +27,7 @@ struct nvs_fs fs;
 #define LED0_NODE DT_NODELABEL(pwm_led0)
 #define CLKOUT_NODE DT_NODELABEL(pwmclock)
 
-LOG_MODULE_REGISTER(sys, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(system, LOG_LEVEL_INF);
 
 K_THREAD_DEFINE(led_thread_id, 512, led_thread, NULL, NULL, NULL, 6, 0, 0);
 
@@ -190,16 +190,14 @@ void power_check(void)
 		configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
 }
 
-// TODO: temporary move button to main
+static enum sys_led_pattern current_led_pattern;
+static enum sys_led_pattern persistent_led_pattern = SYS_LED_PATTERN_OFF_PERSIST;
+static int led_pattern_state;
+static int led_pattern_state_persist;
 
-enum sys_led_pattern current_led_pattern;
-enum sys_led_pattern persistent_led_pattern = SYS_LED_PATTERN_OFF_PERSIST;
-int led_pattern_state;
-int led_pattern_state_persist;
-
-const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
-const struct gpio_dt_spec led = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, led_gpios, led0);
-const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET_OR(LED0_NODE, {0});
+static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, led_gpios, led0);
+static const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET_OR(LED0_NODE, {0});
 
 void set_led(enum sys_led_pattern led_pattern)
 {
@@ -225,7 +223,6 @@ void set_led(enum sys_led_pattern led_pattern)
 
 void led_thread(void)
 {
-	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 	while (1)
 	{
 		switch (current_led_pattern != SYS_LED_PATTERN_OFF ? current_led_pattern : persistent_led_pattern)
@@ -285,58 +282,26 @@ void led_thread(void)
 	}
 }
 
-bool ram_validated;
-bool ram_retention;
-bool nvs_init;
-
-inline void sys_retained_init(void)
+static inline void sys_nvs_init(void)
 {
-	if (!ram_validated)
-	{
-		ram_retention = retained_validate(); // Check ram retention
-		ram_validated = true;
-	}
+	struct flash_pages_info info;
+	fs.flash_device = NVS_PARTITION_DEVICE;
+	fs.offset = NVS_PARTITION_OFFSET; // Start NVS FS here
+	flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
+	fs.sector_size = info.size; // Sector size equal to page size
+	fs.sector_count = 4U; // 4 sectors
+	nvs_mount(&fs);
 }
 
-inline void sys_nvs_init(void)
+static int sys_retained_init(void)
 {
-	if (!nvs_init)
-	{
-		struct flash_pages_info info;
-		fs.flash_device = NVS_PARTITION_DEVICE;
-		fs.offset = NVS_PARTITION_OFFSET; // Start NVS FS here
-		flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
-		fs.sector_size = info.size; // Sector size equal to page size
-		fs.sector_count = 4U; // 4 sectors
-		nvs_mount(&fs);
-		nvs_init = true;
-	}
-}
-
-// read from retained
-uint8_t reboot_counter_read(void)
-{
-	sys_retained_init();
-	return retained.reboot_counter;
-}
-
-// write to retained
-void reboot_counter_write(uint8_t reboot_counter)
-{
-	sys_retained_init();
-	retained.reboot_counter = reboot_counter;
-	retained_update();
-}
-
-// read from nvs to retained
-void sys_read(void)
-{
-	sys_retained_init();
+	bool ram_retention = retained_validate(); // Check ram retention
 	// All contents of NVS was stored in RAM to not need initializing NVS often
 	if (!ram_retention)
 	{ 
 		LOG_INF("Invalidated RAM");
 		sys_nvs_init();
+		// read from nvs to retained
 		nvs_read(&fs, PAIRED_ID, &retained.paired_addr, sizeof(retained.paired_addr));
 		nvs_read(&fs, MAIN_ACCEL_BIAS_ID, &retained.accelBias, sizeof(retained.accelBias));
 		nvs_read(&fs, MAIN_GYRO_BIAS_ID, &retained.gyroBias, sizeof(retained.gyroBias));
@@ -348,20 +313,34 @@ void sys_read(void)
 	{
 		LOG_INF("Validated RAM");
 	}
+	return 0;
+}
+
+SYS_INIT(sys_retained_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+
+// read from retained
+uint8_t reboot_counter_read(void)
+{
+	return retained.reboot_counter;
+}
+
+// write to retained
+void reboot_counter_write(uint8_t reboot_counter)
+{
+	retained.reboot_counter = reboot_counter;
+	retained_update();
 }
 
 // write to retained and nvs
 void sys_write(uint16_t id, void *retained_ptr, const void *data, size_t len)
 {
-	sys_retained_init();
-	sys_nvs_init();
 	memcpy(retained_ptr, data, len);
 	nvs_write(&fs, id, data, len);
 	retained_update();
 }
 
-const struct gpio_dt_spec clk_en = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, clk_gpios, {0});
-const struct pwm_dt_spec clk_out = PWM_DT_SPEC_GET_OR(CLKOUT_NODE, {0});
+static const struct gpio_dt_spec clk_en = GPIO_DT_SPEC_GET_OR(ZEPHYR_USER_NODE, clk_gpios, {0});
+static const struct pwm_dt_spec clk_out = PWM_DT_SPEC_GET_OR(CLKOUT_NODE, {0});
 
 // return 0 if clock applied, -1 if failed (because there is no clk_en or clk_out)
 int set_sensor_clock(bool enable, float rate, float *actual_rate)
@@ -381,13 +360,11 @@ int set_sensor_clock(bool enable, float rate, float *actual_rate)
 	return err;
 }
 
-
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
-const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
+static const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
+static int64_t press_time;
 
-int64_t press_time;
-
-void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
+static void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	if (button_read())
 	{
@@ -400,29 +377,24 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 		press_time = 0;
 	}
 }
-#endif
 
-bool button_init;
-struct gpio_callback button_cb_data;
+static struct gpio_callback button_cb_data;
 
-void sys_button_init(void)
+static int sys_button_init(void)
 {
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
-	if (!button_init)
-	{
-		gpio_pin_configure_dt(&button0, GPIO_INPUT);
-		gpio_pin_interrupt_configure_dt(&button0, GPIO_INT_EDGE_BOTH);
-		gpio_init_callback(&button_cb_data, button_pressed, BIT(button0.pin));
-		gpio_add_callback(button0.port, &button_cb_data);
-		button_init = true;
-	}
-#endif
+	gpio_pin_configure_dt(&button0, GPIO_INPUT);
+	gpio_pin_interrupt_configure_dt(&button0, GPIO_INT_EDGE_BOTH);
+	gpio_init_callback(&button_cb_data, button_pressed, BIT(button0.pin));
+	gpio_add_callback(button0.port, &button_cb_data);
+	return 0;
 }
+
+SYS_INIT(sys_button_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+#endif
 
 bool button_read(void)
 {
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
-	sys_button_init();
 	return gpio_pin_get_dt(&button0);
 #else
 	return false;
@@ -432,7 +404,6 @@ bool button_read(void)
 void button_thread(void)
 {
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
-	sys_button_init();
 	while (1)
 	{
 		k_msleep(10);
@@ -442,14 +413,28 @@ void button_thread(void)
 #endif
 }
 
-unsigned int last_batt_pptt[16] = {10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001};
-int8_t last_batt_pptt_i = 0;
+static int sys_gpio_init(void)
+{
+	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios) // configure if exists
+	gpio_pin_configure_dt(&dock, GPIO_INPUT);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios) // configure if exists
+	gpio_pin_configure_dt(&chg, GPIO_INPUT);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios) // configure if exists
+	gpio_pin_configure_dt(&stby, GPIO_INPUT);
+#endif
+	return 0;
+}
+
+SYS_INIT(sys_gpio_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+
+static unsigned int last_batt_pptt[16] = {10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001};
+static int8_t last_batt_pptt_i = 0;
 
 void power_thread(void)
 {
-	sys_gpio_init();
-	power_check(); // check the battery and dock first before continuing (4ms to read from ADC)
-
 	while (1)
 	{
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
@@ -529,24 +514,4 @@ void power_thread(void)
 
 		k_msleep(100);
 	}
-}
-
-bool gpio_init;
-
-void sys_gpio_init(void)
-{
-	if (gpio_init)
-		return;
-	gpio_init = true;
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios) // configure if exists
-	gpio_pin_configure_dt(&dock, GPIO_INPUT);
-#endif
-
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios) // configure if exists
-	gpio_pin_configure_dt(&chg, GPIO_INPUT);
-#endif
-
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios) // configure if exists
-	gpio_pin_configure_dt(&stby, GPIO_INPUT);
-#endif
 }

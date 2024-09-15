@@ -25,8 +25,6 @@ int main(void)
 #endif
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 
-	sys_gpio_init();
-
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 	bool docked = gpio_pin_get_dt(&dock);
 #else
@@ -107,9 +105,6 @@ int main(void)
 	}
 // How long user shutdown take does not matter really ("0ms")
 #endif
-
-	sys_read();
-// 5-6ms to initialize NVS (only done when needed)
 
 	set_led(SYS_LED_PATTERN_OFF);
 
