@@ -386,6 +386,8 @@ void main_imu_thread(void)
 		main_ok = true;
 	while (1)
 	{
+		int64_t time_begin = k_uptime_get();
+		main_data = false;
 		if (main_ok)
 		{
 			// Trigger reconfig on powerstate change
@@ -579,7 +581,13 @@ void main_imu_thread(void)
 			}
 		}
 		main_running = false;
-		k_sleep(K_FOREVER);
+//		k_sleep(K_FOREVER);
+		int64_t time_delta = k_uptime_get() - time_begin;
+		led_clock_offset += time_delta;
+		if (time_delta > tickrate)
+			k_yield();
+		else
+			k_msleep(tickrate - time_delta);
 		main_running = true;
 	}
 }

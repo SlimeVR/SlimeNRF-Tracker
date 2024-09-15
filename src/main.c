@@ -111,26 +111,11 @@ int main(void)
 
 	esb_pair();
 
-	esb_initialize();
+	int err = esb_initialize();
+	if (err)
+		LOG_ERR("ESB initialization failed: %d", err);
 	//timer_init();
 // 1ms to start ESB
 
-	while (1)
-	{
-		// Get start time
-		int64_t time_begin = k_uptime_get();
-
-		main_data = false;
-
-		wait_for_threads(); // TODO:
-		main_imu_wakeup();
-
-		// Get time elapsed and sleep/yield until next tick
-		int64_t time_delta = k_uptime_get() - time_begin;
-		led_clock_offset += time_delta;
-		if (time_delta > tickrate)
-			k_yield();
-		else
-			k_msleep(tickrate - time_delta);
-	}
+	return 0;
 }
