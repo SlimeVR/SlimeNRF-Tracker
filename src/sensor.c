@@ -320,14 +320,18 @@ int main_imu_init(void)
 
 	float clock_actual_rate;
 	set_sensor_clock(true, 32768, &clock_actual_rate); // enable the clock source for IMU if present
+	LOG_INF("Sensor clock rate: %.2fHz", clock_actual_rate);
 
 	err = (*sensor_imu->init)(&sensor_imu_dev, clock_actual_rate, tickrate / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
+	LOG_INF("Accelerometer initial rate: %.2fHz", 1.0 / gyro_actual_time);
+	LOG_INF("Gyrometer initial rate: %.2fHz", 1.0 / accel_actual_time);
 	if (err < 0)
 		return err;
 // 55-66ms to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 	if (mag_available && mag_enabled)
 	{
 		err = (*sensor_mag->init)(&sensor_mag_dev, tickrate / 1000.0, &mag_actual_time);								 // configure with ~200Hz ODR
+		LOG_INF("Magnetometer initial rate: %.2fHz", 1.0 / mag_actual_time);
 		if (err < 0)
 			return err;
 // 0-1ms to setup mmc
