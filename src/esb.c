@@ -104,6 +104,8 @@ uint8_t base_addr_0[4] = {0,0,0,0};
 uint8_t base_addr_1[4] = {0,0,0,0};
 uint8_t addr_prefix[8] = {0,0,0,0,0,0,0,0};
 
+static bool esb_initialized = false;
+
 int esb_initialize(void)
 {
 	int err;
@@ -143,6 +145,7 @@ int esb_initialize(void)
 	if (err)
 		return err;
 
+	esb_initialized = true;
 	return 0;
 }
 
@@ -224,6 +227,8 @@ inline void esb_set_addr_paired(void)
 		addr_prefix[i] = buf2[i+8];
 }
 
+static bool esb_paired = false;
+
 void esb_pair(void)
 {
 	// Read paired address from retained
@@ -272,6 +277,7 @@ void esb_pair(void)
 	tracker_id = paired_addr[1];
 
 	esb_set_addr_paired();
+	esb_paired = true;
 }
 
 void esb_reset_pair(void)
@@ -283,6 +289,8 @@ void esb_reset_pair(void)
 
 void esb_write(uint8_t *data)
 {
+	if (!esb_initialized || !esb_paired)
+		return;
 	tx_payload.noack = false;
 	memcpy(tx_payload.data, data, sizeof(tx_payload.data));
 	esb_flush_tx();
