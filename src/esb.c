@@ -24,7 +24,8 @@ void event_handler(struct esb_evt const *event)
 	case ESB_EVENT_TX_SUCCESS:
 		break;
 	case ESB_EVENT_TX_FAILED:
-		LOG_INF("TX FAILED");
+//		LOG_INF("TX FAILED");
+		LOG_DBG("TX FAILED");
 		break;
 	case ESB_EVENT_RX_RECEIVED:
 		if (esb_read_rx_payload(&rx_payload) == 0)
