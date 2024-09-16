@@ -333,6 +333,7 @@ int main_imu_init(void)
 	set_sensor_clock(true, 32768, &clock_actual_rate); // enable the clock source for IMU if present
 	LOG_INF("Sensor clock rate: %.2fHz", clock_actual_rate);
 
+	k_usleep(250); // wait for sensor register reset
 	err = (*sensor_imu->init)(&sensor_imu_dev, clock_actual_rate, tickrate / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
 	LOG_INF("Accelerometer initial rate: %.2fHz", 1.0 / gyro_actual_time);
 	LOG_INF("Gyrometer initial rate: %.2fHz", 1.0 / accel_actual_time);
