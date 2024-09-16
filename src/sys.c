@@ -235,10 +235,10 @@ void led_thread(void)
 			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(20 * led_value));
 			k_msleep(50);
 			break;
-		case SYS_LED_PATTERN_ACTIVE_PERSIST:
+		case SYS_LED_PATTERN_ACTIVE_PERSIST: // off duration first because the device may turn on multiple times rapidly and waste battery power
 			led_pattern_state_persist = (led_pattern_state_persist + 1) % 2;
-			gpio_pin_set_dt(&led, led_pattern_state_persist);
-			k_msleep(led_pattern_state_persist == 1 ? 300 : 9700);
+			gpio_pin_set_dt(&led, !led_pattern_state_persist);
+			k_msleep(led_pattern_state_persist == 1 ? 9700 : 300);
 			break;
 		default:
 			k_thread_suspend(led_thread_id);
