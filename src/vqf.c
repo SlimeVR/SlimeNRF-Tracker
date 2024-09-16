@@ -5,6 +5,14 @@
 
 #include "vqf.h"
 
+#ifndef M_PI
+#define M_PI 3.141592653589793238462643383279502884f
+#endif
+
+#ifndef DEG_TO_RAD
+#define DEG_TO_RAD (M_PI / 180.0f)
+#endif
+
 vqf_params_t params;
 vqf_state_t state;
 vqf_coeffs_t coeffs;
@@ -42,9 +50,13 @@ void vqf_update_accel(float *a, float time)
 
 void vqf_update(float *g, float *a, float *m, float time)
 {
+	float g_rad[3] = {0};
+	// g is in deg/s, convert to rad/s
+	for (int i = 0; i < 3; i++)
+		g_rad[i] = g[i] * DEG_TO_RAD;
 	// TODO: time unused?
 	// TODO: gyro is a different rate to the others, should they be separated
-	updateGyr(&params, &state, &coeffs, g);
+	updateGyr(&params, &state, &coeffs, g_rad);
 	updateAcc(&params, &state, &coeffs, a);
 	updateMag(&params, &state, &coeffs, m);
 }
