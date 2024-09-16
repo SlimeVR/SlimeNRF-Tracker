@@ -232,7 +232,7 @@ void sensor_calibrate_imu(void)
 	if (!wait_for_motion(&sensor_imu_dev, false, 6)) // Wait for accelerometer to settle, timeout 3s
 		return; // Timeout, calibration failed
 
-	set_led(SYS_LED_PATTERN_ON);
+	set_led(SYS_LED_PATTERN_ON); // TODO: this is getting overwritten by boot led
 	k_msleep(500); // Delay before beginning acquisition
 
 	LOG_INF("Reading data");
@@ -272,6 +272,7 @@ void sensor_calibrate_mag(void)
 		ata[i] = 0.0;
 	norm_sum = 0.0;
 	sample_count = 0.0;
+	set_led(SYS_LED_PATTERN_OFF);
 }
 
 // TODO: get rid of it
