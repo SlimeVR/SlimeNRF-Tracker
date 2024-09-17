@@ -38,7 +38,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "BMM150.h"
 
-// TODO: Annoyingly, chip id cannot be read unless the BMM150 power control is enabled
+// Annoyingly, chip id cannot be read unless the BMM150 power control is enabled
+// In sensor_scan power control is enabled first to read chip id
 // taken from boschsensortec BMM150_SensorAPI
 static int8_t dig_x1;
 static int8_t dig_y1;

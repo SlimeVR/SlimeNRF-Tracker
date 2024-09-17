@@ -227,7 +227,6 @@ void sensor_setup_WOM(void)
 void sensor_calibrate_imu(void)
 {
 	LOG_INF("Calibrating main accelerometer and gyroscope zero rate offset");
-	// TODO: Add LED flashies
 	LOG_INF("Rest the device on a stable surface");
 	if (!wait_for_motion(&sensor_imu_dev, false, 6)) // Wait for accelerometer to settle, timeout 3s
 		return; // Timeout, calibration failed
@@ -383,7 +382,7 @@ void main_imu_thread(void)
 {
 	main_running = true;
 	int err = main_imu_init(); // Initialize IMUs and Fusion
-	// TODO: handle imu init error
+	// TODO: handle imu init error, maybe restart device or flash led
 	if (!err)
 		main_ok = true;
 	while (1)
@@ -574,7 +573,7 @@ void main_imu_thread(void)
 			}
 
 			// Handle magnetometer calibration or bridge offset calibration
-			if (mag_available && mag_enabled && last_powerstate == 1 && powerstate == 1) // TODO: i guess this is fine
+			if (mag_available && mag_enabled && last_powerstate == 1 && powerstate == 1)
 			{
 				if (magCal == 0b111111) // Save magCal while idling
 					sensor_calibrate_mag();

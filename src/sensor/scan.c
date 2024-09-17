@@ -7,10 +7,7 @@
 
 LOG_MODULE_REGISTER(sensor_scan, LOG_LEVEL_INF);
 
-// TODO: any address out of range (00, 7f, etc. will search all addresses and stored address first if available, specify an address here to search first otherwise
-// On reset (or user power on) or first power on, the scan function will be forced to run and do the above
-// Otherwise it should use an address and imus already stored in volatile memory
-// Cannot gurantee storage in flash, it's probably okay to keep it volatile
+// Any address out of range (00, 7f, etc.) will search all addresses, otherwise it will check provided address and register first
 
 int sensor_scan(struct i2c_dt_spec *i2c_dev, uint8_t *i2c_dev_reg, int dev_addr_count, const uint8_t dev_addr[], const uint8_t dev_reg[], const uint8_t dev_id[], const int dev_ids[])
 {

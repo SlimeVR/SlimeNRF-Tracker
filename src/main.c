@@ -66,7 +66,6 @@ int main(void)
 		LOG_INF("User shutdown requested");
 		reboot_counter_write(0);
 		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF);
-		// TODO: scheduled power off
 		k_msleep(1500);
 		if (button_read()) // If alternate button is available and still pressed, wait for the user to stop pressing the button
 		{

@@ -19,7 +19,6 @@ vqf_coeffs_t coeffs;
 
 void vqf_init(float time)
 {
-	// TODO: store vqf state to retained on sensor write
 	init_params(&params);
 	params.biasSigmaInit = 1.0f; // naive values from https://github.com/kounocom/SlimeVR-Tracker-ESP/blob/dynamic-sfusion/src/sensors/SensorFusion.h
 	params.biasForgettingTime = 30.0f;
