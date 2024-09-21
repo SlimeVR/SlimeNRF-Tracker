@@ -153,7 +153,7 @@ int icm_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gy
 		AODR = AODR_12_5Hz;
 		accel_time = 1.0 / 12.5;
 	}
-	accel_time *= clock_scale; // scale clock
+	accel_time /= clock_scale; // scale clock
 
 	// Calculate gyro
 	if (gyro_time <= 0) // off
@@ -238,7 +238,7 @@ int icm_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gy
 		GODR = GODR_12_5Hz;
 		gyro_time = 1.0 / 12.5;
 	}
-	gyro_time *= clock_scale; // scale clock
+	gyro_time /= clock_scale; // scale clock
 
 	if (last_accel_odr == AODR && last_gyro_odr == GODR) // if both were already configured
 		return 1;
