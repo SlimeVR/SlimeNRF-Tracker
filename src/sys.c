@@ -401,11 +401,14 @@ static int sys_gpio_init(void)
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios) // configure if exists
 	gpio_pin_configure_dt(&dock, GPIO_INPUT);
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios) // configure if exists
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
 	gpio_pin_configure_dt(&chg, GPIO_INPUT);
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios) // configure if exists
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
 	gpio_pin_configure_dt(&stby, GPIO_INPUT);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, clk_gpios)
+	gpio_pin_configure_dt(&clk_en, GPIO_INPUT);
 #endif
 	return 0;
 }
