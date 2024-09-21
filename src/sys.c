@@ -408,7 +408,7 @@ static int sys_gpio_init(void)
 	gpio_pin_configure_dt(&stby, GPIO_INPUT);
 #endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, clk_gpios)
-	gpio_pin_configure_dt(&clk_en, GPIO_INPUT);
+	gpio_pin_configure_dt(&clk_en, GPIO_OUTPUT);
 #endif
 	return 0;
 }
