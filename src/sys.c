@@ -464,7 +464,7 @@ void power_thread(void)
 		uint32_t batt_pptt = read_batt_mV(&batt_mV);
 
 		bool battery_available = batt_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
-		plugged = batt_mV > 4500; // Separate detection of vin
+		plugged = batt_mV > 4300; // Separate detection of vin
 
 		if (!power_init) // log battery state once
 		{
