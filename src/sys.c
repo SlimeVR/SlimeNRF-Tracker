@@ -93,6 +93,17 @@ void configure_system_off_WOM() // TODO: should not really shut off while plugge
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
 	LOG_INF("Configured WOM interrupt");
 	sensor_retained_write();
+#if WOM_USE_DCDC // In case DCDC is more efficient in the 10-100uA range
+	// Make sure DCDC is selected
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+	gpio_pin_set_dt(&dcdc_en, 1);
+	LOG_INF("Enabled DCDC");
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+	gpio_pin_set_dt(&ldo_en, 0);
+	LOG_INF("Disabled LDO");
+#endif
+#else
 	// Switch to LDO
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
 	gpio_pin_set_dt(&ldo_en, 1);
@@ -101,6 +112,7 @@ void configure_system_off_WOM() // TODO: should not really shut off while plugge
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
 	gpio_pin_set_dt(&dcdc_en, 0);
 	LOG_INF("Disabled DCDC");
+#endif
 #endif
 	// Set system off
 	sensor_setup_WOM(); // enable WOM feature
