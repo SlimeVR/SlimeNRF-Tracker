@@ -93,6 +93,15 @@ void configure_system_off_WOM() // TODO: should not really shut off while plugge
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
 	LOG_INF("Configured WOM interrupt");
 	sensor_retained_write();
+	// Switch to LDO
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+	gpio_pin_set_dt(&ldo_en, 1);
+	LOG_INF("Enabled LDO");
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+	gpio_pin_set_dt(&dcdc_en, 0);
+	LOG_INF("Disabled DCDC");
+#endif
 	// Set system off
 	sensor_setup_WOM(); // enable WOM feature
 	LOG_INF("Powering off nRF");
@@ -113,9 +122,18 @@ void configure_system_off_chgstat(void)
 	// Configure interrupts
 	configure_sense_pins();
 	// Clear sensor addresses
-	LOG_INF("Requested sensor scan on next boot");
 	sensor_scan_clear();
+	LOG_INF("Requested sensor scan on next boot");
 	sensor_retained_write();
+	// Switch to LDO
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+	gpio_pin_set_dt(&ldo_en, 1);
+	LOG_INF("Enabled LDO");
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+	gpio_pin_set_dt(&dcdc_en, 0);
+	LOG_INF("Disabled DCDC");
+#endif
 	// Set system off
 	LOG_INF("Powering off nRF");
 	sys_poweroff();
@@ -132,9 +150,18 @@ void configure_system_off_dock(void)
 	// Configure interrupts
 	configure_sense_pins();
 	// Clear sensor addresses
-	LOG_INF("Requested sensor scan on next boot");
 	sensor_scan_clear();
+	LOG_INF("Requested sensor scan on next boot");
 	sensor_retained_write();
+	// Switch to LDO
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+	gpio_pin_set_dt(&ldo_en, 1);
+	LOG_INF("Enabled LDO");
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+	gpio_pin_set_dt(&dcdc_en, 0);
+	LOG_INF("Disabled DCDC");
+#endif
 	// Set system off
 	LOG_INF("Powering off nRF");
 	sys_poweroff();
@@ -394,6 +421,12 @@ static const struct gpio_dt_spec chg = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chg_gp
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
 static const struct gpio_dt_spec stby = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, stby_gpios);
 #endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+static const struct gpio_dt_spec dcdc_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dcdc_gpios);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+static const struct gpio_dt_spec ldo_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, ldo_gpios);
+#endif
 
 static int sys_gpio_init(void)
 {
@@ -409,6 +442,12 @@ static int sys_gpio_init(void)
 #endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, clk_gpios)
 	gpio_pin_configure_dt(&clk_en, GPIO_OUTPUT);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+	gpio_pin_configure_dt(&dcdc_en, GPIO_OUTPUT);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+	gpio_pin_configure_dt(&ldo_en, GPIO_OUTPUT);
 #endif
 	return 0;
 }
@@ -469,12 +508,22 @@ void power_thread(void)
 		bool battery_available = batt_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
 		plugged = batt_mV > 4300; // Separate detection of vin
 
-		if (!power_init) // log battery state once
+		if (!power_init)
 		{
+			// log battery state once
 			if (battery_available)
 				LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
 			else
 				LOG_INF("Battery not available (%dmV)", batt_mV);
+			// Switch to DCDC
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+			gpio_pin_set_dt(&dcdc_en, 1);
+			LOG_INF("Enabled DCDC");
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+			gpio_pin_set_dt(&ldo_en, 0);
+			LOG_INF("Disabled LDO");
+#endif
 			power_init = true;
 		}
 
