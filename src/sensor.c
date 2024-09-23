@@ -181,11 +181,12 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 	memcpy(accelBias, retained.accelBias, sizeof(accelBias));
 	memcpy(gyroBias, retained.gyroBias, sizeof(gyroBias));
 	memcpy(magBAinv, retained.magBAinv, sizeof(magBAinv));
-	LOG_INF("Main accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
-	LOG_INF("Main gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
-	LOG_INF("Main magnetometer matrix:");
+	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
+	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	LOG_INF("Magnetometer matrix:");
 	for (int i = 0; i < 3; i++)
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+	sensor_calibration_validate();
 
 	if (retained.fusion_data_stored)
 	{
@@ -238,8 +239,9 @@ void sensor_calibrate_imu(void)
 	sensor_offsetBias(&sensor_imu_dev, accelBias, gyroBias); // This takes about 3s
 	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
-	LOG_INF("%.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
-	LOG_INF("%.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
+	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	sensor_calibration_validate();
 
 	LOG_INF("Finished calibration");
 	if (sensor_fusion_init)
@@ -249,7 +251,7 @@ void sensor_calibrate_imu(void)
 		sensor_retained_write();
 	}
 	else
-	{
+	{ // TODO: always clearing the fusion?
 		retained.fusion_data_stored = false; // Invalidate retained fusion data
 	}
 	set_led(SYS_LED_PATTERN_OFF);
@@ -260,18 +262,49 @@ void sensor_calibrate_mag(void)
 	LOG_INF("Calibrating magnetometer hard/soft iron offset");
 	magneto_current_calibration(magBAinv, ata, norm_sum, sample_count); // 25ms
 	sys_write(MAIN_MAG_BIAS_ID, &retained.magBAinv, magBAinv, sizeof(magBAinv));
+	LOG_INF("Magnetometer matrix:");
 	for (int i = 0; i < 3; i++)
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
 	LOG_INF("Finished calibration");
 	//magCal |= 1 << 7;
 	magCal = 0;
 	// clear data
-	//memset(ata[0], 0, sizeof(ata)); // does this work??
+	//memset(ata[0], 0, sizeof(ata)); // TODO: does this work??
 	for (int i = 0; i < 100; i++)
 		ata[i] = 0.0;
 	norm_sum = 0.0;
 	sample_count = 0.0;
 	set_led(SYS_LED_PATTERN_OFF);
+}
+
+void sensor_calibration_validate(void)
+{
+	float zero[3] = {0};
+	if (v_epsilon(&accelBias, &zero, 1.0) && v_epsilon(&gyroBias, &zero, 100.0)) // TODO: this is using v_epsilon to compare zero. Check accel is <1G and gyro <100dps
+	{
+		sensor_calibration_clear();
+		LOG_WRN("Invalidated calibration");
+		LOG_WRN("The IMU may be damaged or calibration was not completed properly");
+	}
+}
+
+void sensor_calibration_clear(void)
+{
+	memset(accelBias, 0, sizeof(accelBias));
+	memset(gyroBias, 0, sizeof(gyroBias));
+	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
+	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
+
+	if (sensor_fusion_init)
+	{ // clear fusion gyro offset
+		float g_off[3] = {0};
+		(*sensor_fusion->set_gyro_bias)(g_off);
+		sensor_retained_write();
+	}
+	else
+	{ // TODO: always clearing the fusion?
+		retained.fusion_data_stored = false; // Invalidate retained fusion data
+	}
 }
 
 // TODO: get rid of it
@@ -350,15 +383,6 @@ int main_imu_init(void)
 	}
 	LOG_INF("Initialized sensors");
 
-	do
-	{
-		if (reset_mode == 1) // Reset mode main calibration
-		{
-			sensor_calibrate_imu();
-			reset_mode = 0; // Clear reset mode
-		}
-	} while (false); // TODO: ????? why is this here
-
 	// Setup fusion
 	sensor_retained_read();
 	(*sensor_fusion->init)(gyro_actual_time);
@@ -368,6 +392,10 @@ int main_imu_init(void)
 		retained.fusion_data_stored = false; // Invalidate retained fusion data
 		retained_update();
 	}
+
+	// Calibrate IMU
+	if (accelBias[0] == 0 && accelBias[1] == 0 && accelBias[2] == 0 && gyroBias[0] == 0 && gyroBias[1] == 0 && gyroBias[2] == 0) // TODO: better way to check?
+		sensor_calibrate_imu();
 
 	LOG_INF("Initialized fusion");
 	sensor_fusion_init = true;
