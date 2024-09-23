@@ -85,28 +85,27 @@ int main(void)
 
 	set_led(SYS_LED_PATTERN_OFF);
 
-	if (reset_mode == 1)
+	switch (reset_mode)
 	{
+	case 1:
 		LOG_INF("IMU calibration requested");
-	}
-
-	if (reset_mode == 2) // Reset mode pairing reset
-	{
+		break;
+	case 2: // Reset mode pairing reset
 		LOG_INF("Pairing reset requested");
 		esb_reset_pair();
-		reset_mode = 0; // Clear reset mode
-	}
-
+		break;
 #if CONFIG_BUILD_OUTPUT_UF2 // Using Adafruit bootloader
-	if (reset_mode == 3 || reset_mode == 4) // DFU_MAGIC_UF2_RESET, Reset mode DFU
-	{
+	case 3:
+	case 4: // DFU_MAGIC_UF2_RESET, Reset mode DFU
 		LOG_INF("DFU requested");
 		NRF_POWER->GPREGRET = 0x57;
 		sys_reboot(SYS_REBOOT_COLD);
-	}
 #endif
+	default:
+		break;
+	}
 
-	k_msleep(1); // fix some weird issue with the device bootlooping
+	k_msleep(1); // TODO: fixes some weird issue with the device bootlooping, what is the cause
 
 	clocks_start();
 
