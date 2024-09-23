@@ -39,6 +39,8 @@ int main(void)
 
 	bool docked = dock_read();
 
+	uint8_t reset_mode = -1;
+
 	if ((reset_pin_reset || button_read()) && !docked) // Count pin resets while not docked
 	{
 		if (reboot_counter == 0)

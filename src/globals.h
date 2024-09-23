@@ -30,7 +30,6 @@ extern int tracker_id;
 
 extern int64_t led_time;
 extern int64_t led_time_off;
-extern uint8_t reset_mode;
 extern uint8_t last_reset;
 extern bool system_off_main;
 

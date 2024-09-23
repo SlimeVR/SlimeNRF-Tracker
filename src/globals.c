@@ -20,7 +20,6 @@ int tracker_id = 0;
 
 //int64_t led_time = 0;
 //int64_t led_time_off = 0;
-uint8_t reset_mode = -1;
 uint8_t last_reset = 0;
 bool system_off_main = false; // TODO: move to sys
 
