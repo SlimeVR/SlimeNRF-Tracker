@@ -40,6 +40,13 @@ void event_handler(struct esb_evt const *event)
 			{
 				if (rx_payload.length == 4)
 				{
+					// TODO: Device should never receive packets if it is already paired, why is this packet received?
+					// This may be part of acknowledge
+					if (!nrfx_timer_init_check(&m_timer))
+					{
+						LOG_WRN("Timer not initialized");
+						break;
+					}
 					if (timer_state == false)
 					{
 						nrfx_timer_resume(&m_timer);
