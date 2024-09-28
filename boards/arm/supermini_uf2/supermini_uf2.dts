@@ -67,17 +67,18 @@
 		};
 	};
 
-	buttons {
-		compatible = "gpio-keys";
-		button0: button_0 {
-			gpios = <&gpio1 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
-			label = "Push button switch 0";
-		};
-	};
+	// Uncomment below to Enable SW0
+	// buttons {
+	// 	compatible = "gpio-keys";
+	// 	button0: button_0 {
+	// 		gpios = <&gpio0 20 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+	// 		label = "Push button switch 0";
+	// 	};
+	// };
 
-	aliases {
-		sw0 = &button0;
-	};
+	// aliases {
+	// 	sw0 = &button0;
+	// };
 
 	pwmclock: pwmclock {
 		compatible = "pwm-clock";
