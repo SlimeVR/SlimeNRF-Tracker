@@ -77,6 +77,13 @@ static void configure_sense_pins(void)
 #endif
 }
 
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+static const struct gpio_dt_spec dcdc_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dcdc_gpios);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+static const struct gpio_dt_spec ldo_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, ldo_gpios);
+#endif
+
 void configure_system_off_WOM() // TODO: should not really shut off while plugged in
 {
 	LOG_INF("System off requested (WOM)");
@@ -432,12 +439,6 @@ static const struct gpio_dt_spec chg = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chg_gp
 #endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
 static const struct gpio_dt_spec stby = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, stby_gpios);
-#endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
-static const struct gpio_dt_spec dcdc_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dcdc_gpios);
-#endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
-static const struct gpio_dt_spec ldo_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, ldo_gpios);
 #endif
 
 static int sys_gpio_init(void)
