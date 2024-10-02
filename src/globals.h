@@ -8,8 +8,6 @@
 
 #include "retained.h"
 
-#define ZEPHYR_USER_NODE DT_PATH(zephyr_user)
-
 extern int tickrate;
 
 extern uint8_t batt;

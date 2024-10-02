@@ -32,6 +32,7 @@ LOG_MODULE_REGISTER(system, LOG_LEVEL_INF);
 K_THREAD_DEFINE(led_thread_id, 512, led_thread, NULL, NULL, NULL, 6, 0, 0);
 
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+#define BUTTON_EXISTS true
 K_THREAD_DEFINE(button_thread_id, 256, button_thread, NULL, NULL, NULL, 6, 0, 0);
 #endif
 
@@ -40,6 +41,21 @@ K_THREAD_DEFINE(power_thread_id, 1024, power_thread, NULL, NULL, NULL, 6, 0, 0);
 // TODO: well now sys file is kinda crowded
 // TODO: the gpio sense is weird, maybe the device will turn back on immediately after shutdown or after (attempting to) enter WOM
 // there should be a better system of how to handle all system_off cases and all the sense pins
+
+#define ZEPHYR_USER_NODE DT_PATH(zephyr_user)
+
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
+#define DOCK_EXISTS true
+static const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
+#define CHG_EXISTS true
+static const struct gpio_dt_spec chg = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chg_gpios);
+#endif
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
+#define STBY_EXISTS true
+static const struct gpio_dt_spec stby = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, stby_gpios);
+#endif
 
 // TODO: configuring system off should be consolidated
 static inline void configure_system_off(void)
@@ -56,18 +72,18 @@ static inline void configure_system_off(void)
 static void configure_sense_pins(void)
 {
 	// Configure chgstat interrupt
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
+#if CHG_EXISTS
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_SENSE_LOW);
 	LOG_INF("Configured chg interrupt");
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
+#if STBY_EXISTS
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_SENSE_LOW);
 	LOG_INF("Configured stby interrupt");
 #endif
 	// Configure dock interrupt
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
+#if DOCK_EXISTS
 	if (dock_read())
 	{
 		nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
@@ -81,7 +97,7 @@ static void configure_sense_pins(void)
 	LOG_INF("Configured dock interrupt");
 #endif
 	// Configure sw0 interrupt
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+#if BUTTON_EXISTS // Alternate button if available to use as "reset key"
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_SENSE_LOW);
 	LOG_INF("Configured sw0 interrupt");
@@ -94,16 +110,18 @@ static void configure_sense_pins(void)
 #warning "IMU interrupt GPIO does not exist"
 #endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+#define DCDC_EN_EXISTS true
 static const struct gpio_dt_spec dcdc_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dcdc_gpios);
 #endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+#define LDO_EN_EXISTS true
 static const struct gpio_dt_spec ldo_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, ldo_gpios);
 #endif
 
 void configure_system_off_WOM() // TODO: should not really shut off while plugged in
 {
 	LOG_INF("System off requested (WOM)");
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, int0_gpios)
+#if IMU_INT_EXISTS
 	configure_system_off();
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
@@ -112,21 +130,21 @@ void configure_system_off_WOM() // TODO: should not really shut off while plugge
 	sensor_retained_write();
 #if WOM_USE_DCDC // In case DCDC is more efficient in the 10-100uA range
 	// Make sure DCDC is selected
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+#if DCDC_EN_EXISTS
 	gpio_pin_set_dt(&dcdc_en, 1);
 	LOG_INF("Enabled DCDC");
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+#if LDO_EN_EXISTS
 	gpio_pin_set_dt(&ldo_en, 0);
 	LOG_INF("Disabled LDO");
 #endif
 #else
 	// Switch to LDO
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+#if LDO_EN_EXISTS
 	gpio_pin_set_dt(&ldo_en, 1);
 	LOG_INF("Enabled LDO");
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+#if DCDC_EN_EXISTS
 	gpio_pin_set_dt(&dcdc_en, 0);
 	LOG_INF("Disabled DCDC");
 #endif
@@ -150,11 +168,11 @@ void configure_system_off_chgstat(void)
 	LOG_INF("Requested sensor scan on next boot");
 	sensor_retained_write();
 	// Switch to LDO
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+#if LDO_EN_EXISTS
 	gpio_pin_set_dt(&ldo_en, 1);
 	LOG_INF("Enabled LDO");
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+#if DCDC_EN_EXISTS
 	gpio_pin_set_dt(&dcdc_en, 0);
 	LOG_INF("Disabled DCDC");
 #endif
@@ -172,11 +190,11 @@ void configure_system_off_dock(void)
 	LOG_INF("Requested sensor scan on next boot");
 	sensor_retained_write();
 	// Switch to LDO
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+#if LDO_EN_EXISTS
 	gpio_pin_set_dt(&ldo_en, 1);
 	LOG_INF("Enabled LDO");
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+#if DCDC_EN_EXISTS
 	gpio_pin_set_dt(&dcdc_en, 0);
 	LOG_INF("Disabled DCDC");
 #endif
@@ -375,6 +393,7 @@ void sys_write(uint16_t id, void *retained_ptr, const void *data, size_t len)
 }
 
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, clk_gpios)
+#define CLK_EN_EXISTS true
 static const struct gpio_dt_spec clk_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, clk_gpios);
 #endif
 static const struct pwm_dt_spec clk_out = PWM_DT_SPEC_GET_OR(CLKOUT_NODE, {0});
@@ -382,7 +401,7 @@ static const struct pwm_dt_spec clk_out = PWM_DT_SPEC_GET_OR(CLKOUT_NODE, {0});
 // return 0 if clock applied, -1 if failed (because there is no clk_en or clk_out)
 int set_sensor_clock(bool enable, float rate, float *actual_rate)
 {
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, clk_gpios)
+#if CLK_EN_EXISTS
 	gpio_pin_set_dt(&clk_en, enable); // if enabling some external oscillator is available
 //	*actual_rate = enable ? (float)NSEC_PER_SEC / clk_out.period : 0; // assume pwm period is the same as an equivalent external oscillator
 	*actual_rate = enable ? 32768 : 0; // default
@@ -397,7 +416,7 @@ int set_sensor_clock(bool enable, float rate, float *actual_rate)
 	return err;
 }
 
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+#if BUTTON_EXISTS // Alternate button if available to use as "reset key"
 static const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
 static int64_t press_time;
 
@@ -431,7 +450,7 @@ SYS_INIT(sys_button_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 bool button_read(void)
 {
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+#if BUTTON_EXISTS // Alternate button if available to use as "reset key"
 	return gpio_pin_get_dt(&button0);
 #else
 	return false;
@@ -440,7 +459,7 @@ bool button_read(void)
 
 void button_thread(void)
 {
-#if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
+#if BUTTON_EXISTS // Alternate button if available to use as "reset key"
 	while (1)
 	{
 		k_msleep(10);
@@ -450,35 +469,25 @@ void button_thread(void)
 #endif
 }
 
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
-static const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
-#endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
-static const struct gpio_dt_spec chg = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chg_gpios);
-#endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
-static const struct gpio_dt_spec stby = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, stby_gpios);
-#endif
-
 static int sys_gpio_init(void)
 {
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios) // configure if exists
+#if DOCK_EXISTS // configure if exists
 	gpio_pin_configure_dt(&dock, GPIO_INPUT);
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
+#if CHG_EXISTS
 	gpio_pin_configure_dt(&chg, GPIO_INPUT);
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
+#if STBY_EXISTS
 	gpio_pin_configure_dt(&stby, GPIO_INPUT);
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, clk_gpios)
+#if CLK_EN_EXISTS
 	gpio_pin_configure_dt(&clk_en, GPIO_OUTPUT);
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+#if DCDC_EN_EXISTS
 	gpio_pin_configure_dt(&dcdc_en, GPIO_OUTPUT);
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+#if LDO_EN_EXISTS
 	gpio_pin_configure_dt(&ldo_en, GPIO_OUTPUT);
 #endif
 	return 0;
@@ -488,7 +497,7 @@ SYS_INIT(sys_gpio_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 bool dock_read(void)
 {
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
+#if DOCK_EXISTS
 	return gpio_pin_get_dt(&dock);
 #else
 	return false;
@@ -497,7 +506,7 @@ bool dock_read(void)
 
 bool chg_read(void)
 {
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
+#if CHG_EXISTS
 	return gpio_pin_get_dt(&chg);
 #else
 	return false;
@@ -506,7 +515,7 @@ bool chg_read(void)
 
 bool stby_read(void)
 {
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
+#if STBY_EXISTS
 	return gpio_pin_get_dt(&stby);
 #else
 	return false;
@@ -548,11 +557,11 @@ void power_thread(void)
 			else
 				LOG_INF("Battery not available (%dmV)", batt_mV);
 			// Switch to DCDC
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
+#if DCDC_EN_EXISTS
 			gpio_pin_set_dt(&dcdc_en, 1);
 			LOG_INF("Enabled DCDC");
 #endif
-#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
+#if LDO_EN_EXISTS
 			gpio_pin_set_dt(&ldo_en, 0);
 			LOG_INF("Disabled LDO");
 #endif
