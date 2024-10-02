@@ -40,10 +40,10 @@ int64_t last_data_time;
 
 float accelBias[3] = {0}, gyroBias[3] = {0}; // offset biases for the accel and gyro
 
-int magCal;
-int last_magCal;
-int64_t magCal_time;
-double ata[100]; // init cal
+int mag_progress;
+int last_mag_progress;
+int64_t mag_progress_time;
+double ata[100]; // init calibration
 double norm_sum;
 double sample_count;
 
@@ -288,8 +288,8 @@ void sensor_calibrate_mag(void)
 	for (int i = 0; i < 3; i++)
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
 	LOG_INF("Finished calibration");
-	//magCal |= 1 << 7;
-	magCal = 0;
+	//mag_progress |= 1 << 7;
+	mag_progress = 0;
 	// clear data
 	//memset(ata[0], 0, sizeof(ata)); // TODO: does this work??
 	for (int i = 0; i < 100; i++)
@@ -478,24 +478,24 @@ void main_imu_thread(void)
 				mx = m[0];
 				my = m[1];
 				mz = m[2];
-				int new_magCal = magCal;
-				new_magCal |= (-1.2 < ax && ax < -0.8 ? 1 << 0 : 0) | (1.2 > ax && ax > 0.8 ? 1 << 1 : 0) | // dumb check if all accel axes were reached for cal, assume the user is intentionally doing this
+				int new_mag_progress = mag_progress;
+				new_mag_progress |= (-1.2 < ax && ax < -0.8 ? 1 << 0 : 0) | (1.2 > ax && ax > 0.8 ? 1 << 1 : 0) | // dumb check if all accel axes were reached for calibration, assume the user is intentionally doing this
 					(-1.2 < ay && ay < -0.8 ? 1 << 2 : 0) | (1.2 > ay && ay > 0.8 ? 1 << 3 : 0) |
 					(-1.2 < az && az < -0.8 ? 1 << 4 : 0) | (1.2 > az && az > 0.8 ? 1 << 5 : 0);
-				if (new_magCal > magCal && new_magCal == last_magCal)
+				if (new_mag_progress > mag_progress && new_mag_progress == last_mag_progress)
 				{
-					if (k_uptime_get() > magCal_time)
+					if (k_uptime_get() > mag_progress_time)
 					{
-						magCal = new_magCal;
-						LOG_INF("Magnetometer calibration progress: %d", new_magCal);
+						mag_progress = new_mag_progress;
+						LOG_INF("Magnetometer calibration progress: %d", new_mag_progress);
 					}
 				}
 				else
 				{
-					magCal_time = k_uptime_get() + 1000;
-					last_magCal = new_magCal;
+					mag_progress_time = k_uptime_get() + 1000;
+					last_mag_progress = new_mag_progress;
 				}
-				if (magCal == 0b111111)
+				if (mag_progress == 0b111111)
 					set_led(SYS_LED_PATTERN_ON, 1); // Magnetometer calibration is ready to apply
 			}
 
@@ -625,7 +625,7 @@ void main_imu_thread(void)
 			// Handle magnetometer calibration or bridge offset calibration
 			if (mag_available && mag_enabled && last_sensor_mode == SENSOR_SENSOR_MODE_LOW_POWER && sensor_mode == SENSOR_SENSOR_MODE_LOW_POWER)
 			{
-				if (magCal == 0b111111) // Save magCal while idling
+				if (mag_progress == 0b111111) // Save magnetometer calibration while idling
 				{
 					sensor_calibrate_mag();
 					set_led(SYS_LED_PATTERN_OFF, 1);
