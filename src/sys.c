@@ -42,6 +42,17 @@ K_THREAD_DEFINE(power_thread_id, 1024, power_thread, NULL, NULL, NULL, 6, 0, 0);
 // there should be a better system of how to handle all system_off cases and all the sense pins
 
 // TODO: configuring system off should be consolidated
+static inline void configure_system_off(void)
+{
+	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
+	sensor_shutdown();
+	set_led(SYS_LED_PATTERN_OFF_FORCE);
+	float actual_clock_rate;
+	set_sensor_clock(false, 0, &actual_clock_rate);
+	// Configure interrupts
+	configure_sense_pins();
+}
+
 static void configure_sense_pins(void)
 {
 	// Configure chgstat interrupt
@@ -93,13 +104,7 @@ void configure_system_off_WOM() // TODO: should not really shut off while plugge
 {
 	LOG_INF("System off requested (WOM)");
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, int0_gpios)
-	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
-	sensor_shutdown();
-	set_led(SYS_LED_PATTERN_OFF_FORCE);
-	float actual_clock_rate;
-	set_sensor_clock(false, 0, &actual_clock_rate);
-	// Configure interrupts
-	configure_sense_pins();
+	configure_system_off();
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
@@ -139,13 +144,7 @@ void configure_system_off_WOM() // TODO: should not really shut off while plugge
 void configure_system_off_chgstat(void)
 {
 	LOG_INF("System off requested (chgstat)");
-	main_imu_suspend();
-	sensor_shutdown();
-	set_led(SYS_LED_PATTERN_OFF_FORCE);
-	float actual_clock_rate;
-	set_sensor_clock(false, 0, &actual_clock_rate);
-	// Configure interrupts
-	configure_sense_pins();
+	configure_system_off();
 	// Clear sensor addresses
 	sensor_scan_clear();
 	LOG_INF("Requested sensor scan on next boot");
@@ -167,13 +166,7 @@ void configure_system_off_chgstat(void)
 void configure_system_off_dock(void)
 {
 	LOG_INF("System off requested (dock)");
-	main_imu_suspend();
-	sensor_shutdown();
-	set_led(SYS_LED_PATTERN_OFF_FORCE);
-	float actual_clock_rate;
-	set_sensor_clock(false, 0, &actual_clock_rate);
-	// Configure interrupts
-	configure_sense_pins();
+	configure_system_off();
 	// Clear sensor addresses
 	sensor_scan_clear();
 	LOG_INF("Requested sensor scan on next boot");
