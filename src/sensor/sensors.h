@@ -3,6 +3,8 @@
 
 #include <zephyr/kernel.h>
 
+#include "sensor_none.h"
+
 #include "BMI270.h"
 #include "ICM42688.h"
 #include "LSM6DSV.h"
@@ -84,13 +86,13 @@ const char *dev_imu_names[] = {
 	"LSM6DSV"
 };
 const sensor_imu_t *sensor_imus[] = {
-	NULL, // will not implement, too low quality
+	&sensor_imu_none, // will not implement, too low quality
 	&sensor_imu_bmi270,
-	NULL,
+	&sensor_imu_none,
 	&sensor_imu_icm42688,
-	NULL,
-	NULL, // will not implement, too low quality
-	NULL,
+	&sensor_imu_none,
+	&sensor_imu_none, // will not implement, too low quality
+	&sensor_imu_none,
 	&sensor_imu_lsm6dsv
 };
 const int i2c_dev_imu_addr_count = 2;
@@ -134,12 +136,12 @@ const char *dev_mag_names[] = {
 	"MMC5983MA"
 };
 const sensor_mag_t *sensor_mags[] = {
-	NULL, // not implemented
+	&sensor_mag_none, // not implemented
 	&sensor_mag_bmm150,
 	&sensor_mag_bmm350,
 	&sensor_mag_lis3mdl,
 	&sensor_mag_lis2mdl,
-	NULL,
+	&sensor_mag_none,
 	&sensor_mag_mmc5983ma
 };
 const int i2c_dev_mag_addr_count = 6;

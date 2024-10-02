@@ -72,8 +72,8 @@ bool mag_enabled = false;
 
 const sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion; // TODO: change from server
 
-const sensor_imu_t *sensor_imu = &sensor_imu_icm42688;
-const sensor_mag_t *sensor_mag = &sensor_mag_mmc5983ma;
+const sensor_imu_t *sensor_imu = &sensor_imu_none;
+const sensor_mag_t *sensor_mag = &sensor_mag_none;
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
@@ -107,7 +107,7 @@ int sensor_init(void)
 		if (imu_id >= (int)(sizeof(sensor_imus) / sizeof(sensor_imus[0])) || sensor_imus[imu_id] == NULL)
 		{
 			LOG_ERR("IMU not supported");
-			sensor_imu = NULL;
+			sensor_imu = &sensor_imu_none;
 			sensor_sensor_scanning = false; // done
 			return -1; // an IMU was detected but not supported
 		}
@@ -118,7 +118,7 @@ int sensor_init(void)
 	}
 	else
 	{
-		sensor_imu = NULL;
+		sensor_imu = &sensor_imu_none;
 		sensor_sensor_scanning = false; // done
 		return -1; // no IMU detected! something is very wrong
 	}
@@ -141,7 +141,7 @@ int sensor_init(void)
 		if (mag_id >= (int)(sizeof(dev_mag_names) / sizeof(dev_mag_names[0])) || sensor_mags[mag_id] == NULL)
 		{
 			LOG_ERR("Magnetometer not supported");
-			sensor_mag = NULL; 
+			sensor_mag = &sensor_mag_none; 
 			mag_available = false;
 		}
 		else
@@ -152,7 +152,7 @@ int sensor_init(void)
 	}
 	else
 	{
-		sensor_mag = NULL; 
+		sensor_mag = &sensor_mag_none; 
 		mag_available = false; // marked as not available
 	}
 
