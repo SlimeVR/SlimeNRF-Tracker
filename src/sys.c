@@ -34,6 +34,8 @@ K_THREAD_DEFINE(led_thread_id, 512, led_thread, NULL, NULL, NULL, 6, 0, 0);
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios) // Alternate button if available to use as "reset key"
 #define BUTTON_EXISTS true
 K_THREAD_DEFINE(button_thread_id, 256, button_thread, NULL, NULL, NULL, 6, 0, 0);
+#else
+#pragma message "Button GPIO does not exist"
 #endif
 
 K_THREAD_DEFINE(power_thread_id, 1024, power_thread, NULL, NULL, NULL, 6, 0, 0);
@@ -47,14 +49,20 @@ K_THREAD_DEFINE(power_thread_id, 1024, power_thread, NULL, NULL, NULL, 6, 0, 0);
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dock_gpios)
 #define DOCK_EXISTS true
 static const struct gpio_dt_spec dock = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dock_gpios);
+#else
+#pragma message "Dock sense GPIO does not exist"
 #endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, chg_gpios)
 #define CHG_EXISTS true
 static const struct gpio_dt_spec chg = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, chg_gpios);
+#else
+#pragma message "Charge sense GPIO does not exist"
 #endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, stby_gpios)
 #define STBY_EXISTS true
 static const struct gpio_dt_spec stby = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, stby_gpios);
+#else
+#pragma message "Standby sense GPIO does not exist"
 #endif
 
 // TODO: configuring system off should be consolidated
@@ -112,10 +120,14 @@ static void configure_system_off(void)
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
 #define DCDC_EN_EXISTS true
 static const struct gpio_dt_spec dcdc_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dcdc_gpios);
+#else
+#pragma message "DCDC enable GPIO does not exist"
 #endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, ldo_gpios)
 #define LDO_EN_EXISTS true
 static const struct gpio_dt_spec ldo_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, ldo_gpios);
+#else
+#pragma message "LDO enable GPIO does not exist"
 #endif
 
 void configure_system_off_WOM() // TODO: should not really shut off while plugged in
