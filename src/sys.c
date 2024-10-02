@@ -77,6 +77,11 @@ static void configure_sense_pins(void)
 #endif
 }
 
+#if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, int0_gpios)
+#define IMU_INT_EXISTS true
+#else
+#warning "IMU interrupt GPIO does not exist"
+#endif
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, dcdc_gpios)
 static const struct gpio_dt_spec dcdc_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, dcdc_gpios);
 #endif
@@ -126,7 +131,8 @@ void configure_system_off_WOM() // TODO: should not really shut off while plugge
 	LOG_INF("Powering off nRF");
 	sys_poweroff();
 #else
-	LOG_INF("WOM not available");
+	LOG_WRN("IMU interrupt GPIO does not exist");
+	LOG_WRN("IMU wake up not available");
 #endif
 }
 
@@ -192,14 +198,26 @@ static int led_pattern_state;
 static int led_pattern_state_persist;
 
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, led_gpios)
+#define LED_EXISTS true
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gpios);
+#elif DT_NODE_EXISTS(DT_ALIAS(led0))
+#define LED_EXISTS true
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
 #else
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
+#warning "LED node does not exist"
+static const struct gpio_dt_spec led = {0};
 #endif
-static const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET_OR(LED0_NODE, {0});
+#if DT_NODE_EXISTS(LED0_NODE)
+#define PWM_LED_EXISTS true
+static const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET(LED0_NODE);
+#else
+#warning "PWM LED node does not exist"
+static const struct pwm_dt_spec pwm_led = {0};
+#endif
 
 void set_led(enum sys_led_pattern led_pattern)
 {
+#if LED_EXISTS
 	if (led_pattern == current_led_pattern || led_pattern == persistent_led_pattern)
 		return;
 	if (led_pattern >= SYS_LED_PATTERN_OFF_PERSIST)
@@ -222,10 +240,18 @@ void set_led(enum sys_led_pattern led_pattern)
 	{
 		k_thread_resume(led_thread_id);
 	}
+#else
+	LOG_WRN("LED node does not exist");
+	return;
+#endif
 }
 
 void led_thread(void)
 {
+#if !LED_EXISTS
+	LOG_WRN("LED node does not exist");
+	return;
+#endif
 	while (1)
 	{
 		pwm_set_pulse_dt(&pwm_led, 0);

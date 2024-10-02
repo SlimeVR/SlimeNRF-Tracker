@@ -59,6 +59,7 @@ static const struct divider_config divider_config = {
 	.output_ohm = DT_PROP(VBATT, output_ohms),
 	.full_ohm = DT_PROP(VBATT, full_ohms),
 #else /* /vbatt exists */
+#error "Battery divider node does not exist"
 	.io_channel = {
 		DT_IO_CHANNELS_INPUT(ZEPHYR_USER),
 	},
@@ -75,6 +76,7 @@ static struct divider_data divider_data = {
 #if DT_NODE_HAS_STATUS(VBATT, okay)
 	.adc = DEVICE_DT_GET(DT_IO_CHANNELS_CTLR(VBATT)),
 #else
+#error "Battery divider node does not exist"
 	.adc = DEVICE_DT_GET(DT_IO_CHANNELS_CTLR(ZEPHYR_USER)),
 #endif
 };

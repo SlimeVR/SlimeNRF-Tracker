@@ -13,12 +13,24 @@
 
 #include "sensor.h"
 
+#if DT_NODE_EXISTS(DT_NODELABEL(imu))
+#define SENSOR_IMU_EXISTS true
 #define SENSOR_IMU_NODE DT_NODELABEL(imu)
-#define SENSOR_MAG_NODE DT_NODELABEL(mag)
-
 struct i2c_dt_spec sensor_imu_dev = I2C_DT_SPEC_GET(SENSOR_IMU_NODE);
-struct i2c_dt_spec sensor_mag_dev = I2C_DT_SPEC_GET(SENSOR_MAG_NODE);
+#else
+#error "IMU node does not exist"
+struct i2c_dt_spec sensor_imu_dev = {0};
+#endif
 static uint8_t sensor_imu_dev_reg = 0xFF;
+
+#if DT_NODE_EXISTS(DT_NODELABEL(mag))
+#define SENSOR_MAG_EXISTS true
+#define SENSOR_MAG_NODE DT_NODELABEL(mag)
+struct i2c_dt_spec sensor_mag_dev = I2C_DT_SPEC_GET(SENSOR_MAG_NODE);
+#else
+#warning "Magnetometer node does not exist"
+struct i2c_dt_spec sensor_mag_dev = {0};
+#endif
 static uint8_t sensor_mag_dev_reg = 0xFF;
 
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
@@ -77,8 +89,13 @@ int sensor_init(void)
 
 	sensor_scan_read();
 
+#if SENSOR_IMU_EXISTS
 	LOG_INF("Scanning bus for IMU");
 	int imu_id = sensor_scan_imu(&sensor_imu_dev, &sensor_imu_dev_reg);
+#else
+	LOG_ERR("IMU node does not exist");
+	int imu_id = -1;
+#endif
 	if (imu_id >= (int)(sizeof(dev_imu_names) / sizeof(dev_imu_names[0])))
 		LOG_WRN("Found unknown device");
 	else if (imu_id < 0)
@@ -106,8 +123,13 @@ int sensor_init(void)
 		return -1; // no IMU detected! something is very wrong
 	}
 
+#if SENSOR_MAG_EXISTS
 	LOG_INF("Scanning bus for magnetometer");
 	int mag_id = sensor_scan_mag(&sensor_mag_dev, &sensor_mag_dev_reg);
+#else
+	LOG_WRN("Magnetometer node does not exist");
+	int mag_id = -1;
+#endif
 	if (mag_id >= (int)(sizeof(dev_mag_names) / sizeof(dev_mag_names[0])))
 		LOG_WRN("Found unknown device");
 	else if (mag_id < 0)
