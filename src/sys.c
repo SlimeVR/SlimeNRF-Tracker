@@ -227,7 +227,7 @@ static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gp
 #define LED_EXISTS true
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
 #else
-#warning "LED node does not exist"
+#warning "LED GPIO does not exist"
 static const struct gpio_dt_spec led = {0};
 #endif
 #if DT_NODE_EXISTS(LED0_NODE)
@@ -264,7 +264,7 @@ void set_led(enum sys_led_pattern led_pattern)
 		k_thread_resume(led_thread_id);
 	}
 #else
-	LOG_WRN("LED node does not exist");
+	LOG_WRN("LED GPIO does not exist");
 	return;
 #endif
 }
@@ -272,7 +272,7 @@ void set_led(enum sys_led_pattern led_pattern)
 void led_thread(void)
 {
 #if !LED_EXISTS
-	LOG_WRN("LED node does not exist");
+	LOG_WRN("LED GPIO does not exist");
 	return;
 #endif
 	while (1)
