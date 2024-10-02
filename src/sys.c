@@ -58,17 +58,6 @@ static const struct gpio_dt_spec stby = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, stby_
 #endif
 
 // TODO: configuring system off should be consolidated
-static inline void configure_system_off(void)
-{
-	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
-	sensor_shutdown();
-	set_led(SYS_LED_PATTERN_OFF_FORCE);
-	float actual_clock_rate;
-	set_sensor_clock(false, 0, &actual_clock_rate);
-	// Configure interrupts
-	configure_sense_pins();
-}
-
 static void configure_sense_pins(void)
 {
 	// Configure chgstat interrupt
@@ -102,6 +91,17 @@ static void configure_sense_pins(void)
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_SENSE_LOW);
 	LOG_INF("Configured sw0 interrupt");
 #endif
+}
+
+static void configure_system_off(void)
+{
+	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
+	sensor_shutdown();
+	set_led(SYS_LED_PATTERN_OFF_FORCE);
+	float actual_clock_rate;
+	set_sensor_clock(false, 0, &actual_clock_rate);
+	// Configure interrupts
+	configure_sense_pins();
 }
 
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, int0_gpios)
