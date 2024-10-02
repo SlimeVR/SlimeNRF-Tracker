@@ -42,7 +42,14 @@ K_THREAD_DEFINE(power_thread_id, 1024, power_thread, NULL, NULL, NULL, 6, 0, 0);
 
 // TODO: well now sys file is kinda crowded
 // TODO: the gpio sense is weird, maybe the device will turn back on immediately after shutdown or after (attempting to) enter WOM
-// there should be a better system of how to handle all system_off cases and all the sense pins
+// TODO: there should be a better system of how to handle all system_off cases and all the sense pins
+// TODO: just changed it make sure to test it thanks
+
+// TODO: should the tracker start again if docking state changes?
+// TODO: keep sending battery state while plugged and docked?
+// TODO: on some boards there is actual power path, try to use the LED in this case
+// TODO: usually charging, i would flash LED but that will drain the battery while it is charging..
+// TODO: should not really shut off while plugged in
 
 #define ZEPHYR_USER_NODE DT_PATH(zephyr_user)
 
@@ -65,20 +72,8 @@ static const struct gpio_dt_spec stby = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, stby_
 #pragma message "Standby sense GPIO does not exist"
 #endif
 
-// TODO: configuring system off should be consolidated
 static void configure_sense_pins(void)
 {
-	// Configure chgstat interrupt
-#if CHG_EXISTS
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured chg interrupt");
-#endif
-#if STBY_EXISTS
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_PULLUP);
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured stby interrupt");
-#endif
 	// Configure dock interrupt
 #if DOCK_EXISTS
 	if (dock_read())
@@ -92,6 +87,17 @@ static void configure_sense_pins(void)
 		nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
 	}
 	LOG_INF("Configured dock interrupt");
+#endif
+	// Configure chgstat interrupt
+#if CHG_EXISTS
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), chg_read() ? NRF_GPIO_PIN_SENSE_HIGH : NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured chg interrupt");
+#endif
+#if STBY_EXISTS
+	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_PULLUP);
+	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), stby_read() ? NRF_GPIO_PIN_SENSE_HIGH : NRF_GPIO_PIN_SENSE_LOW);
+	LOG_INF("Configured stby interrupt");
 #endif
 	// Configure sw0 interrupt
 #if BUTTON_EXISTS // Alternate button if available to use as "reset key"
@@ -130,36 +136,48 @@ static const struct gpio_dt_spec ldo_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, ldo
 #pragma message "LDO enable GPIO does not exist"
 #endif
 
-void configure_system_off_WOM() // TODO: should not really shut off while plugged in
+enum sys_regulator {
+	SYS_REGULATOR_DCDC,
+	SYS_REGULATOR_LDO
+};
+
+static void set_regulator(enum sys_regulator regulator)
 {
-	LOG_INF("System off requested (WOM)");
+	bool use_dcdc = regulator == SYS_REGULATOR_DCDC;
+#if DCDC_EN_EXISTS
+	if (use_dcdc)
+	{
+		gpio_pin_set_dt(&dcdc_en, 1);
+		LOG_INF("Enabled DCDC");
+	}
+#endif
+#if LDO_EN_EXISTS
+	gpio_pin_set_dt(&ldo_en, !use_dcdc);
+	LOG_INF(use_dcdc ? "Disabled LDO" : "Enabled LDO");
+#endif
+#if DCDC_EN_EXISTS
+	if (!use_dcdc)
+	{
+		gpio_pin_set_dt(&dcdc_en, 0);
+		LOG_INF("Disabled DCDC");
+	}
+#endif
+}
+
+void sys_request_WOM() // TODO: if IMU interrupt does not exist what does the system do?
+{
+	LOG_INF("IMU wake up requested");
 #if IMU_INT_EXISTS
-	configure_system_off();
+	configure_system_off(); // Common subsystem shutdown and prepare sense pins
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
 	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured WOM interrupt");
+	LOG_INF("Configured IMU interrupt");
 	sensor_retained_write();
 #if WOM_USE_DCDC // In case DCDC is more efficient in the 10-100uA range
-	// Make sure DCDC is selected
-#if DCDC_EN_EXISTS
-	gpio_pin_set_dt(&dcdc_en, 1);
-	LOG_INF("Enabled DCDC");
-#endif
-#if LDO_EN_EXISTS
-	gpio_pin_set_dt(&ldo_en, 0);
-	LOG_INF("Disabled LDO");
-#endif
+	set_regulator(SYS_REGULATOR_DCDC); // Make sure DCDC is selected
 #else
-	// Switch to LDO
-#if LDO_EN_EXISTS
-	gpio_pin_set_dt(&ldo_en, 1);
-	LOG_INF("Enabled LDO");
-#endif
-#if DCDC_EN_EXISTS
-	gpio_pin_set_dt(&dcdc_en, 0);
-	LOG_INF("Disabled DCDC");
-#endif
+	set_regulator(SYS_REGULATOR_LDO); // Switch to LDO
 #endif
 	// Set system off
 	sensor_setup_WOM(); // enable WOM feature
@@ -171,45 +189,15 @@ void configure_system_off_WOM() // TODO: should not really shut off while plugge
 #endif
 }
 
-void configure_system_off_chgstat(void)
+void sys_request_system_off(void)
 {
-	LOG_INF("System off requested (chgstat)");
-	configure_system_off();
+	LOG_INF("System off requested");
+	configure_system_off(); // Common subsystem shutdown and prepare sense pins
 	// Clear sensor addresses
 	sensor_scan_clear();
 	LOG_INF("Requested sensor scan on next boot");
 	sensor_retained_write();
-	// Switch to LDO
-#if LDO_EN_EXISTS
-	gpio_pin_set_dt(&ldo_en, 1);
-	LOG_INF("Enabled LDO");
-#endif
-#if DCDC_EN_EXISTS
-	gpio_pin_set_dt(&dcdc_en, 0);
-	LOG_INF("Disabled DCDC");
-#endif
-	// Set system off
-	LOG_INF("Powering off nRF");
-	sys_poweroff();
-}
-
-void configure_system_off_dock(void)
-{
-	LOG_INF("System off requested (dock)");
-	configure_system_off();
-	// Clear sensor addresses
-	sensor_scan_clear();
-	LOG_INF("Requested sensor scan on next boot");
-	sensor_retained_write();
-	// Switch to LDO
-#if LDO_EN_EXISTS
-	gpio_pin_set_dt(&ldo_en, 1);
-	LOG_INF("Enabled LDO");
-#endif
-#if DCDC_EN_EXISTS
-	gpio_pin_set_dt(&dcdc_en, 0);
-	LOG_INF("Disabled DCDC");
-#endif
+	set_regulator(SYS_REGULATOR_LDO); // Switch to LDO
 	// Set system off
 	LOG_INF("Powering off nRF");
 	sys_poweroff();
@@ -307,7 +295,7 @@ void led_thread(void)
 			led_pattern_state++;
 			gpio_pin_set_dt(&led, led_pattern_state % 2);
 			if (led_pattern_state == 6)
-				set_led(SYS_LED_PATTERN_OFF, 0); // Sets highest priority to OFF, better not apply ONESHOT_POWERON on another priority
+				set_led(SYS_LED_PATTERN_OFF, 0); // Sets highest priority to OFF, better not set ONESHOT_POWERON on another priority
 			else
 				k_msleep(200);
 			break;
@@ -576,24 +564,12 @@ void power_thread(void)
 				LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
 			else
 				LOG_INF("Battery not available (%dmV)", batt_mV);
-			// Switch to DCDC
-#if DCDC_EN_EXISTS
-			gpio_pin_set_dt(&dcdc_en, 1);
-			LOG_INF("Enabled DCDC");
-#endif
-#if LDO_EN_EXISTS
-			gpio_pin_set_dt(&ldo_en, 0);
-			LOG_INF("Disabled LDO");
-#endif
+			set_regulator(SYS_REGULATOR_DCDC); // Switch to DCDC
 			power_init = true;
 		}
 
-		if (battery_available && batt_pptt == 0 && !docked)
-			configure_system_off_chgstat();
-		else if (docked) // TODO: keep sending battery state while plugged and docked?
-		// TODO: move to interrupts? (Then you do not need to do the above)
-		// TODO: on some boards there is actual power path, try to use the LED in this case
-			configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
+		if (battery_available && batt_pptt == 0 || docked)
+			sys_request_system_off();
 
 		last_batt_pptt[last_batt_pptt_i] = batt_pptt;
 		last_batt_pptt_i++;
@@ -639,7 +615,7 @@ void power_thread(void)
 //			set_led(SYS_LED_PATTERN_OFF, 3);
 
 		if (system_off_main) // System off on extended no movement
-			configure_system_off_WOM();
+			sys_request_WOM();
 
 		k_msleep(100);
 	}

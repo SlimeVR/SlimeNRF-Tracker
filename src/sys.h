@@ -24,9 +24,8 @@ enum sys_led_pattern {
 	SYS_LED_PATTERN_ACTIVE_PERSIST, // 300ms on 9700ms off
 };
 
-void configure_system_off_WOM(void);
-void configure_system_off_chgstat(void);
-void configure_system_off_dock(void);
+void sys_request_WOM(void);
+void sys_request_system_off(void);
 
 void set_led(enum sys_led_pattern led_pattern, int priority);
 void led_thread(void);

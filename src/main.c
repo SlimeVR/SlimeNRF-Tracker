@@ -82,11 +82,7 @@ int main(void)
 				k_msleep(1);
 			set_led(SYS_LED_PATTERN_OFF_FORCE, 0);
 		}
-		bool docked = dock_read();
-		if (!docked) // TODO: should the tracker start again if docking state changes?
-			configure_system_off_chgstat();
-		else
-			configure_system_off_dock(); // usually charging, i would flash LED but that will drain the battery while it is charging..
+		sys_request_system_off();
 	}
 // How long user shutdown take does not matter really ("0ms")
 #endif
