@@ -2,8 +2,6 @@
 
 #include "globals.h"
 
-int tickrate = 6;
-
 // TODO: move to sys
 uint8_t batt;
 uint8_t batt_v;

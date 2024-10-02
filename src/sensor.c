@@ -328,18 +328,6 @@ void sensor_calibration_clear(void)
 	}
 }
 
-// TODO: get rid of it
-void set_LN(void)
-{
-	tickrate = 6;
-}
-
-// TODO: get rid of it
-void set_LP(void)
-{
-	tickrate = 33;
-}
-
 bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples)
 {
 	uint8_t counts = 0;
@@ -388,7 +376,7 @@ int main_imu_init(void)
 	LOG_INF("Sensor clock rate: %.2fHz", clock_actual_rate);
 
 	k_usleep(250); // wait for sensor register reset
-	err = (*sensor_imu->init)(&sensor_imu_dev, clock_actual_rate, tickrate / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
+	err = (*sensor_imu->init)(&sensor_imu_dev, clock_actual_rate, sensor_update_time_ms / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
 	LOG_INF("Accelerometer initial rate: %.2fHz", 1.0 / gyro_actual_time);
 	LOG_INF("Gyrometer initial rate: %.2fHz", 1.0 / accel_actual_time);
 	if (err < 0)
@@ -396,7 +384,7 @@ int main_imu_init(void)
 // 55-66ms to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 	if (mag_available && mag_enabled)
 	{
-		err = (*sensor_mag->init)(&sensor_mag_dev, tickrate / 1000.0, &mag_actual_time);								 // configure with ~200Hz ODR
+		err = (*sensor_mag->init)(&sensor_mag_dev, sensor_update_time_ms / 1000.0, &mag_actual_time);								 // configure with ~200Hz ODR
 		LOG_INF("Magnetometer initial rate: %.2fHz", 1.0 / mag_actual_time);
 		if (err < 0)
 			return err;
@@ -423,9 +411,22 @@ int main_imu_init(void)
 	return 0;
 }
 
-bool reconfig;
-int powerstate = 0;
-int last_powerstate = 0;
+int sensor_update_time_ms = 6;
+
+// TODO: get rid of it.. ?
+static void set_update_time_ms(int time_ms)
+{
+	sensor_update_time_ms = time_ms; // TODO: terrible naming
+}
+
+enum sensor_sensor_mode {
+//	SENSOR_SENSOR_MODE_OFF,
+	SENSOR_SENSOR_MODE_LOW_NOISE,
+	SENSOR_SENSOR_MODE_LOW_POWER
+};
+
+enum sensor_sensor_mode sensor_mode = SENSOR_SENSOR_MODE_LOW_NOISE;
+enum sensor_sensor_mode last_sensor_mode = SENSOR_SENSOR_MODE_LOW_NOISE;
 
 void main_imu_thread(void)
 {
@@ -440,9 +441,9 @@ void main_imu_thread(void)
 		main_data = false;
 		if (main_ok)
 		{
-			// Trigger reconfig on powerstate change
-			reconfig = last_powerstate != powerstate ? true : false;
-			last_powerstate = powerstate;
+			// Trigger reconfig on sensor mode change
+			bool reconfig = last_sensor_mode != sensor_mode;
+			last_sensor_mode = sensor_mode;
 
 			// Reading IMUs will take between 2.5ms (~7 samples, low noise) - 7ms (~33 samples, low power)
 			// Magneto sample will take ~400us
@@ -468,7 +469,7 @@ void main_imu_thread(void)
 
 			// Read magnetometer and process magneto
 			float mx = 0, my = 0, mz = 0;
-			if (mag_available && mag_enabled && powerstate == 0)
+			if (mag_available && mag_enabled && sensor_mode == SENSOR_SENSOR_MODE_LOW_NOISE)
 			{
 				float m[3];
 				(*sensor_mag->mag_read)(&sensor_mag_dev, m);
@@ -500,14 +501,14 @@ void main_imu_thread(void)
 
 			if (mag_available && mag_enabled && reconfig) // TODO: get rid of reconfig?
 			{
-				switch (powerstate)
+				switch (sensor_mode)
 				{
-				case 0:
-					set_LN();
+				case SENSOR_SENSOR_MODE_LOW_NOISE:
+					set_update_time_ms(6);
 					LOG_INF("Switching sensors to low noise");
 					break;
-				case 1:
-					set_LP();
+				case SENSOR_SENSOR_MODE_LOW_POWER:
+					set_update_time_ms(33);
 					LOG_INF("Switching sensors to low power");
 					(*sensor_mag->update_odr)(&sensor_mag_dev, INFINITY, &mag_actual_time); // standby/oneshot
 					break;
@@ -515,7 +516,7 @@ void main_imu_thread(void)
 			}
 
 			float a[] = {ax, -az, ay};
-			if (mag_available && mag_enabled && packets == 2 && powerstate == 1) // why specifically 2 packets? i forgot
+			if (mag_available && mag_enabled && packets == 2 && sensor_mode == SENSOR_SENSOR_MODE_LOW_POWER) // why specifically 2 packets? i forgot
 			{ // Fuse accelerometer only
 				(*sensor_fusion->update_accel)(a, accel_actual_time);
 			}
@@ -578,20 +579,20 @@ void main_imu_thread(void)
 					system_off_main = true;
 					main_suspended = true; // TODO: auto suspend, the device should configure WOM ASAP but it does not
 				}
-				else if (powerstate == 0 && k_uptime_get() - last_data_time > 500) // No motion in last 500ms
+				else if (sensor_mode == SENSOR_SENSOR_MODE_LOW_NOISE && k_uptime_get() - last_data_time > 500) // No motion in last 500ms
 				{
 					LOG_INF("No motion from sensors in 500ms");
-					powerstate = 1;
+					sensor_mode = SENSOR_SENSOR_MODE_LOW_POWER;
 				}
 			}
 			else
 			{
 				last_data_time = k_uptime_get();
-				powerstate = 0;
+				sensor_mode = SENSOR_SENSOR_MODE_LOW_NOISE;
 			}
 
 			// Update magnetometer mode
-			if (mag_available && mag_enabled && powerstate == 0)
+			if (mag_available && mag_enabled && sensor_mode == SENSOR_SENSOR_MODE_LOW_NOISE)
 			{
 				float gyro_speed = sqrtf(max_gyro_speed_square);
 				float mag_target_time = 1.0 / (4 * gyro_speed); // target mag ODR for ~0.25 deg error
@@ -622,7 +623,7 @@ void main_imu_thread(void)
 			}
 
 			// Handle magnetometer calibration or bridge offset calibration
-			if (mag_available && mag_enabled && last_powerstate == 1 && powerstate == 1)
+			if (mag_available && mag_enabled && last_sensor_mode == SENSOR_SENSOR_MODE_LOW_POWER && sensor_mode == SENSOR_SENSOR_MODE_LOW_POWER)
 			{
 				if (magCal == 0b111111) // Save magCal while idling
 				{
@@ -639,10 +640,10 @@ void main_imu_thread(void)
 //		k_sleep(K_FOREVER);
 		int64_t time_delta = k_uptime_get() - time_begin;
 		led_clock_offset += time_delta;
-		if (time_delta > tickrate)
+		if (time_delta > sensor_update_time_ms)
 			k_yield();
 		else
-			k_msleep(tickrate - time_delta);
+			k_msleep(sensor_update_time_ms - time_delta);
 		main_running = true;
 	}
 }

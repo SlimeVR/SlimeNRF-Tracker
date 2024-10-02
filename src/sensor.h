@@ -19,8 +19,6 @@ void sensor_calibrate_mag(void);
 void sensor_calibration_validate(void);
 void sensor_calibration_clear(void);
 
-void set_LN(void);
-void set_LP(void);
 bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples);
 
 int main_imu_init(void);

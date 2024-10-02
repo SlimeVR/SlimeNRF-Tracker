@@ -8,8 +8,6 @@
 
 #include "retained.h"
 
-extern int tickrate;
-
 extern uint8_t batt;
 extern uint8_t batt_v;
 
