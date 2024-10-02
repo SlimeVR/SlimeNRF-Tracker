@@ -105,7 +105,7 @@ static void configure_system_off(void)
 {
 	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
 	sensor_shutdown();
-	set_led(SYS_LED_PATTERN_OFF_FORCE);
+	set_led(SYS_LED_PATTERN_OFF_FORCE, 0);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure interrupts
@@ -215,10 +215,18 @@ void configure_system_off_dock(void)
 	sys_poweroff();
 }
 
+/*
+LED priorities (0 is highest)
+0: boot/power
+1: sensor
+2: esb
+3: system (persist)
+*/
+
+#define SYS_LED_PATTERN_DEPTH 4
+static enum sys_led_pattern led_patterns[SYS_LED_PATTERN_DEPTH] = {SYS_LED_PATTERN_OFF};
 static enum sys_led_pattern current_led_pattern = SYS_LED_PATTERN_OFF;
-static enum sys_led_pattern persistent_led_pattern = SYS_LED_PATTERN_OFF_PERSIST;
 static int led_pattern_state;
-static int led_pattern_state_persist;
 
 #if DT_NODE_HAS_PROP(ZEPHYR_USER_NODE, led_gpios)
 #define LED_EXISTS true
@@ -238,22 +246,22 @@ static const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET(LED0_NODE);
 static const struct pwm_dt_spec pwm_led = {0};
 #endif
 
-void set_led(enum sys_led_pattern led_pattern)
+void set_led(enum sys_led_pattern led_pattern, int priority)
 {
 #if LED_EXISTS
-	if (led_pattern == current_led_pattern || led_pattern == persistent_led_pattern)
+	led_patterns[priority] = led_pattern;
+	for (int i = 0; i < SYS_LED_PATTERN_DEPTH; i++)
+	{
+		if (led_patterns[i] == SYS_LED_PATTERN_OFF)
+			continue;
+		led_pattern = led_patterns[i];
+		break;
+	}
+	if (led_pattern == current_led_pattern)
 		return;
-	if (led_pattern >= SYS_LED_PATTERN_OFF_PERSIST)
-	{
-		persistent_led_pattern = led_pattern;
-		led_pattern_state_persist = 0;
-	}
-	else
-	{
-		current_led_pattern = led_pattern;
-		led_pattern_state = 0;
-	}
-	if (current_led_pattern == SYS_LED_PATTERN_OFF_FORCE || (current_led_pattern == SYS_LED_PATTERN_OFF && persistent_led_pattern == SYS_LED_PATTERN_OFF_PERSIST))
+	current_led_pattern = led_pattern;
+	led_pattern_state = 0;
+	if (current_led_pattern <= SYS_LED_PATTERN_OFF)
 	{
 		pwm_set_pulse_dt(&pwm_led, 0);
 		gpio_pin_set_dt(&led, 0);
@@ -279,7 +287,7 @@ void led_thread(void)
 	{
 		pwm_set_pulse_dt(&pwm_led, 0);
 		gpio_pin_set_dt(&led, 0);
-		switch (current_led_pattern != SYS_LED_PATTERN_OFF ? current_led_pattern : persistent_led_pattern)
+		switch (current_led_pattern)
 		{
 		case SYS_LED_PATTERN_ON:
 			gpio_pin_set_dt(&led, 1);
@@ -299,7 +307,7 @@ void led_thread(void)
 			led_pattern_state++;
 			gpio_pin_set_dt(&led, led_pattern_state % 2);
 			if (led_pattern_state == 6)
-				set_led(SYS_LED_PATTERN_OFF);
+				set_led(SYS_LED_PATTERN_OFF, 0); // Sets highest priority to OFF, better not apply ONESHOT_POWERON on another priority
 			else
 				k_msleep(200);
 			break;
@@ -309,7 +317,7 @@ void led_thread(void)
 			else
 				gpio_pin_set_dt(&led, 0);
 			if (led_pattern_state == 22)
-				set_led(SYS_LED_PATTERN_OFF_FORCE);
+				set_led(SYS_LED_PATTERN_OFF_FORCE, 0);
 			else if (led_pattern_state == 1)
 				k_msleep(250);
 			else
@@ -320,20 +328,20 @@ void led_thread(void)
 			k_thread_suspend(led_thread_id);
 			break;
 		case SYS_LED_PATTERN_LONG_PERSIST:
-			led_pattern_state_persist = (led_pattern_state_persist + 1) % 2;
-			pwm_set_pulse_dt(&pwm_led, led_pattern_state_persist == 1 ? PWM_MSEC(4) : 0); // 20% duty cycle, should look like ~50% brightness
+			led_pattern_state = (led_pattern_state + 1) % 2;
+			pwm_set_pulse_dt(&pwm_led, led_pattern_state ? PWM_MSEC(4) : 0); // 20% duty cycle, should look like ~50% brightness
 			k_msleep(500);
 			break;
 		case SYS_LED_PATTERN_PULSE_PERSIST:
-			led_pattern_state_persist = (led_pattern_state_persist + 1) % 100;
-			float led_value = sinf(led_pattern_state_persist * (M_PI / 100));
+			led_pattern_state = (led_pattern_state + 1) % 100;
+			float led_value = sinf(led_pattern_state * (M_PI / 100));
 			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(20 * led_value));
 			k_msleep(50);
 			break;
 		case SYS_LED_PATTERN_ACTIVE_PERSIST: // off duration first because the device may turn on multiple times rapidly and waste battery power
-			led_pattern_state_persist = (led_pattern_state_persist + 1) % 2;
-			gpio_pin_set_dt(&led, !led_pattern_state_persist);
-			k_msleep(led_pattern_state_persist == 1 ? 9700 : 300);
+			led_pattern_state = (led_pattern_state + 1) % 2;
+			gpio_pin_set_dt(&led, !led_pattern_state);
+			k_msleep(led_pattern_state ? 9700 : 300);
 			break;
 		default:
 			k_thread_suspend(led_thread_id);
@@ -619,17 +627,16 @@ void power_thread(void)
 			batt_v = batt_mV; // 0-255 -> 2.45-5.00V
 
 		if (charging)
-			set_led(SYS_LED_PATTERN_PULSE_PERSIST);
+			set_led(SYS_LED_PATTERN_PULSE_PERSIST, 3);
 		else if (charged)
-			set_led(SYS_LED_PATTERN_ON_PERSIST);
+			set_led(SYS_LED_PATTERN_ON_PERSIST, 3);
 		else if (plugged)
-			set_led(SYS_LED_PATTERN_PULSE_PERSIST);
+			set_led(SYS_LED_PATTERN_PULSE_PERSIST, 3);
 		else if (batt < 10)
-			set_led(SYS_LED_PATTERN_LONG_PERSIST);
+			set_led(SYS_LED_PATTERN_LONG_PERSIST, 3);
 		else
-			set_led(SYS_LED_PATTERN_ACTIVE_PERSIST);
-//		else
-//			set_led(SYS_LED_PATTERN_OFF_PERSIST);
+			set_led(SYS_LED_PATTERN_ACTIVE_PERSIST, 3);
+//			set_led(SYS_LED_PATTERN_OFF, 3);
 
 		if (system_off_main) // System off on extended no movement
 			configure_system_off_WOM();

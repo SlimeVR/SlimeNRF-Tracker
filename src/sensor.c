@@ -254,7 +254,7 @@ void sensor_calibrate_imu(void)
 	if (!wait_for_motion(&sensor_imu_dev, false, 6)) // Wait for accelerometer to settle, timeout 3s
 		return; // Timeout, calibration failed
 
-	set_led(SYS_LED_PATTERN_ON); // TODO: this is getting overwritten by boot led
+	set_led(SYS_LED_PATTERN_ON, 1);
 	k_msleep(500); // Delay before beginning acquisition
 
 	LOG_INF("Reading data");
@@ -276,7 +276,7 @@ void sensor_calibrate_imu(void)
 	{ // TODO: always clearing the fusion?
 		retained.fusion_data_stored = false; // Invalidate retained fusion data
 	}
-	set_led(SYS_LED_PATTERN_OFF);
+	set_led(SYS_LED_PATTERN_OFF, 1);
 }
 
 void sensor_calibrate_mag(void)
@@ -296,7 +296,6 @@ void sensor_calibrate_mag(void)
 		ata[i] = 0.0;
 	norm_sum = 0.0;
 	sample_count = 0.0;
-	set_led(SYS_LED_PATTERN_OFF);
 }
 
 void sensor_calibration_validate(void)
@@ -346,7 +345,7 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 	uint8_t counts = 0;
 	float a[3], last_a[3];
 	(*sensor_imu->accel_read)(dev_i2c, last_a);
-	set_led(SYS_LED_PATTERN_LONG);
+	set_led(SYS_LED_PATTERN_LONG, 1);
 	for (int i = 0; i < samples + counts; i++)
 	{
 		LOG_INF("Accelerometer: %.5f %.5f %.5f", a[0], a[1], a[2]);
@@ -358,7 +357,7 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 			counts++;
 			if (counts == 2)
 			{
-				set_led(SYS_LED_PATTERN_OFF);
+				set_led(SYS_LED_PATTERN_OFF, 1);
 				return true;
 			}
 		}
@@ -369,7 +368,7 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 		memcpy(last_a, a, sizeof(a));
 	}
 	LOG_INF("Motion detected");
-	set_led(SYS_LED_PATTERN_OFF);
+	set_led(SYS_LED_PATTERN_OFF, 1);
 	return false;
 }
 
@@ -496,7 +495,7 @@ void main_imu_thread(void)
 					last_magCal = new_magCal;
 				}
 				if (magCal == 0b111111)
-					set_led(SYS_LED_PATTERN_ON);
+					set_led(SYS_LED_PATTERN_ON, 1); // Magnetometer calibration is ready to apply
 			}
 
 			if (mag_available && mag_enabled && reconfig) // TODO: get rid of reconfig?
@@ -626,9 +625,14 @@ void main_imu_thread(void)
 			if (mag_available && mag_enabled && last_powerstate == 1 && powerstate == 1)
 			{
 				if (magCal == 0b111111) // Save magCal while idling
+				{
 					sensor_calibrate_mag();
+					set_led(SYS_LED_PATTERN_OFF, 1);
+				}
 				else // only enough time to do one of the two
+				{
 					(*sensor_mag->temp_read)(&sensor_mag_dev); // for some applicable magnetometer, calibrates bridge offsets
+				}
 			}
 		}
 		main_running = false;
