@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "sensor.h"
 #include "battery.h"
+#include "connection.h"
 
 #include <math.h>
 #include <zephyr/drivers/gpio.h>
@@ -541,8 +542,9 @@ bool vin_read(void) // blocking
 	return plugged;
 }
 
-static unsigned int last_batt_pptt[16] = {10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001,10001};
-static int8_t last_batt_pptt_i = 0;
+static uint32_t last_battery_pptt[16] = {10001};
+static int last_battery_pptt_index = 0;
+static bool battery_low = false;
 
 void power_thread(void)
 {
@@ -552,56 +554,54 @@ void power_thread(void)
 		bool charging = chg_read();
 		bool charged = stby_read();
 
-		int batt_mV;
-		uint32_t batt_pptt = read_batt_mV(&batt_mV);
+		int battery_mV;
+		uint32_t battery_pptt = read_batt_mV(&battery_mV);
 
-		bool battery_available = batt_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
-		plugged = batt_mV > 4300; // Separate detection of vin
+		bool battery_available = battery_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
+		plugged = battery_mV > 4300; // Separate detection of vin
 
 		if (!power_init)
 		{
 			// log battery state once
 			if (battery_available)
-				LOG_INF("Battery %u%% (%dmV)", batt_pptt/100, batt_mV);
+				LOG_INF("Battery %u%% (%dmV)", battery_pptt/100, battery_mV);
 			else
-				LOG_INF("Battery not available (%dmV)", batt_mV);
+				LOG_INF("Battery not available (%dmV)", battery_mV);
 			set_regulator(SYS_REGULATOR_DCDC); // Switch to DCDC
 			power_init = true;
 		}
 
-		if ((battery_available && batt_pptt == 0) || docked)
+		if ((battery_available && battery_pptt == 0) || docked)
 			sys_request_system_off();
 
-		last_batt_pptt[last_batt_pptt_i] = batt_pptt;
-		last_batt_pptt_i++;
-		last_batt_pptt_i %= 15;
-		for (uint8_t i = 0; i < 15; i++)
-		{ // Average battery readings across 16 samples
-			if (last_batt_pptt[i] == 10001)
-				batt_pptt += batt_pptt / (i + 1);
-			else
-				batt_pptt += last_batt_pptt[i];
-		}
-		batt_pptt /= 16;
-		if (batt_pptt + 100 < last_batt_pptt[15]) // Lower bound -100pptt
-			last_batt_pptt[15] = batt_pptt + 100;
-		else if (batt_pptt > last_batt_pptt[15]) // Upper bound +0pptt
-			last_batt_pptt[15] = batt_pptt;
-		else // Effectively 100-10000 -> 1-100%
-			batt_pptt = last_batt_pptt[15];
+		if (!battery_low && battery_pptt < 1000)
+			battery_low = true;
+		else if (battery_low && battery_pptt > 1500) // hysteresis
+			battery_low = false;
 
-		// format for packet send
-		batt = batt_pptt / 100;
-		if (battery_available && batt < 1) // Clamp to 1% (because server sees 0% as "no battery")
-			batt = 1;
-		batt_mV /= 10;
-		batt_mV -= 245;
-		if (batt_mV < 0) // Very dead but it is what it is
-			batt_v = 0;
-		else if (batt_mV > 255)
-			batt_v = 255;
-		else
-			batt_v = batt_mV; // 0-255 -> 2.45-5.00V
+		// Average battery readings across 16 samples (last reading is first sample)
+		uint32_t average_battery_pptt = battery_pptt;
+		for (uint8_t i = 0; i < 15; i++)
+		{
+			if (last_battery_pptt[i] == 10001)
+				average_battery_pptt += battery_pptt / (i + 1);
+			else
+				average_battery_pptt += last_battery_pptt[i];
+		}
+		average_battery_pptt /= 16;
+
+		// Now add the last reading to the sample array
+		last_battery_pptt[last_battery_pptt_index] = battery_pptt;
+		last_battery_pptt_index++;
+		last_battery_pptt_index %= 15;
+
+		// Store the average battery level with hysteresis (Effectively 100-10000 -> 1-100%)
+		if (average_battery_pptt + 100 < last_battery_pptt[15]) // Lower bound -100pptt
+			last_battery_pptt[15] = average_battery_pptt + 100;
+		else if (average_battery_pptt > last_battery_pptt[15]) // Upper bound +0pptt
+			last_battery_pptt[15] = average_battery_pptt;
+
+		connection_update_battery(battery_available, charging || charged || plugged, last_battery_pptt[15], battery_mV);
 
 		if (charging)
 			set_led(SYS_LED_PATTERN_PULSE_PERSIST, 3);
@@ -609,7 +609,7 @@ void power_thread(void)
 			set_led(SYS_LED_PATTERN_ON_PERSIST, 3);
 		else if (plugged)
 			set_led(SYS_LED_PATTERN_PULSE_PERSIST, 3);
-		else if (batt < 10)
+		else if (battery_low)
 			set_led(SYS_LED_PATTERN_LONG_PERSIST, 3);
 		else
 			set_led(SYS_LED_PATTERN_ACTIVE_PERSIST, 3);

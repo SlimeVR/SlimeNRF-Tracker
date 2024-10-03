@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "sys.h"
+#include "connection.h"
 
 #include <zephyr/drivers/clock_control/nrf_clock_control.h>
 #include <esb.h>
@@ -280,7 +281,7 @@ void esb_pair(void)
 	LOG_INF("Tracker ID: %u", paired_addr[1]);
 	LOG_INF("Address: %02X %02X %02X %02X %02X %02X", paired_addr[2], paired_addr[3], paired_addr[4], paired_addr[5], paired_addr[6], paired_addr[7]);
 
-	tracker_id = paired_addr[1];
+	connection_set_id(paired_addr[1]);
 
 	esb_set_addr_paired();
 	esb_paired = true;

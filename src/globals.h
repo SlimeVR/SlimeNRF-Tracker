@@ -8,9 +8,6 @@
 
 #include "retained.h"
 
-extern uint8_t batt;
-extern uint8_t batt_v;
-
 extern bool main_running;
 extern bool main_ok;
 extern bool main_data;
@@ -21,8 +18,6 @@ extern bool main_data;
 //#define WOM_USE_DCDC true // Use DCDC instead of LDO for WOM if it is more efficient
 
 extern float q3[4]; // correction quat
-
-extern int tracker_id;
 
 extern int64_t led_time;
 extern int64_t led_time_off;

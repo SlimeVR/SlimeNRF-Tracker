@@ -2,19 +2,12 @@
 
 #include "globals.h"
 
-// TODO: move to sys
-uint8_t batt;
-uint8_t batt_v;
-
 // TODO: move to sensor
 bool main_running = false;
 bool main_ok = false;
 bool main_data = false;
 
 float q3[4] = {0.5f, -0.5f, -0.5f, -0.5f}; // correction quat
-
-// TODO: move to esb or connection
-int tracker_id = 0;
 
 //int64_t led_time = 0;
 //int64_t led_time_off = 0;

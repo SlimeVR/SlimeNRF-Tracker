@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "esb.h"
+#include "connection.h"
 
 LOG_MODULE_REGISTER(timer, 4);
 
@@ -47,6 +48,7 @@ void timer_handler(nrf_timer_event_t event_type, void *p_context)
 
 void timer_init(void)
 {
+	uint8_t tracker_id = connection_get_id(); // TODO: make sure it is ready
 //	nrfx_err_t err;
 	nrfx_timer_config_t timer_cfg = NRFX_TIMER_DEFAULT_CONFIG(1000000);  
 	//timer_cfg.frequency = NRF_TIMER_FREQ_1MHz;
