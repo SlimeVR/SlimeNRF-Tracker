@@ -13,7 +13,7 @@ struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 struct esb_payload tx_payload_pair = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0);
 
-uint8_t paired_addr[8] = {0,0,0,0,0,0,0,0};
+uint8_t paired_addr[8] = {0};
 
 LOG_MODULE_REGISTER(esb_event, LOG_LEVEL_INF);
 
@@ -28,13 +28,12 @@ void event_handler(struct esb_evt const *event)
 		LOG_DBG("TX FAILED");
 		break;
 	case ESB_EVENT_RX_RECEIVED:
-		if (esb_read_rx_payload(&rx_payload) == 0)
+		if (esb_read_rx_payload(&rx_payload))
 		{
-			if (paired_addr[0] == 0x00)
+			if (!paired_addr[0]) // zero, not paired
 			{
 				if (rx_payload.length == 8)
-					for (int i = 0; i < 8; i++)
-						paired_addr[i] = rx_payload.data[i];
+					memcpy(paired_addr, rx_payload.data, sizeof(paired_addr));
 			}
 			else
 			{
@@ -107,9 +106,7 @@ uint8_t discovery_base_addr_0[4] = {0x62, 0x39, 0x8A, 0xF2};
 uint8_t discovery_base_addr_1[4] = {0x28, 0xFF, 0x50, 0xB8};
 uint8_t discovery_addr_prefix[8] = {0xFE, 0xFF, 0x29, 0x27, 0x09, 0x02, 0xB2, 0xD6};
 
-uint8_t base_addr_0[4] = {0,0,0,0};
-uint8_t base_addr_1[4] = {0,0,0,0};
-uint8_t addr_prefix[8] = {0,0,0,0,0,0,0,0};
+uint8_t base_addr_0[4], base_addr_1[4], addr_prefix[8] = {0};
 
 static bool esb_initialized = false;
 
@@ -200,38 +197,30 @@ int esb_initialize_rx(void)
 
 inline void esb_set_addr_discovery(void)
 {
-	for (int i = 0; i < 4; i++)
-	{
-		base_addr_0[i] = discovery_base_addr_0[i];
-		base_addr_1[i] = discovery_base_addr_1[i];
-	}
-	for (int i = 0; i < 8; i++)
-		addr_prefix[i] = discovery_addr_prefix[i];
+	memcpy(base_addr_0, discovery_base_addr_0, sizeof(base_addr_0));
+	memcpy(base_addr_1, discovery_base_addr_1, sizeof(base_addr_1));
+	memcpy(addr_prefix, discovery_addr_prefix, sizeof(addr_prefix));
 }
 
 inline void esb_set_addr_paired(void)
 {
-	// Recreate dongle address
-	uint8_t buf2[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+	// Recreate receiver address
+	uint8_t addr_buffer[16] = {0};
 	for (int i = 0; i < 4; i++)
 	{
-		buf2[i] = paired_addr[i+2];
-		buf2[i+4] = paired_addr[i+2] + paired_addr[6];
+		addr_buffer[i] = paired_addr[i + 2];
+		addr_buffer[i + 4] = paired_addr[i + 2] + paired_addr[6];
 	}
 	for (int i = 0; i < 8; i++)
-		buf2[i+8] = paired_addr[7] + i;
+		addr_buffer[i + 8] = paired_addr[7] + i;
 	for (int i = 0; i < 16; i++)
 	{
-		if (buf2[i] == 0x00 || buf2[i] == 0x55 || buf2[i] == 0xAA)
-			buf2[i] += 8;
+		if (addr_buffer[i] == 0x00 || addr_buffer[i] == 0x55 || addr_buffer[i] == 0xAA) // Avoid invalid addresses (see nrf datasheet)
+			addr_buffer[i] += 8;
 	}
-	for (int i = 0; i < 4; i++)
-	{
-		base_addr_0[i] = buf2[i];
-		base_addr_1[i] = buf2[i+4];
-	}
-	for (int i = 0; i < 8; i++)
-		addr_prefix[i] = buf2[i+8];
+	memcpy(base_addr_0, addr_buffer, sizeof(base_addr_0));
+	memcpy(base_addr_1, addr_buffer + 4, sizeof(base_addr_1));
+	memcpy(addr_prefix, addr_buffer + 8, sizeof(addr_prefix));
 }
 
 static bool esb_paired = false;
@@ -242,25 +231,25 @@ void esb_pair(void)
 	// TODO: should pairing data stay within esb?
 	memcpy(paired_addr, retained.paired_addr, sizeof(paired_addr));
 
-	if (paired_addr[0] == 0x00) // No dongle paired
+	if (!paired_addr[0]) // zero, no receiver paired
 	{
 		LOG_INF("Pairing");
 		esb_set_addr_discovery();
 		esb_initialize();
-//	timer_init(); // TODO: shouldn't be here!!!
+//		timer_init(); // TODO: shouldn't be here!!!
 		tx_payload_pair.noack = false;
-		uint64_t addr = (((uint64_t)(NRF_FICR->DEVICEADDR[1]) << 32) | NRF_FICR->DEVICEADDR[0]) & 0xFFFFFF;
-		uint8_t check = addr & 255;
+		uint64_t addr = (((uint64_t)(NRF_FICR->DEVICEADDR[1]) << 32) | NRF_FICR->DEVICEADDR[0]) & 0xFFFFFF; // Use device address as unique identifier (although it is not actually guaranteed, see datasheet)
+		uint8_t check = addr & 0xFF;
 		if (check == 0)
 			check = 8;
 		LOG_INF("Check code: %02X", check);
 		tx_payload_pair.data[0] = check; // Use int from device address to make sure packet is for this device
 		for (int i = 0; i < 6; i++)
-			tx_payload_pair.data[i+2] = (addr >> (8 * i)) & 0xFF;
+			tx_payload_pair.data[i + 2] = (addr >> (8 * i)) & 0xFF;
 		set_led(SYS_LED_PATTERN_SHORT, 2);
 		while (paired_addr[0] != check)
 		{
-			if (paired_addr[0] != 0x00)
+			if (paired_addr[0])
 			{
 				LOG_INF("Incorrect check code: %02X", paired_addr[0]);
 				paired_addr[0] = 0x00; // Packet not for this device
@@ -300,8 +289,7 @@ void esb_write(uint8_t *data)
 		return;
 	tx_payload.noack = false;
 	memcpy(tx_payload.data, data, sizeof(tx_payload.data));
-	esb_flush_tx();
-	main_data = true;
+	esb_flush_tx(); // this will clear all transmissions even if they did not complete
 	esb_write_payload(&tx_payload); // Add transmission to queue
 	send_data = true;
 }
