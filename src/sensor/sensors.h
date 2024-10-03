@@ -52,8 +52,11 @@ STMicroelectronics
 *LIS2MDL:1E,4F,40
 *LIS3MDL:1C/1E,0F,3D
 memsic
+-MMC34160PJ:30,20,06
+-MMC3630KJ:30,2F,0A
 -MMC5603NJ:30,39,10
 -MMC5633NJL:30,39,10
+-MMC5616WA:30,39,11
 *MMC5983MA:30,2F,30
 
 0B,10/11/12/13,14/15/16/17,1C,1E,30
@@ -62,7 +65,7 @@ memsic
 00 (33:BMM350)
 0F (3D:LIS3MDL)
 0F,4F (3D:LIS3MDL;40:IIS2MDC/LIS2MDL)
-39,2F (10:MMC5603NJ/MMC5633NJL;30:MMC5983MA)
+20,39,2F (06:MMC34160PJ;10:MMC5603NJ/MMC5633NJL,11:MMC5616WA;0A:MMC3630KJ,30:MMC5983MA)
 */
 
 enum dev_imu {
@@ -123,7 +126,10 @@ enum dev_mag {
 	MAG_BMM350,
 	MAG_LIS2MDL, // IIS2MDC/LIS2MDL
 	MAG_LIS3MDL,
+	MAG_MMC34160PJ,
+	MAG_MMC3630KJ,
 	MAG_MMC5633NJL, // MMC5603NJ/MMC5633NJL
+	MAG_MMC5616WA,
 	MAG_MMC5983MA
 };
 const char *dev_mag_names[] = {
@@ -132,7 +138,10 @@ const char *dev_mag_names[] = {
 	"BMM350",
 	"IIS2MDC/LIS2MDL",
 	"LIS3MDL",
+	"MMC34160PJ",
+	"MMC3630KJ",
 	"MMC5603NJ/MMC5633NJL",
+	"MMC5616WA",
 	"MMC5983MA"
 };
 const sensor_mag_t *sensor_mags[] = {
@@ -142,12 +151,15 @@ const sensor_mag_t *sensor_mags[] = {
 	&sensor_mag_lis2mdl,
 	&sensor_mag_lis3mdl,
 	&sensor_mag_none,
+	&sensor_mag_none,
+	&sensor_mag_none,
+	&sensor_mag_none,
 	&sensor_mag_mmc5983ma
 };
 const int i2c_dev_mag_addr_count = 6;
 const uint8_t i2c_dev_mag_addr[] = {
 	1, 0x0B,
-	4, 0x10,0x11,0x12,0x13,
+	4, 0x10,0x11,0x12,0x13, // why bosch
 	4, 0x14,0x15,0x16,0x17,
 	1, 0x1C,
 	1, 0x1E,
@@ -159,7 +171,7 @@ const uint8_t i2c_dev_mag_reg[] = {
 	1, 0x00,
 	1, 0x0F,
 	2, 0x0F,0x4F,
-	2, 0x39,0x2F
+	3, 0x20,0x2F,0x39
 };
 const uint8_t i2c_dev_mag_id[] = {
 	1, 0xFF, // 0x0D
@@ -168,8 +180,9 @@ const uint8_t i2c_dev_mag_id[] = {
 	1, 0x3D, // 0x0F
 	1, 0x3D, // 0x0F
 	1, 0x40, // 0x4F
-	1, 0x10, // 0x39
-	1, 0x30 // 0x2F
+	1, 0x06, // 0x20
+	2, 0x0A, 0x30, // 0x2F
+	2, 0x10, 0x11 // 0x39
 };
 const int i2c_dev_mag[] = {
 	MAG_QMC5883L,
@@ -178,8 +191,9 @@ const int i2c_dev_mag[] = {
 	MAG_LIS3MDL,
 	MAG_LIS3MDL,
 	MAG_LIS2MDL, // IIS2MDC/LIS2MDL
-	MAG_MMC5633NJL, // MMC5603NJ/MMC5633NJL
-	MAG_MMC5983MA
+	MAG_MMC34160PJ,
+	MAG_MMC3630KJ, MAG_MMC5983MA,
+	MAG_MMC5633NJL, MAG_MMC5616WA // MMC5603NJ/MMC5633NJL
 };
 
 int sensor_scan_imu(struct i2c_dt_spec *i2c_dev, uint8_t *i2c_dev_reg)
