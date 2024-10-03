@@ -615,9 +615,6 @@ void power_thread(void)
 			set_led(SYS_LED_PATTERN_ACTIVE_PERSIST, 3);
 //			set_led(SYS_LED_PATTERN_OFF, 3);
 
-		if (system_off_main) // System off on extended no movement
-			sys_request_WOM();
-
 		k_msleep(100);
 	}
 }

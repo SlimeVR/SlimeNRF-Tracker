@@ -8,10 +8,6 @@
 
 #include "retained.h"
 
-extern bool main_running;
-extern bool main_ok;
-extern bool main_data;
-
 #define USER_SHUTDOWN_ENABLED true // Allow user to use reset or sw0 to shutdown
 #define MAG_ENABLED true // Use magnetometer if it is present
 #define IGNORE_RESET true // If sw0 available, don't change any reset behavior
@@ -22,7 +18,6 @@ extern float q3[4]; // correction quat
 extern int64_t led_time;
 extern int64_t led_time_off;
 extern uint8_t last_reset;
-extern bool system_off_main;
 
 #define LAST_RESET_LIMIT 10
 

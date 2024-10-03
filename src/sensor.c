@@ -431,8 +431,11 @@ enum sensor_sensor_mode {
 	SENSOR_SENSOR_MODE_LOW_POWER
 };
 
-enum sensor_sensor_mode sensor_mode = SENSOR_SENSOR_MODE_LOW_NOISE;
-enum sensor_sensor_mode last_sensor_mode = SENSOR_SENSOR_MODE_LOW_NOISE;
+static enum sensor_sensor_mode sensor_mode = SENSOR_SENSOR_MODE_LOW_NOISE;
+static enum sensor_sensor_mode last_sensor_mode = SENSOR_SENSOR_MODE_LOW_NOISE;
+
+static bool main_running = false;
+static bool main_ok = false;
 
 void main_imu_thread(void)
 {
@@ -444,7 +447,6 @@ void main_imu_thread(void)
 	while (1)
 	{
 		int64_t time_begin = k_uptime_get();
-		main_data = false;
 		if (main_ok)
 		{
 			// Trigger reconfig on sensor mode change
@@ -582,8 +584,8 @@ void main_imu_thread(void)
 				if (k_uptime_get() - last_data_time > imu_timeout) // No motion in last 1s - 10s
 				{
 					LOG_INF("No motion from sensors in %llds", imu_timeout/1000);
-					system_off_main = true;
-					main_suspended = true; // TODO: auto suspend, the device should configure WOM ASAP but it does not
+					sys_request_WOM(); // TODO: this will suspend the thread, will the system still shut down properly? Otherwise this thread should queue shutdown and suspend itself
+//					main_imu_suspend(); // TODO: auto suspend, the device should configure WOM ASAP but it does not
 				}
 				else if (sensor_mode == SENSOR_SENSOR_MODE_LOW_NOISE && k_uptime_get() - last_data_time > 500) // No motion in last 500ms
 				{
@@ -668,7 +670,7 @@ void main_imu_suspend(void)
 	while (main_running) // TODO: change to detect if i2c is busy
 		k_usleep(1); // try not to interrupt anything actually
 	k_thread_suspend(main_imu_thread_id);
-	main_running = false;
+	main_running = false; // TODO: redundant
 	LOG_INF("Suspended sensor thread");
 }
 
