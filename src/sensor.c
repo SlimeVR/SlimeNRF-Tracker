@@ -647,7 +647,7 @@ void main_imu_thread(void)
 		main_running = false;
 //		k_sleep(K_FOREVER);
 		int64_t time_delta = k_uptime_get() - time_begin;
-		led_clock_offset += time_delta;
+//		led_clock_offset += time_delta;
 		if (time_delta > sensor_update_time_ms)
 			k_yield();
 		else

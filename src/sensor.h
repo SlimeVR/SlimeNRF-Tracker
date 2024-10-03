@@ -1,6 +1,8 @@
 #ifndef SLIMENRF_SENSOR
 #define SLIMENRF_SENSOR
 
+#include <zephyr/drivers/i2c.h>
+
 int sensor_init(void);
 
 void sensor_scan_read(void);

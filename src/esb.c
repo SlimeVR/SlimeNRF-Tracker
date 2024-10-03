@@ -3,9 +3,16 @@
 #include "connection.h"
 
 #include <zephyr/drivers/clock_control/nrf_clock_control.h>
-#include <esb.h>
 
 #include "esb.h"
+
+uint8_t last_reset = 0;
+const nrfx_timer_t m_timer = NRFX_TIMER_INSTANCE(1);
+bool esb_state = false;
+bool timer_state = false;
+bool send_data = false;
+uint16_t led_clock = 0;
+uint32_t led_clock_offset = 0;
 
 struct esb_payload rx_payload;
 struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
