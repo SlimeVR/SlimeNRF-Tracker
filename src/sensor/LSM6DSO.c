@@ -68,55 +68,55 @@ int lsm6dso_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, floa
 		accel_time = 0; // off
 		ODR_XL = DSO_ODR_OFF;
 	}
-	else if (ODR > 3330)
+	else if (accel_time < 0.3 / 1000) // in this case it seems better to compare accel_time
 	{
 		ODR_XL = DSO_ODR_6_66kHz; // TODO: this is absolutely awful
-		accel_time = 1.0 / 6660;
+		accel_time = 0.15 / 1000;
 	}
-	else if (ODR > 1660)
+	else if (accel_time < 0.6 / 1000)
 	{
 		ODR_XL = DSO_ODR_3_33kHz;
-		accel_time = 1.0 / 3330;
+		accel_time = 0.3 / 1000;
 	}
-	else if (ODR > 833)
+	else if (accel_time < 1.2 / 1000)
 	{
 		ODR_XL = DSO_ODR_1_66kHz;
-		accel_time = 1.0 / 1660;
+		accel_time = 0.6 / 1000;
 	}
-	else if (ODR > 416)
+	else if (accel_time < 2.4 / 1000)
 	{
 		ODR_XL = DSO_ODR_833Hz;
-		accel_time = 1.0 / 833;
+		accel_time = 1.2 / 1000;
 	}
-	else if (ODR > 208)
+	else if (accel_time < 4.8 / 1000)
 	{
 		ODR_XL = DSO_ODR_416Hz;
-		accel_time = 1.0 / 416;
+		accel_time = 2.4 / 1000;
 	}
-	else if (ODR > 104)
+	else if (accel_time < 9.6 / 1000)
 	{
 		ODR_XL = DSO_ODR_208Hz;
-		accel_time = 1.0 / 208;
+		accel_time = 4.8 / 1000;
 	}
-	else if (ODR > 52)
+	else if (accel_time < 19.2 / 1000)
 	{
 		ODR_XL = DSO_ODR_104Hz;
-		accel_time = 1.0 / 104;
+		accel_time = 9.6 / 1000;
 	}
-	else if (ODR > 26)
+	else if (accel_time < 38.4 / 1000)
 	{
 		ODR_XL = DSO_ODR_52Hz;
-		accel_time = 1.0 / 52;
+		accel_time = 19.2 / 1000;
 	}
 	else if (ODR > 12.5)
 	{
 		ODR_XL = DSO_ODR_26Hz;
-		accel_time = 1.0 / 26;
+		accel_time = 38.4 / 1000;
 	}
 	else
 	{
 		ODR_XL = DSO_ODR_12_5Hz;
-		accel_time = 1.0 / 12.5;
+		accel_time = 1.0 / 12.5; // 13Hz -> 76.8 / 1000
 	}
 
 	// Calculate gyro
@@ -145,55 +145,55 @@ int lsm6dso_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, floa
 		gyro_time = 0; // off
 		ODR_G = DSO_ODR_OFF;
 	}
-	else if (ODR > 3330)
+	else if (gyro_time < 0.3 / 1000) // in this case it seems better to compare gyro_time
 	{
 		ODR_G = DSO_ODR_6_66kHz; // TODO: this is absolutely awful
 		gyro_time = 1.0 / 6660;
 	}
-	else if (ODR > 1660)
+	else if (gyro_time < 0.6 / 1000)
 	{
 		ODR_G = DSO_ODR_3_33kHz;
-		gyro_time = 1.0 / 3330;
+		gyro_time = 0.3 / 1000;
 	}
-	else if (ODR > 833)
+	else if (gyro_time < 1.2 / 1000)
 	{
 		ODR_G = DSO_ODR_1_66kHz;
-		gyro_time = 1.0 / 1660;
+		gyro_time = 0.6 / 1000;
 	}
-	else if (ODR > 416)
+	else if (gyro_time < 2.4 / 1000)
 	{
 		ODR_G = DSO_ODR_833Hz;
-		gyro_time = 1.0 / 833;
+		gyro_time = 1.2 / 1000;
 	}
-	else if (ODR > 208)
+	else if (gyro_time < 4.8 / 1000)
 	{
 		ODR_G = DSO_ODR_416Hz;
-		gyro_time = 1.0 / 416;
+		gyro_time = 2.4 / 1000;
 	}
-	else if (ODR > 104)
+	else if (gyro_time < 9.6 / 1000)
 	{
 		ODR_G = DSO_ODR_208Hz;
-		gyro_time = 1.0 / 208;
+		gyro_time = 4.8 / 1000;
 	}
-	else if (ODR > 52)
+	else if (gyro_time < 19.2 / 1000)
 	{
 		ODR_G = DSO_ODR_104Hz;
-		gyro_time = 1.0 / 104;
+		gyro_time = 9.6 / 1000;
 	}
-	else if (ODR > 26)
+	else if (gyro_time < 38.4 / 1000)
 	{
 		ODR_G = DSO_ODR_52Hz;
-		gyro_time = 1.0 / 52;
+		gyro_time = 19.2 / 1000;
 	}
 	else if (ODR > 12.5)
 	{
 		ODR_G = DSO_ODR_26Hz;
-		gyro_time = 1.0 / 26;
+		gyro_time = 38.4 / 1000;
 	}
 	else
 	{
 		ODR_G = DSO_ODR_12_5Hz;
-		gyro_time = 1.0 / 12.5;
+		gyro_time = 1.0 / 12.5; // 13Hz -> 76.8 / 1000
 	}
 
 	if (last_accel_mode == OP_MODE_XL && last_gyro_mode == OP_MODE_G && last_accel_odr == ODR_XL && last_gyro_odr == ODR_G) // if both were already configured
