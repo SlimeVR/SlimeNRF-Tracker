@@ -4,6 +4,7 @@
 #include <zephyr/drivers/i2c.h>
 
 #include "LSM6DSO.h"
+#include "LSM6DSV.h" // Common functions
 
 static const float accel_sensitivity = 16.0f / 32768.0f; // Always 16G (FS = ±16 g: 0.488 mg/LSB)
 static const float gyro_sensitivity = 0.070f; // Always 2000dps (FS = ±2000 dps: 70 mdps/LSB)
@@ -233,60 +234,6 @@ uint16_t lsm6dso_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data)
 	return count;
 }
 
-int lsm6dso_fifo_process(uint16_t index, uint8_t *data, float g[3])
-{
-	index *= 7; // Packet size 7 bytes
-	if ((data[index] >> 3) != 0x01)
-		return 1; // Ignore all packets except Gyroscope NC (Gyroscope uncompressed data)
-	for (int i = 0; i < 3; i++) // x, y, z
-	{
-		g[i] = (int16_t)((((int16_t)data[index + (i * 2) + 2]) << 8) | data[index + (i * 2) + 1]);
-		g[i] *= gyro_sensitivity;
-	}
-	// TODO: need to skip invalid data
-	return 0;
-}
-
-void lsm6dso_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3])
-{
-	uint8_t rawAccel[6];
-	int err = i2c_burst_read_dt(dev_i2c, LSM6DSO_OUTX_L_A, &rawAccel[0], 6);
-	if (err)
-		LOG_ERR("I2C error");
-	for (int i = 0; i < 3; i++) // x, y, z
-	{
-		a[i] = (int16_t)((((int16_t)rawAccel[(i * 2) + 1]) << 8) | rawAccel[i * 2]);
-		a[i] *= accel_sensitivity;
-	}
-}
-
-void lsm6dso_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3])
-{
-	uint8_t rawGyro[6];
-	int err = i2c_burst_read_dt(dev_i2c, LSM6DSO_OUTX_L_G, &rawGyro[0], 6);
-	if (err)
-		LOG_ERR("I2C error");
-	for (int i = 0; i < 3; i++) // x, y, z
-	{
-		g[i] = (int16_t)((((int16_t)rawGyro[(i * 2) + 1]) << 8) | rawGyro[i * 2]);
-		g[i] *= gyro_sensitivity;
-	}
-}
-
-float lsm6dso_temp_read(const struct i2c_dt_spec *dev_i2c)
-{
-	uint8_t rawTemp[2];
-	int err = i2c_burst_read_dt(dev_i2c, LSM6DSO_OUT_TEMP_L, &rawTemp[0], 2);
-	if (err)
-		LOG_ERR("I2C error");
-	// TSen Temperature sensitivity 256 LSB/°C
-	// The output of the temperature sensor is 0 LSB (typ.) at 25°C
-	float temp = (int16_t)((((int16_t)rawTemp[1]) << 8) | rawTemp[0]);
-	temp /= 256;
-	temp += 25;
-	return temp;
-}
-
 void lsm6dso_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 { // TODO: should be off by the time WOM will be setup
 //	i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL1, ODR_OFF); // set accel off
@@ -310,10 +257,10 @@ const sensor_imu_t sensor_imu_lsm6dso = {
 	*lsm6dso_update_odr,
 
 	*lsm6dso_fifo_read,
-	*lsm6dso_fifo_process,
-	*lsm6dso_accel_read,
-	*lsm6dso_gyro_read,
-	*lsm6dso_temp_read,
+	*lsm_fifo_process,
+	*lsm_accel_read,
+	*lsm_gyro_read,
+	*lsm_temp_read,
 
 	*lsm6dso_setup_WOM
 };
