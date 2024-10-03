@@ -27,7 +27,13 @@ Bosch Sensortec
 -BMI160:68/69,00,D1
 *BMI270:68/69,00,24
 -BMI323:68/69,00,43
+InvenSense
+-MPU-6000:68/69,75,68
+-MPU-6050:68/69,75,68
+-MPU-6500:68/69,75,70
+-MPU-9250:68/69,75,71
 TDK InvenSense
+-ICM-20948:68/69,0,EA
 *ICM-42688-P:68/69,75,47
 *ICM-42688-V:68/69,75,DB
 +ICM-45686:68/69,72,E9
@@ -37,7 +43,7 @@ STMicroelectronics
 *LSM6DSV:6A/6B,0F,70
 
 68/69,6A/6B
-00,75 (D1:BMI160,24:BMI270,43:BMI323;47:ICM-42688-P,DB:ICM-42688-V)
+00,75 (EA:ICM-20948,D1:BMI160,24:BMI270,43:BMI323;68:MPU-6000/MPU-6050,70:MPU-6500,71:MPU-9250,47:ICM-42688-P,DB:ICM-42688-V)
 0F (69:LSM6DS3,6C:LSM6DSO,70:LSM6DSV)
 
 Magnetometers:
@@ -72,6 +78,10 @@ enum dev_imu {
 	IMU_BMI160,
 	IMU_BMI270,
 	IMU_BMI323,
+	IMU_MPU6050,
+	IMU_MPU6500,
+	IMU_MPU9250,
+	IMU_ICM20948,
 	IMU_ICM42688,
 	IMU_ICM45686,
 	IMU_LSM6DS3,
@@ -82,6 +92,10 @@ const char *dev_imu_names[] = {
 	"BMI160",
 	"BMI270",
 	"BMI323",
+	"MPU-6000/MPU-6050",
+	"MPU-6500",
+	"MPU-9250",
+	"ICM-20948",
 	"ICM-42688-P/ICM-42688-V",
 	"ICM-45686",
 	"LSM6DS3",
@@ -91,6 +105,10 @@ const char *dev_imu_names[] = {
 const sensor_imu_t *sensor_imus[] = {
 	&sensor_imu_none, // will not implement, too low quality
 	&sensor_imu_bmi270,
+	&sensor_imu_none,
+	&sensor_imu_none, // cardinal sin
+	&sensor_imu_none, // cardinal sin
+	&sensor_imu_none, // cardinal sin
 	&sensor_imu_none,
 	&sensor_imu_icm42688,
 	&sensor_imu_none,
@@ -110,15 +128,15 @@ const uint8_t i2c_dev_imu_reg[] = {
 	1,	0x0F
 };
 const uint8_t i2c_dev_imu_id[] = {
-	3,	0xD1,0x24,0x43, // reg 0x00
+	3,	0xEA,0xD1,0x24,0x43, // reg 0x00
 	1,	0xE9, // reg 0x72
-	5,	0x47,0xDB, // reg 0x75
+	5,	0x68,0x70,0x71,0x47,0xDB, // reg 0x75
 	3,	0x69,0x6C,0x70 // reg 0x0F
 };
 const int i2c_dev_imu[] = {
-	IMU_BMI160, IMU_BMI270, IMU_BMI323,
+	IMU_ICM20948, IMU_BMI160, IMU_BMI270, IMU_BMI323,
 	IMU_ICM45686,
-	IMU_ICM42688, IMU_ICM42688, // ICM-42688-P, ICM-42688-V
+	IMU_MPU6050, IMU_MPU6500, IMU_MPU9250, IMU_ICM42688, IMU_ICM42688, // ICM-42688-P, ICM-42688-V
 	IMU_LSM6DS3, IMU_LSM6DSO, IMU_LSM6DSV
 };
 
