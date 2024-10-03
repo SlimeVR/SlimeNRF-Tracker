@@ -143,8 +143,8 @@ enum sys_regulator {
 
 static void set_regulator(enum sys_regulator regulator)
 {
-	bool use_dcdc = regulator == SYS_REGULATOR_DCDC;
 #if DCDC_EN_EXISTS
+	bool use_dcdc = regulator == SYS_REGULATOR_DCDC;
 	if (use_dcdc)
 	{
 		gpio_pin_set_dt(&dcdc_en, 1);
@@ -152,8 +152,9 @@ static void set_regulator(enum sys_regulator regulator)
 	}
 #endif
 #if LDO_EN_EXISTS
-	gpio_pin_set_dt(&ldo_en, !use_dcdc);
-	LOG_INF(use_dcdc ? "Disabled LDO" : "Enabled LDO");
+	bool use_ldo = regulator == SYS_REGULATOR_LDO;
+	gpio_pin_set_dt(&ldo_en, use_ldo);
+	LOG_INF(use_ldo ? "Enabled LDO" : "Disabled LDO");
 #endif
 #if DCDC_EN_EXISTS
 	if (!use_dcdc)
@@ -568,7 +569,7 @@ void power_thread(void)
 			power_init = true;
 		}
 
-		if (battery_available && batt_pptt == 0 || docked)
+		if ((battery_available && batt_pptt == 0) || docked)
 			sys_request_system_off();
 
 		last_batt_pptt[last_batt_pptt_i] = batt_pptt;
