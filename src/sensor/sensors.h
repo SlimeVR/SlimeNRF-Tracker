@@ -121,8 +121,8 @@ enum dev_mag {
 	MAG_QMC5883L,
 	MAG_BMM150,
 	MAG_BMM350,
-	MAG_LIS3MDL,
 	MAG_LIS2MDL, // IIS2MDC/LIS2MDL
+	MAG_LIS3MDL,
 	MAG_MMC5633NJL, // MMC5603NJ/MMC5633NJL
 	MAG_MMC5983MA
 };
@@ -130,8 +130,8 @@ const char *dev_mag_names[] = {
 	"QMC5883L",
 	"BMM150",
 	"BMM350",
-	"LIS3MDL",
 	"IIS2MDC/LIS2MDL",
+	"LIS3MDL",
 	"MMC5603NJ/MMC5633NJL",
 	"MMC5983MA"
 };
@@ -139,8 +139,8 @@ const sensor_mag_t *sensor_mags[] = {
 	&sensor_mag_none, // not implemented
 	&sensor_mag_bmm150,
 	&sensor_mag_bmm350,
-	&sensor_mag_lis3mdl,
 	&sensor_mag_lis2mdl,
+	&sensor_mag_lis3mdl,
 	&sensor_mag_none,
 	&sensor_mag_mmc5983ma
 };
