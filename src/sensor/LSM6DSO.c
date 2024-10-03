@@ -240,12 +240,14 @@ void lsm6dso_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 //	i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL2, ODR_OFF); // set gyro off
 
 	int err = i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_TAP_CFG0, 0x10); // use HPF for wake-up
-	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_WAKE_UP_THS, 0x28); // set threshold, 40 * 7.8125 mg is ~312 mg
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_WAKE_UP_THS, 0x0A); // set threshold, 10 * 31.25 mg is ~312 mg
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_WAKE_UP_DUR, 0x02); // set 1 LSB threshold to FS_XL / 256 (31.25mg)
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_MD1_CFG, 0x20); // route wake-up to INT1
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_TAP_CFG2, 0x80); // enable interrupts
-	
-	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL1, DSO_ODR_OFF | DSO_FS_XL_8G); // set accel ODR and FS
-	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL6, DSO_OP_MODE_XL_NP); // set accelerator perf mode
+
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL1, DSO_ODR_208Hz | DSO_FS_XL_8G); // set accel ODR and FS
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL6, DSO_OP_MODE_XL_NP); // set accel perf mode
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL5, 0x80); // enable accel ULP
 	if (err)
 		LOG_ERR("I2C error");
 }

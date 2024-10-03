@@ -11,6 +11,7 @@
 #define LSM6DSO_CTRL2                      0x11
 #define LSM6DSO_CTRL3                      0x12
 #define LSM6DSO_CTRL4                      0x13
+#define LSM6DSO_CTRL5                      0x14
 #define LSM6DSO_CTRL6                      0x15
 #define LSM6DSO_CTRL7                      0x16
 #define LSM6DSO_CTRL8                      0x17
@@ -20,6 +21,7 @@
 #define LSM6DSO_TAP_CFG2                   0x58
 #define LSM6DSO_TAP_CFG0                   0x56
 #define LSM6DSO_WAKE_UP_THS                0x5B
+#define LSM6DSO_WAKE_UP_DUR                0x5C
 #define LSM6DSO_MD1_CFG                    0x5E
 
 #define LSM6DSO_FIFO_DATA_OUT_TAG          0x78
