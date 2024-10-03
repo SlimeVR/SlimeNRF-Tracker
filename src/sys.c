@@ -154,7 +154,7 @@ static void set_regulator(enum sys_regulator regulator)
 #if LDO_EN_EXISTS
 	bool use_ldo = regulator == SYS_REGULATOR_LDO;
 	gpio_pin_set_dt(&ldo_en, use_ldo);
-	LOG_INF(use_ldo ? "Enabled LDO" : "Disabled LDO");
+	LOG_INF("%s", use_ldo ? "Enabled LDO" : "Disabled LDO");
 #endif
 #if DCDC_EN_EXISTS
 	if (!use_dcdc)
