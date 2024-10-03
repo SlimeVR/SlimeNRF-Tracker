@@ -110,7 +110,7 @@ float mag_none_temp_read(const struct i2c_dt_spec *dev_i2c)
 	return 0;
 }
 
-const sensor_mag_t sensor_mag_empty = {
+const sensor_mag_t sensor_mag_none = {
 	*mag_none_init,
 	*mag_none_shutdown,
 

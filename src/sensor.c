@@ -360,6 +360,14 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 	return false;
 }
 
+int sensor_update_time_ms = 6;
+
+// TODO: get rid of it.. ?
+static void set_update_time_ms(int time_ms)
+{
+	sensor_update_time_ms = time_ms; // TODO: terrible naming
+}
+
 int main_imu_init(void)
 {
 	int err;
@@ -409,14 +417,6 @@ int main_imu_init(void)
 	LOG_INF("Initialized fusion");
 	sensor_fusion_init = true;
 	return 0;
-}
-
-int sensor_update_time_ms = 6;
-
-// TODO: get rid of it.. ?
-static void set_update_time_ms(int time_ms)
-{
-	sensor_update_time_ms = time_ms; // TODO: terrible naming
 }
 
 enum sensor_sensor_mode {
