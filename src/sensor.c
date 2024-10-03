@@ -384,9 +384,13 @@ int main_imu_init(void)
 	LOG_INF("Sensor clock rate: %.2fHz", clock_actual_rate);
 
 	k_usleep(250); // wait for sensor register reset
-	err = (*sensor_imu->init)(&sensor_imu_dev, clock_actual_rate, sensor_update_time_ms / 1000.0, 1.0 / 800, &accel_actual_time, &gyro_actual_time); // configure with ~200Hz ODR, ~1000Hz ODR
-	LOG_INF("Accelerometer initial rate: %.2fHz", 1.0 / gyro_actual_time);
-	LOG_INF("Gyrometer initial rate: %.2fHz", 1.0 / accel_actual_time);
+	float accel_initial_time = sensor_update_time_ms / 1000.0; // configure with ~200Hz ODR
+#if CONFIG_FPU
+	float gyro_initial_time = 1.0 / 800; // configure with ~1000Hz ODR
+#else
+	float gyro_initial_time = sensor_update_time_ms / 1000.0; // TODO: check if this is enough for processors with no FPU, they may support a higher rate
+#endif
+	err = (*sensor_imu->init)(&sensor_imu_dev, clock_actual_rate, accel_initial_time, gyro_initial_time, &accel_actual_time, &gyro_actual_time);
 	LOG_INF("Accelerometer initial rate: %.2fHz", 1.0 / accel_actual_time);
 	LOG_INF("Gyrometer initial rate: %.2fHz", 1.0 / gyro_actual_time);
 	if (err < 0)
