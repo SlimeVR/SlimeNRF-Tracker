@@ -36,6 +36,7 @@ static uint8_t sensor_mag_dev_reg = 0xFF;
 static float q[4] = {1.0f, 0.0f, 0.0f, 0.0f}; // vector to hold quaternion
 static float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f}; // vector to hold quaternion
 
+static float q3[4] = {SENSOR_QUATERNION_CORRECTION}; // correction quaternion
 
 static int64_t last_data_time;
 
@@ -524,7 +525,7 @@ void main_imu_thread(void)
 				};
 			}
 
-			float a[] = {ax, -az, ay};
+			float a[] = {SENSOR_ACCELEROMETER_AXES_ALIGNMENT};
 			if (mag_available && mag_enabled && packets == 2 && sensor_mode == SENSOR_SENSOR_MODE_LOW_POWER) // why specifically 2 packets? i forgot
 			{ // Fuse accelerometer only
 				(*sensor_fusion->update_accel)(a, accel_actual_time);
@@ -532,7 +533,7 @@ void main_imu_thread(void)
 			else
 			{ // Fuse all data
 				float g[3] = {0};
-				float m[] = {my, mz, -mx};
+				float m[] = {SENSOR_MAGNETOMETER_AXES_ALIGNMENT};
 				max_gyro_speed_square = 0;
 				for (uint16_t i = 0; i < packets; i++)
 				{
@@ -543,10 +544,8 @@ void main_imu_thread(void)
 					float gx = raw_g[0] - gyroBias[0]; //gres
 					float gy = raw_g[1] - gyroBias[1]; //gres
 					float gz = raw_g[2] - gyroBias[2]; //gres
-					//float g[] = {gx, -gz, gy};
-					g[0] = gx;
-					g[1] = -gz;
-					g[2] = gy;
+					float g_aligned[] = {SENSOR_GYROSCOPE_AXES_ALIGNMENT};
+					memcpy(g, g_aligned, sizeof(g));
 
 					// Process fusion
 					(*sensor_fusion->update)(g, a, m, gyro_actual_time);
@@ -557,9 +556,7 @@ void main_imu_thread(void)
 						float g_off[3] = {};
 						(*sensor_fusion->get_gyro_bias)(g_off);
 						for (int i = 0; i < 3; i++)
-						{
 							g_off[i] = g[i] - g_off[i];
-						}
 
 						// Get the highest gyro speed
 						float gyro_speed_square = g_off[0] * g_off[0] + g_off[1] * g_off[1] + g_off[2] * g_off[2];
