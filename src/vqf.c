@@ -13,9 +13,9 @@
 #define DEG_TO_RAD (M_PI / 180.0f)
 #endif
 
-vqf_params_t params;
-vqf_state_t state;
-vqf_coeffs_t coeffs;
+static vqf_params_t params;
+static vqf_state_t state;
+static vqf_coeffs_t coeffs;
 
 void vqf_init(float time)
 {

@@ -14,13 +14,13 @@ bool send_data = false;
 uint16_t led_clock = 0;
 uint32_t led_clock_offset = 0;
 
-struct esb_payload rx_payload;
-struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
+static struct esb_payload rx_payload;
+static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-struct esb_payload tx_payload_pair = ESB_CREATE_PAYLOAD(0,
+static struct esb_payload tx_payload_pair = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0);
 
-uint8_t paired_addr[8] = {0};
+static uint8_t paired_addr[8] = {0};
 
 LOG_MODULE_REGISTER(esb_event, LOG_LEVEL_INF);
 
@@ -109,11 +109,11 @@ int clocks_start(void)
 
 // this was randomly generated
 // TODO: I have no idea?
-uint8_t discovery_base_addr_0[4] = {0x62, 0x39, 0x8A, 0xF2};
-uint8_t discovery_base_addr_1[4] = {0x28, 0xFF, 0x50, 0xB8};
-uint8_t discovery_addr_prefix[8] = {0xFE, 0xFF, 0x29, 0x27, 0x09, 0x02, 0xB2, 0xD6};
+static const uint8_t discovery_base_addr_0[4] = {0x62, 0x39, 0x8A, 0xF2};
+static const uint8_t discovery_base_addr_1[4] = {0x28, 0xFF, 0x50, 0xB8};
+static const uint8_t discovery_addr_prefix[8] = {0xFE, 0xFF, 0x29, 0x27, 0x09, 0x02, 0xB2, 0xD6};
 
-uint8_t base_addr_0[4], base_addr_1[4], addr_prefix[8] = {0};
+static uint8_t base_addr_0[4], base_addr_1[4], addr_prefix[8] = {0};
 
 static bool esb_initialized = false;
 

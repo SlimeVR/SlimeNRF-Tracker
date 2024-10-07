@@ -6,11 +6,11 @@
 
 #include "fusion.h"
 
-FusionOffset offset; // could share goff and q with fusionoffset and fusionahrs but init clears the values
-FusionAhrs ahrs;
+static FusionOffset offset; // could share goff and q with fusionoffset and fusionahrs but init clears the values
+static FusionAhrs ahrs;
 
-FusionVector gyro_sanity_m;
-int gyro_sanity = 0;
+static FusionVector gyro_sanity_m;
+static int gyro_sanity = 0;
 
 LOG_MODULE_REGISTER(fusion, LOG_LEVEL_INF);
 

@@ -16,64 +16,65 @@
 #if DT_NODE_EXISTS(DT_NODELABEL(imu))
 #define SENSOR_IMU_EXISTS true
 #define SENSOR_IMU_NODE DT_NODELABEL(imu)
-struct i2c_dt_spec sensor_imu_dev = I2C_DT_SPEC_GET(SENSOR_IMU_NODE);
+static struct i2c_dt_spec sensor_imu_dev = I2C_DT_SPEC_GET(SENSOR_IMU_NODE);
 #else
 #error "IMU node does not exist"
-struct i2c_dt_spec sensor_imu_dev = {0};
+static struct i2c_dt_spec sensor_imu_dev = {0};
 #endif
 static uint8_t sensor_imu_dev_reg = 0xFF;
 
 #if DT_NODE_EXISTS(DT_NODELABEL(mag))
 #define SENSOR_MAG_EXISTS true
 #define SENSOR_MAG_NODE DT_NODELABEL(mag)
-struct i2c_dt_spec sensor_mag_dev = I2C_DT_SPEC_GET(SENSOR_MAG_NODE);
+static struct i2c_dt_spec sensor_mag_dev = I2C_DT_SPEC_GET(SENSOR_MAG_NODE);
 #else
 #warning "Magnetometer node does not exist"
-struct i2c_dt_spec sensor_mag_dev = {0};
+static struct i2c_dt_spec sensor_mag_dev = {0};
 #endif
 static uint8_t sensor_mag_dev_reg = 0xFF;
 
-float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};			// vector to hold quaternion
-float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};		// vector to hold quaternion
+static float q[4] = {1.0f, 0.0f, 0.0f, 0.0f}; // vector to hold quaternion
+static float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f}; // vector to hold quaternion
 
-int64_t last_data_time;
 
-float accelBias[3] = {0}, gyroBias[3] = {0}; // offset biases for the accel and gyro
+static int64_t last_data_time;
 
-int mag_progress;
-int last_mag_progress;
-int64_t mag_progress_time;
-double ata[100]; // init calibration
-double norm_sum;
-double sample_count;
+static float accelBias[3] = {0}, gyroBias[3] = {0}; // offset biases for the accel and gyro
 
-float magBAinv[4][3];
+static int mag_progress;
+static int last_mag_progress;
+static int64_t mag_progress_time;
+static double ata[100]; // init calibration
+static double norm_sum;
+static double sample_count;
 
-float max_gyro_speed_square;
-bool mag_use_oneshot;
+static float magBAinv[4][3];
 
-float accel_actual_time;
-float gyro_actual_time;
-float mag_actual_time;
+static float max_gyro_speed_square;
+static bool mag_use_oneshot;
 
-bool sensor_fusion_init;
-bool sensor_sensor_init;
+static float accel_actual_time;
+static float gyro_actual_time;
+static float mag_actual_time;
 
-bool sensor_sensor_scanning;
+static bool sensor_fusion_init;
+static bool sensor_sensor_init;
 
-bool main_suspended;
+static bool sensor_sensor_scanning;
 
-bool mag_available;
+static bool main_suspended;
+
+static bool mag_available;
 #ifdef MAG_ENABLED
-bool mag_enabled = MAG_ENABLED; // TODO: toggle from server
+static bool mag_enabled = MAG_ENABLED; // TODO: toggle from server
 #else
-bool mag_enabled = false;
+static bool mag_enabled = false;
 #endif
 
-const sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion; // TODO: change from server
+static const sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion; // TODO: change from server
 
-const sensor_imu_t *sensor_imu = &sensor_imu_none;
-const sensor_mag_t *sensor_mag = &sensor_mag_none;
+static const sensor_imu_t *sensor_imu = &sensor_imu_none;
+static const sensor_mag_t *sensor_mag = &sensor_mag_none;
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
