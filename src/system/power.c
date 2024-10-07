@@ -17,7 +17,7 @@ enum sys_regulator {
 	SYS_REGULATOR_LDO
 };
 
-static uint32_t last_battery_pptt[16] = {10001};
+static uint32_t last_battery_pptt[16] = {[0 ... 15] = 10001};
 static int last_battery_pptt_index = 0;
 static bool battery_low = false;
 

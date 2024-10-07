@@ -46,8 +46,8 @@ LED priorities (0 is highest)
 */
 
 #define SYS_LED_PATTERN_DEPTH 4
-static enum sys_led_pattern led_patterns[SYS_LED_PATTERN_DEPTH] = {SYS_LED_PATTERN_OFF};
-static enum sys_led_pattern current_led_pattern = SYS_LED_PATTERN_OFF;
+static enum sys_led_pattern led_patterns[SYS_LED_PATTERN_DEPTH] = {[0 ... (SYS_LED_PATTERN_DEPTH - 1)] = SYS_LED_PATTERN_OFF};
+static enum sys_led_pattern current_led_pattern;
 static int led_pattern_state;
 
 void set_led(enum sys_led_pattern led_pattern, int priority)
