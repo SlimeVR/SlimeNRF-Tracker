@@ -8,6 +8,7 @@
 #include "BMI270.h"
 #include "ICM42688.h"
 #include "LSM6DSV.h"
+#include "LSM6DSO.h"
 
 #include "BMM150.h"
 #include "BMM350.h"
@@ -39,7 +40,7 @@ TDK InvenSense
 +ICM-45686:68/69,72,E9
 STMicroelectronics
 -LSM6DS3:6A/6B,0F,69
-+LSM6DSO:6A/6B,0F,6C
+*LSM6DSO:6A/6B,0F,6C
 *LSM6DSV:6A/6B,0F,70
 
 68/69,6A/6B
@@ -113,7 +114,7 @@ const sensor_imu_t *sensor_imus[] = {
 	&sensor_imu_icm42688,
 	&sensor_imu_none,
 	&sensor_imu_none, // will not implement, too low quality
-	&sensor_imu_none,
+	&sensor_imu_lsm6dso,
 	&sensor_imu_lsm6dsv
 };
 const int i2c_dev_imu_addr_count = 2;
