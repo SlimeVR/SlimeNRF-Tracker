@@ -110,7 +110,8 @@ static void configure_sense_pins(void)
 
 static void configure_system_off(void)
 {
-	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
+	// TODO: not calling suspend here, because sensor can call it and stop the system from shutting down since it suspended itself
+//	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
 	sensor_shutdown();
 	set_led(SYS_LED_PATTERN_OFF_FORCE, 0);
 	float actual_clock_rate;
@@ -183,6 +184,7 @@ void sys_request_WOM() // TODO: if IMU interrupt does not exist what does the sy
 #endif
 	// Set system off
 	sensor_setup_WOM(); // enable WOM feature
+	LOG_INF("Configured IMU wake up");
 	LOG_INF("Powering off nRF");
 	sys_poweroff();
 #else
@@ -194,6 +196,7 @@ void sys_request_WOM() // TODO: if IMU interrupt does not exist what does the sy
 void sys_request_system_off(void)
 {
 	LOG_INF("System off requested");
+	main_imu_suspend(); // TODO: should be a common shutdown step
 	configure_system_off(); // Common subsystem shutdown and prepare sense pins
 	// Clear sensor addresses
 	sensor_scan_clear();
