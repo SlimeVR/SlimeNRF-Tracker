@@ -388,7 +388,7 @@ int main_imu_init(void)
 #if CONFIG_FPU
 	float gyro_initial_time = 1.0 / 800; // configure with ~1000Hz ODR
 #else
-	float gyro_initial_time = sensor_update_time_ms / 1000.0; // TODO: check if this is enough for processors with no FPU, they may support a higher rate
+	float gyro_initial_time = 1.0 / 800; // TODO: check if this is still okay for vqf
 #endif
 	err = (*sensor_imu->init)(&sensor_imu_dev, clock_actual_rate, accel_initial_time, gyro_initial_time, &accel_actual_time, &gyro_actual_time);
 	LOG_INF("Accelerometer initial rate: %.2fHz", 1.0 / accel_actual_time);
