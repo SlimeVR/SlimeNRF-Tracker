@@ -1,5 +1,5 @@
 #include "globals.h"
-#include "sys.h"
+#include "system.h"
 #include "connection.h"
 
 #include <zephyr/drivers/clock_control/nrf_clock_control.h>

@@ -1,5 +1,5 @@
 #include "globals.h"
-#include "sys.h"
+#include "system.h"
 #include "util.h"
 #include "connection.h"
 
