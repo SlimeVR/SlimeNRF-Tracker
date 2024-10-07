@@ -68,7 +68,7 @@ int sensor_scan(struct i2c_dt_spec *i2c_dev, uint8_t *i2c_dev_reg, int dev_addr_
 						{
 							i2c_dev->addr = addr;
 							*i2c_dev_reg = reg;
-							LOG_INF("Valid device found at address: 0x%02X (register: 0x%02x)", addr, reg);
+							LOG_INF("Valid device found at address: 0x%02X (register: 0x%02x, value: 0x%02x)", addr, reg, id);
 							return dev_ids[fnd_id + l];
 						}
 					}
