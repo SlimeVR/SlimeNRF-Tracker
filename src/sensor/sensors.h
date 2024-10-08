@@ -40,12 +40,13 @@ TDK InvenSense
 +ICM-45686:68/69,72,E9
 STMicroelectronics
 -LSM6DS3:6A/6B,0F,69
++LSM6DSR:6A/6B,0F,6B
 *LSM6DSO:6A/6B,0F,6C
 *LSM6DSV:6A/6B,0F,70
 
 68/69,6A/6B
 00,75 (EA:ICM-20948,D1:BMI160,24:BMI270,43:BMI323;68:MPU-6000/MPU-6050,70:MPU-6500,71:MPU-9250,47:ICM-42688-P,DB:ICM-42688-V)
-0F (69:LSM6DS3,6C:LSM6DSO,70:LSM6DSV)
+0F (69:LSM6DS3,6B:LSM6DSR,6C:LSM6DSO,70:LSM6DSV)
 
 Magnetometers:
 
@@ -86,6 +87,7 @@ enum dev_imu {
 	IMU_ICM42688,
 	IMU_ICM45686,
 	IMU_LSM6DS3,
+	IMU_LSM6DSR,
 	IMU_LSM6DSO,
 	IMU_LSM6DSV
 };
@@ -100,6 +102,7 @@ const char *dev_imu_names[] = {
 	"ICM-42688-P/ICM-42688-V",
 	"ICM-45686",
 	"LSM6DS3",
+	"LSM6DSR",
 	"LSM6DSO",
 	"LSM6DSV"
 };
@@ -114,6 +117,7 @@ const sensor_imu_t *sensor_imus[] = {
 	&sensor_imu_icm42688,
 	&sensor_imu_none,
 	&sensor_imu_none, // will not implement, too low quality
+	&sensor_imu_none,
 	&sensor_imu_lsm6dso,
 	&sensor_imu_lsm6dsv
 };
@@ -132,13 +136,13 @@ const uint8_t i2c_dev_imu_id[] = {
 	4,	0xEA,0xD1,0x24,0x43, // reg 0x00
 	1,	0xE9, // reg 0x72
 	5,	0x68,0x70,0x71,0x47,0xDB, // reg 0x75
-	3,	0x69,0x6C,0x70 // reg 0x0F
+	4,	0x69,0x6B,0x6C,0x70 // reg 0x0F
 };
 const int i2c_dev_imu[] = {
 	IMU_ICM20948, IMU_BMI160, IMU_BMI270, IMU_BMI323,
 	IMU_ICM45686,
 	IMU_MPU6050, IMU_MPU6500, IMU_MPU9250, IMU_ICM42688, IMU_ICM42688, // ICM-42688-P, ICM-42688-V
-	IMU_LSM6DS3, IMU_LSM6DSO, IMU_LSM6DSV
+	IMU_LSM6DS3, IMU_LSM6DSR, IMU_LSM6DSO, IMU_LSM6DSV
 };
 
 enum dev_mag {
