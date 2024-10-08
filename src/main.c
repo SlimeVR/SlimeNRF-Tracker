@@ -30,7 +30,7 @@ int main(void)
 	NRF_POWER->RESETREAS = NRF_POWER->RESETREAS; // Clear RESETREAS
 
 //	start_time = k_uptime_get(); // Need to get start time for imu startup delay
-	set_led(SYS_LED_PATTERN_ON, 0); // Boot LED
+	set_led(SYS_LED_PATTERN_ON, SYS_LED_PRIORITY_BOOT); // Boot LED
 
 #if DFU_EXISTS && !(IGNORE_RESET && BUTTON_EXISTS) // Using Adafruit bootloader
 	(*dbl_reset_mem) = DFU_DBL_RESET_APP; // Skip DFU
@@ -41,7 +41,7 @@ int main(void)
 	bool booting_from_shutdown = !reboot_counter; // 0 means from user shutdown or failed ram validation;
 
 	if (booting_from_shutdown)
-		set_led(SYS_LED_PATTERN_ONESHOT_POWERON, 0);
+		set_led(SYS_LED_PATTERN_ONESHOT_POWERON, SYS_LED_PRIORITY_BOOT);
 
 	bool docked = dock_read();
 
@@ -73,21 +73,21 @@ int main(void)
 	{
 		LOG_INF("User shutdown requested");
 		reboot_counter_write(0);
-		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF, 0);
+		set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF, SYS_LED_PRIORITY_BOOT);
 		k_msleep(1500);
 		if (button_read()) // If alternate button is available and still pressed, wait for the user to stop pressing the button
 		{
-			set_led(SYS_LED_PATTERN_LONG, 0);
+			set_led(SYS_LED_PATTERN_LONG, SYS_LED_PRIORITY_BOOT);
 			while (button_read())
 				k_msleep(1);
-			set_led(SYS_LED_PATTERN_OFF_FORCE, 0);
+			set_led(SYS_LED_PATTERN_OFF_FORCE, SYS_LED_PRIORITY_BOOT);
 		}
 		sys_request_system_off();
 	}
 // How long user shutdown take does not matter really ("0ms")
 #endif
 
-	set_led(SYS_LED_PATTERN_OFF, 0);
+	set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_BOOT);
 
 	switch (reset_mode)
 	{

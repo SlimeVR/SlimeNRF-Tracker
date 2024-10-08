@@ -256,7 +256,7 @@ void sensor_calibrate_imu(void)
 	if (!wait_for_motion(&sensor_imu_dev, false, 6)) // Wait for accelerometer to settle, timeout 3s
 		return; // Timeout, calibration failed
 
-	set_led(SYS_LED_PATTERN_ON, 1);
+	set_led(SYS_LED_PATTERN_ON, SYS_LED_PRIORITY_SENSOR);
 	k_msleep(500); // Delay before beginning acquisition
 
 	LOG_INF("Reading data");
@@ -278,7 +278,7 @@ void sensor_calibrate_imu(void)
 	{ // TODO: always clearing the fusion?
 		retained.fusion_data_stored = false; // Invalidate retained fusion data
 	}
-	set_led(SYS_LED_PATTERN_OFF, 1);
+	set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
 }
 
 void sensor_calibrate_mag(void)
@@ -335,7 +335,7 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 	uint8_t counts = 0;
 	float a[3], last_a[3];
 	(*sensor_imu->accel_read)(dev_i2c, last_a);
-	set_led(SYS_LED_PATTERN_LONG, 1);
+	set_led(SYS_LED_PATTERN_LONG, SYS_LED_PRIORITY_SENSOR);
 	for (int i = 0; i < samples + counts; i++)
 	{
 		LOG_INF("Accelerometer: %.5f %.5f %.5f", a[0], a[1], a[2]);
@@ -347,7 +347,7 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 			counts++;
 			if (counts == 2)
 			{
-				set_led(SYS_LED_PATTERN_OFF, 1);
+				set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
 				return true;
 			}
 		}
@@ -358,7 +358,7 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 		memcpy(last_a, a, sizeof(a));
 	}
 	LOG_INF("Motion detected");
-	set_led(SYS_LED_PATTERN_OFF, 1);
+	set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
 	return false;
 }
 
@@ -506,7 +506,7 @@ void main_imu_thread(void)
 					last_mag_progress = new_mag_progress;
 				}
 				if (mag_progress == 0b111111)
-					set_led(SYS_LED_PATTERN_ON, 1); // Magnetometer calibration is ready to apply
+					set_led(SYS_LED_PATTERN_ON, SYS_LED_PRIORITY_SENSOR); // Magnetometer calibration is ready to apply
 			}
 
 			if (mag_available && mag_enabled && reconfig) // TODO: get rid of reconfig?
@@ -634,7 +634,7 @@ void main_imu_thread(void)
 				if (mag_progress == 0b111111) // Save magnetometer calibration while idling
 				{
 					sensor_calibrate_mag();
-					set_led(SYS_LED_PATTERN_OFF, 1);
+					set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
 				}
 				else // only enough time to do one of the two
 				{

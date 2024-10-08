@@ -37,15 +37,6 @@ static const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET(LED0_NODE);
 static const struct pwm_dt_spec pwm_led = {0};
 #endif
 
-/*
-LED priorities (0 is highest)
-0: boot/power
-1: sensor
-2: esb
-3: system (persist)
-*/
-
-#define SYS_LED_PATTERN_DEPTH 4
 static enum sys_led_pattern led_patterns[SYS_LED_PATTERN_DEPTH] = {[0 ... (SYS_LED_PATTERN_DEPTH - 1)] = SYS_LED_PATTERN_OFF};
 static enum sys_led_pattern current_led_pattern;
 static int led_pattern_state;
@@ -103,15 +94,17 @@ static void led_thread(void)
 			k_msleep(led_pattern_state == 1 ? 100 : 900);
 			break;
 		case SYS_LED_PATTERN_LONG:
+		case SYS_LED_PATTERN_ERROR_D:
 			led_pattern_state = (led_pattern_state + 1) % 2;
 			gpio_pin_set_dt(&led, led_pattern_state);
 			k_msleep(500);
 			break;
+
 		case SYS_LED_PATTERN_ONESHOT_POWERON:
 			led_pattern_state++;
 			gpio_pin_set_dt(&led, led_pattern_state % 2);
 			if (led_pattern_state == 6)
-				set_led(SYS_LED_PATTERN_OFF, 0); // Sets highest priority to OFF, better not set ONESHOT_POWERON on another priority
+				set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_HIGHEST); // Sets highest priority to OFF, better not set ONESHOT_POWERON on another priority
 			else
 				k_msleep(200);
 			break;
@@ -121,12 +114,21 @@ static void led_thread(void)
 			else
 				gpio_pin_set_dt(&led, 0);
 			if (led_pattern_state == 22)
-				set_led(SYS_LED_PATTERN_OFF_FORCE, 0);
+				set_led(SYS_LED_PATTERN_OFF_FORCE, SYS_LED_PRIORITY_HIGHEST);
 			else if (led_pattern_state == 1)
 				k_msleep(250);
 			else
 				k_msleep(50);
 			break;
+		case SYS_LED_PATTERN_ONESHOT_PAIRED:
+			led_pattern_state++;
+			gpio_pin_set_dt(&led, led_pattern_state % 2);
+			if (led_pattern_state == 8)
+				set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_HIGHEST); // Sets highest priority to OFF, better not set SYS_LED_PATTERN_ONESHOT_PAIRED on another priority
+			else
+				k_msleep(200);
+			break;
+
 		case SYS_LED_PATTERN_ON_PERSIST:
 			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(4)); // 20% duty cycle, should look like ~50% brightness
 			k_thread_suspend(led_thread_id);
@@ -147,6 +149,23 @@ static void led_thread(void)
 			gpio_pin_set_dt(&led, !led_pattern_state);
 			k_msleep(led_pattern_state ? 9700 : 300);
 			break;
+
+		case SYS_LED_PATTERN_ERROR_A: // TODO: should this use 20% duty cycle?
+			led_pattern_state = (led_pattern_state + 1) % 10;
+			gpio_pin_set_dt(&led, led_pattern_state < 4 && led_pattern_state % 2);
+			k_msleep(500);
+			break;
+		case SYS_LED_PATTERN_ERROR_B:
+			led_pattern_state = (led_pattern_state + 1) % 10;
+			gpio_pin_set_dt(&led, led_pattern_state < 6 && led_pattern_state % 2);
+			k_msleep(500);
+			break;
+		case SYS_LED_PATTERN_ERROR_C:
+			led_pattern_state = (led_pattern_state + 1) % 10;
+			gpio_pin_set_dt(&led, led_pattern_state < 8 && led_pattern_state % 2);
+			k_msleep(500);
+			break;
+
 		default:
 			k_thread_suspend(led_thread_id);
 		}

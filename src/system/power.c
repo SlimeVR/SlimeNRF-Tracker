@@ -99,7 +99,7 @@ static void configure_system_off(void)
 	// TODO: not calling suspend here, because sensor can call it and stop the system from shutting down since it suspended itself
 //	main_imu_suspend(); // TODO: when the thread is suspended, its possibly suspending in the middle of an i2c transaction and this is bad. Instead sensor should be suspended at a different time
 	sensor_shutdown();
-	set_led(SYS_LED_PATTERN_OFF_FORCE, 0);
+	set_led(SYS_LED_PATTERN_OFF_FORCE, SYS_LED_PRIORITY_BOOT);
 	float actual_clock_rate;
 	set_sensor_clock(false, 0, &actual_clock_rate);
 	// Configure interrupts
@@ -236,16 +236,16 @@ static void power_thread(void)
 		connection_update_battery(battery_available, charging || charged || plugged, last_battery_pptt[15], battery_mV);
 
 		if (charging)
-			set_led(SYS_LED_PATTERN_PULSE_PERSIST, 3);
+			set_led(SYS_LED_PATTERN_PULSE_PERSIST, SYS_LED_PRIORITY_SYSTEM);
 		else if (charged)
-			set_led(SYS_LED_PATTERN_ON_PERSIST, 3);
+			set_led(SYS_LED_PATTERN_ON_PERSIST, SYS_LED_PRIORITY_SYSTEM);
 		else if (plugged)
-			set_led(SYS_LED_PATTERN_PULSE_PERSIST, 3);
+			set_led(SYS_LED_PATTERN_PULSE_PERSIST, SYS_LED_PRIORITY_SYSTEM);
 		else if (battery_low)
-			set_led(SYS_LED_PATTERN_LONG_PERSIST, 3);
+			set_led(SYS_LED_PATTERN_LONG_PERSIST, SYS_LED_PRIORITY_SYSTEM);
 		else
-			set_led(SYS_LED_PATTERN_ACTIVE_PERSIST, 3);
-//			set_led(SYS_LED_PATTERN_OFF, 3);
+			set_led(SYS_LED_PATTERN_ACTIVE_PERSIST, SYS_LED_PRIORITY_SYSTEM);
+//			set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SYSTEM);
 
 		k_msleep(100);
 	}

@@ -253,7 +253,7 @@ void esb_pair(void)
 		tx_payload_pair.data[0] = check; // Use int from device address to make sure packet is for this device
 		for (int i = 0; i < 6; i++)
 			tx_payload_pair.data[i + 2] = (addr >> (8 * i)) & 0xFF;
-		set_led(SYS_LED_PATTERN_SHORT, 2);
+		set_led(SYS_LED_PATTERN_SHORT, SYS_LED_PRIORITY_CONNECTION);
 		while (paired_addr[0] != check)
 		{
 			if (paired_addr[0])
@@ -267,10 +267,11 @@ void esb_pair(void)
 			esb_start_tx();
 			k_msleep(1000);
 		}
-		set_led(SYS_LED_PATTERN_OFF, 2);
+		set_led(SYS_LED_PATTERN_ONESHOT_PAIRED, SYS_LED_PRIORITY_CONNECTION);
 		LOG_INF("Paired");
 		sys_write(PAIRED_ID, retained.paired_addr, paired_addr, sizeof(paired_addr)); // Write new address and tracker id
 		esb_disable();
+		k_msleep(1500); // wait for led pattern
 	}
 	LOG_INF("Read pairing data");
 	LOG_INF("Check code: %02X", paired_addr[0]);
