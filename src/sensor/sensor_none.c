@@ -59,6 +59,24 @@ void imu_none_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 	return;
 }
 
+int imu_none_fifo_process_ext(uint16_t index, uint8_t *data, float g[3], float a[3], uint8_t *raw_m)
+{
+	LOG_DBG("imu_none_fifo_process_ext, sensor has no IMU or IMU has no ext FIFO");
+	return -1;
+}
+
+void imu_none_ext_read(const struct i2c_dt_spec *dev_i2c, uint8_t *raw_m)
+{
+	LOG_DBG("imu_none_ext_read, sensor has no IMU or IMU has no ext data register");
+	return;
+}
+
+int imu_none_ext_passthrough(const struct i2c_dt_spec *dev_i2c, bool passthrough)
+{
+	LOG_DBG("imu_none_ext_passthrough, sensor has no IMU or IMU has no ext passthrough");
+	return -1;
+}
+
 const sensor_imu_t sensor_imu_none = {
 	*imu_none_init,
 	*imu_none_shutdown,
@@ -71,7 +89,11 @@ const sensor_imu_t sensor_imu_none = {
 	*imu_none_gyro_read,
 	*imu_none_temp_read,
 
-	*imu_none_setup_WOM
+	*imu_none_setup_WOM,
+	
+	*imu_none_fifo_process_ext,
+	*imu_none_ext_read,
+	*imu_none_ext_passthrough
 };
 
 int mag_none_init(const struct i2c_dt_spec *dev_i2c, float time, float *actual_time)
@@ -110,6 +132,12 @@ float mag_none_temp_read(const struct i2c_dt_spec *dev_i2c)
 	return 0;
 }
 
+void mag_none_mag_process(uint8_t *raw_m, float m[3])
+{
+	LOG_DBG("mag_none_mag_process, sensor has no magnetometer");
+	return;
+}
+
 const sensor_mag_t sensor_mag_none = {
 	*mag_none_init,
 	*mag_none_shutdown,
@@ -118,5 +146,7 @@ const sensor_mag_t sensor_mag_none = {
 
 	*mag_none_mag_oneshot,
 	*mag_none_mag_read,
-	*mag_none_temp_read
+	*mag_none_temp_read,
+
+	*mag_none_mag_process
 };

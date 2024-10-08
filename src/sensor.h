@@ -63,8 +63,9 @@ typedef struct sensor_imu {
 
 	void (*setup_WOM)(const struct i2c_dt_spec*);
 	
-	int (*fifo_process_all)(uint16_t, uint8_t*, float[3], float[3], uint8_t*); // deg/s, m/s^2, raw magnetometer data
-	void (*mag_read)(const struct i2c_dt_spec*, uint8_t*); // raw data, to be processed in magnetometer driver
+	int (*fifo_process_ext)(uint16_t, uint8_t*, float[3], float[3], uint8_t*); // deg/s, m/s^2, raw magnetometer data
+	void (*ext_read)(const struct i2c_dt_spec*, uint8_t*); // raw data, to be processed in magnetometer driver
+	int (*ext_passthrough)(const struct i2c_dt_spec*, bool); // enable/disable passthrough mode, return 0 if success, -1 if error or not available
 } sensor_imu_t;
 
 typedef struct sensor_mag {

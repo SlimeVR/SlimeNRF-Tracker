@@ -16,6 +16,10 @@ float imu_none_temp_read(const struct i2c_dt_spec *dev_i2c);
 
 void imu_none_setup_WOM(const struct i2c_dt_spec *dev_i2c);
 
+int imu_none_fifo_process_ext(uint16_t index, uint8_t *data, float g[3], float a[3], uint8_t *raw_m);
+void imu_none_ext_read(const struct i2c_dt_spec *dev_i2c, uint8_t *raw_m);
+void imu_none_ext_passthrough(const struct i2c_dt_spec *dev_i2c, bool passthrough);
+
 extern const sensor_imu_t sensor_imu_none;
 
 int mag_none_init(const struct i2c_dt_spec *dev_i2c, float time, float *actual_time);
@@ -26,6 +30,8 @@ int mag_none_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *ac
 void mag_none_mag_oneshot(const struct i2c_dt_spec *dev_i2c);
 void mag_none_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3]);
 float mag_none_temp_read(const struct i2c_dt_spec *dev_i2c);
+
+void mag_none_mag_process(uint8_t *raw_m, float m[3]);
 
 extern const sensor_mag_t sensor_mag_none;
 
