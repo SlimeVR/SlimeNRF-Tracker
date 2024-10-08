@@ -62,6 +62,9 @@ typedef struct sensor_imu {
 	float (*temp_read)(const struct i2c_dt_spec*); // deg C
 
 	void (*setup_WOM)(const struct i2c_dt_spec*);
+	
+	int (*fifo_process_all)(uint16_t, uint8_t*, float[3], float[3], uint8_t*); // deg/s, m/s^2, raw magnetometer data
+	void (*mag_read)(const struct i2c_dt_spec*, uint8_t*); // raw data, to be processed in magnetometer driver
 } sensor_imu_t;
 
 typedef struct sensor_mag {
@@ -73,6 +76,8 @@ typedef struct sensor_mag {
 	void (*mag_oneshot)(const struct i2c_dt_spec*); // trigger oneshot if exists
 	void (*mag_read)(const struct i2c_dt_spec*, float[3]); // any unit
 	float (*temp_read)(const struct i2c_dt_spec*); // deg C
+
+	void (*mag_process)(uint8_t*, float[3]); // use if magnetometer is present as an auxiliary sensor, from data read by IMU
 } sensor_mag_t;
 
 #endif

@@ -76,6 +76,9 @@ static const sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion; // TODO: ch
 
 static const sensor_imu_t *sensor_imu = &sensor_imu_none;
 static const sensor_mag_t *sensor_mag = &sensor_mag_none;
+static const sensor_mag_t *sensor_mag_aux = &sensor_mag_none;
+static bool accel_in_fifo = false;
+static bool mag_in_fifo = false;
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
@@ -126,6 +129,9 @@ int sensor_init(void)
 		set_status(SYS_STATUS_SENSOR_ERROR, true);
 		return -1; // no IMU detected! something is very wrong
 	}
+
+	// IMU must support passthrough mode if the magnetometer is connected through the IMU instead of directly
+
 
 #if SENSOR_MAG_EXISTS
 	LOG_INF("Scanning bus for magnetometer");
