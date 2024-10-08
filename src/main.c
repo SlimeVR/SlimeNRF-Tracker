@@ -87,7 +87,8 @@ int main(void)
 // How long user shutdown take does not matter really ("0ms")
 #endif
 
-	set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_BOOT);
+	if (!booting_from_shutdown) // ONESHOT_POWERON automatically sets LED off
+		set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_BOOT);
 
 	switch (reset_mode)
 	{
