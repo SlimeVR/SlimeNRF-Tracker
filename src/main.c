@@ -116,9 +116,7 @@ int main(void)
 
 	esb_pair();
 
-	int err = esb_initialize();
-	if (err)
-		LOG_ERR("ESB initialization failed: %d", err);
+	esb_initialize(true);
 	//timer_init();
 // 1ms to start ESB
 

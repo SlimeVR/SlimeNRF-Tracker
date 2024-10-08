@@ -117,23 +117,40 @@ static uint8_t base_addr_0[4], base_addr_1[4], addr_prefix[8] = {0};
 
 static bool esb_initialized = false;
 
-int esb_initialize(void)
+int esb_initialize(bool tx)
 {
 	int err;
 
 	struct esb_config config = ESB_DEFAULT_CONFIG;
 
-	// config.protocol = ESB_PROTOCOL_ESB_DPL;
-	// config.mode = ESB_MODE_PTX;
-	config.event_handler = event_handler;
-	// config.bitrate = ESB_BITRATE_2MBPS;
-	// config.crc = ESB_CRC_16BIT;
-	config.tx_output_power = 4;
-	// config.retransmit_delay = 600;
-	//config.retransmit_count = 0;
-	//config.tx_mode = ESB_TXMODE_MANUAL;
-	// config.payload_length = 32;
-	config.selective_auto_ack = true;
+	if (tx)
+	{
+		// config.protocol = ESB_PROTOCOL_ESB_DPL;
+		// config.mode = ESB_MODE_PTX;
+		config.event_handler = event_handler;
+		// config.bitrate = ESB_BITRATE_2MBPS;
+		// config.crc = ESB_CRC_16BIT;
+		config.tx_output_power = 4;
+		// config.retransmit_delay = 600;
+		//config.retransmit_count = 0;
+		//config.tx_mode = ESB_TXMODE_MANUAL;
+		// config.payload_length = 32;
+		config.selective_auto_ack = true;
+	}
+	else
+	{
+		// config.protocol = ESB_PROTOCOL_ESB_DPL;
+		config.mode = ESB_MODE_PRX;
+		config.event_handler = event_handler;
+		// config.bitrate = ESB_BITRATE_2MBPS;
+		// config.crc = ESB_CRC_16BIT;
+		config.tx_output_power = 4;
+		// config.retransmit_delay = 600;
+		// config.retransmit_count = 3;
+		// config.tx_mode = ESB_TXMODE_AUTO;
+		// config.payload_length = 32;
+		config.selective_auto_ack = true;
+	}
 
 	// Fast startup mode
 	NRF_RADIO->MODECNF0 |= RADIO_MODECNF0_RU_Fast << RADIO_MODECNF0_RU_Pos;
@@ -141,64 +158,22 @@ int esb_initialize(void)
 
 	err = esb_init(&config);
 
-	if (err)
-		return err;
+	if (!err)
+		esb_set_base_address_0(base_addr_0);
 
-	err = esb_set_base_address_0(base_addr_0);
-	if (err)
-		return err;
+	if (!err)
+		esb_set_base_address_1(base_addr_1);
 
-	err = esb_set_base_address_1(base_addr_1);
-	if (err)
-		return err;
+	if (!err)
+		esb_set_prefixes(addr_prefix, ARRAY_SIZE(addr_prefix));
 
-	err = esb_set_prefixes(addr_prefix, ARRAY_SIZE(addr_prefix));
 	if (err)
+	{
+		LOG_ERR("ESB initialization failed: %d", err);
 		return err;
+	}
 
 	esb_initialized = true;
-	return 0;
-}
-
-int esb_initialize_rx(void)
-{
-	int err;
-
-	struct esb_config config = ESB_DEFAULT_CONFIG;
-
-	// config.protocol = ESB_PROTOCOL_ESB_DPL;
-	config.mode = ESB_MODE_PRX;
-	config.event_handler = event_handler;
-	// config.bitrate = ESB_BITRATE_2MBPS;
-	// config.crc = ESB_CRC_16BIT;
-	config.tx_output_power = 4;
-	// config.retransmit_delay = 600;
-	// config.retransmit_count = 3;
-	// config.tx_mode = ESB_TXMODE_AUTO;
-	// config.payload_length = 32;
-	config.selective_auto_ack = true;
-
-	// Fast startup mode
-	NRF_RADIO->MODECNF0 |= RADIO_MODECNF0_RU_Fast << RADIO_MODECNF0_RU_Pos;
-	// nrf_radio_modecnf0_set(NRF_RADIO, true, 0);
-
-	err = esb_init(&config);
-
-	if (err)
-		return err;
-
-	err = esb_set_base_address_0(base_addr_0);
-	if (err)
-		return err;
-
-	err = esb_set_base_address_1(base_addr_1);
-	if (err)
-		return err;
-
-	err = esb_set_prefixes(addr_prefix, ARRAY_SIZE(addr_prefix));
-	if (err)
-		return err;
-
 	return 0;
 }
 

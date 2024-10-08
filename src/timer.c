@@ -22,7 +22,7 @@ void timer_handler(nrf_timer_event_t event_type, void *p_context)
 		else
 		{
 			esb_disable();
-			esb_initialize_rx();
+			esb_initialize(false);
 			esb_start_rx();
 			esb_state = false;
 			nrfx_timer_pause(&m_timer);
@@ -33,7 +33,7 @@ void timer_handler(nrf_timer_event_t event_type, void *p_context)
 	else if (event_type == NRF_TIMER_EVENT_COMPARE2 && esb_state == true)
 	{
 		esb_disable();
-		esb_initialize_rx();
+		esb_initialize(false);
 		esb_start_rx();
 		esb_state = false;
 	}
@@ -41,7 +41,7 @@ void timer_handler(nrf_timer_event_t event_type, void *p_context)
 	{
 		esb_stop_rx();
 		esb_disable();
-		esb_initialize();
+		esb_initialize(true);
 		esb_state = true;
 	}
 }
