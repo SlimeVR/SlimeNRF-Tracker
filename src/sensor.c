@@ -111,6 +111,7 @@ int sensor_init(void)
 			LOG_ERR("IMU not supported");
 			sensor_imu = &sensor_imu_none;
 			sensor_sensor_scanning = false; // done
+			set_status(SYS_STATUS_SENSOR_ERROR, true);
 			return -1; // an IMU was detected but not supported
 		}
 		else
@@ -122,6 +123,7 @@ int sensor_init(void)
 	{
 		sensor_imu = &sensor_imu_none;
 		sensor_sensor_scanning = false; // done
+		set_status(SYS_STATUS_SENSOR_ERROR, true);
 		return -1; // no IMU detected! something is very wrong
 	}
 
@@ -162,6 +164,7 @@ int sensor_init(void)
 
 	sensor_sensor_init = true; // successfully initialized
 	sensor_sensor_scanning = false; // done
+	set_status(SYS_STATUS_SENSOR_ERROR, false); // clear error
 	return 0;
 }
 
@@ -444,7 +447,9 @@ void main_imu_thread(void)
 	main_running = true;
 	int err = main_imu_init(); // Initialize IMUs and Fusion
 	// TODO: handle imu init error, maybe restart device or flash led
-	if (!err)
+	if (err)
+		set_status(SYS_STATUS_SENSOR_ERROR, true); // TODO: only handles general init error
+	else
 		main_ok = true;
 	while (1)
 	{

@@ -14,6 +14,8 @@ bool send_data = false;
 uint16_t led_clock = 0;
 uint32_t led_clock_offset = 0;
 
+uint32_t tx_errors = 0;
+
 static struct esb_payload rx_payload;
 static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 														  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -29,8 +31,12 @@ void event_handler(struct esb_evt const *event)
 	switch (event->evt_id)
 	{
 	case ESB_EVENT_TX_SUCCESS:
+		tx_errors = 0;
+		set_status(SYS_STATUS_CONNECTION_ERROR, false);
 		break;
 	case ESB_EVENT_TX_FAILED:
+		if (++tx_errors > 100) // consecutive failure to transmit
+			set_status(SYS_STATUS_CONNECTION_ERROR, true);
 //		LOG_INF("TX FAILED");
 		LOG_DBG("TX FAILED");
 		break;
@@ -170,6 +176,7 @@ int esb_initialize(bool tx)
 	if (err)
 	{
 		LOG_ERR("ESB initialization failed: %d", err);
+		set_status(SYS_STATUS_CONNECTION_ERROR, true);
 		return err;
 	}
 
@@ -275,4 +282,9 @@ void esb_write(uint8_t *data)
 	esb_flush_tx(); // this will clear all transmissions even if they did not complete
 	esb_write_payload(&tx_payload); // Add transmission to queue
 	send_data = true;
+}
+
+bool esb_ready(void)
+{
+	return esb_initialized && esb_paired;
 }

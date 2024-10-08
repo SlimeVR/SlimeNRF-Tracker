@@ -134,6 +134,9 @@ void sys_request_WOM() // TODO: if IMU interrupt does not exist what does the sy
 {
 	LOG_INF("IMU wake up requested");
 #if IMU_INT_EXISTS
+	int64_t system_off_timeout = k_uptime_get() + 30000; // allow system off after 30 seconds if status errors are still active
+	while (k_uptime_get() < system_off_timeout && (!esb_ready() || !status_ready())) // Wait for esb to pair in case the user is still trying to pair the device
+		k_usleep(1);
 	configure_system_off(); // Common subsystem shutdown and prepare sense pins
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
@@ -199,6 +202,11 @@ static void power_thread(void)
 				LOG_INF("Battery %u%% (%dmV)", battery_pptt/100, battery_mV);
 			else
 				LOG_INF("Battery not available (%dmV)", battery_mV);
+			if (battery_mV < 100 || battery_mV > 6000) // abnormal reading
+			{
+				LOG_ERR("Battery voltage reading is abnormal");
+				set_status(SYS_STATUS_SYSTEM_ERROR, true);
+			}
 			set_regulator(SYS_REGULATOR_DCDC); // Switch to DCDC
 			power_init = true;
 		}

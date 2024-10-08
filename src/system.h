@@ -3,6 +3,7 @@
 
 #include "system/led.h"
 #include "system/power.h"
+#include "system/status.h"
 
 #define RBT_CNT_ID 1
 #define PAIRED_ID 2
