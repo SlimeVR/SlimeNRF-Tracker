@@ -224,7 +224,7 @@ void esb_pair(void)
 	{
 		LOG_INF("Pairing");
 		esb_set_addr_discovery();
-		esb_initialize();
+		esb_initialize(true);
 //		timer_init(); // TODO: shouldn't be here!!!
 		tx_payload_pair.noack = false;
 		uint64_t addr = (((uint64_t)(NRF_FICR->DEVICEADDR[1]) << 32) | NRF_FICR->DEVICEADDR[0]) & 0xFFFFFF; // Use device address as unique identifier (although it is not actually guaranteed, see datasheet)

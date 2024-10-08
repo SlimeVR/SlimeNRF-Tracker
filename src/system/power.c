@@ -4,6 +4,7 @@
 #include "..\connection.h"
 #include "..\system.h"
 #include "led.h"
+#include "..\esb.h"
 
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/sys/poweroff.h>
