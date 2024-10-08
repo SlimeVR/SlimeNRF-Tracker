@@ -1,5 +1,5 @@
-#ifndef sensor_none_h
-#define sensor_none_h
+#ifndef SLIMENRF_SENSOR_NONE
+#define SLIMENRF_SENSOR_NONE
 
 #include "../sensor.h"
 
@@ -18,7 +18,7 @@ void imu_none_setup_WOM(const struct i2c_dt_spec *dev_i2c);
 
 int imu_none_fifo_process_ext(uint16_t index, uint8_t *data, float g[3], float a[3], uint8_t *raw_m);
 void imu_none_ext_read(const struct i2c_dt_spec *dev_i2c, uint8_t *raw_m);
-void imu_none_ext_passthrough(const struct i2c_dt_spec *dev_i2c, bool passthrough);
+int imu_none_ext_passthrough(const struct i2c_dt_spec *dev_i2c, bool passthrough);
 
 extern const sensor_imu_t sensor_imu_none;
 

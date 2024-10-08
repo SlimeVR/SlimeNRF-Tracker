@@ -4,6 +4,7 @@
 #include <zephyr/drivers/i2c.h>
 
 #include "LIS2MDL.h"
+#include "LIS3MDL.h" // Common functions
 
 static const float sensitivity = 1.5 / 1000; // ~1.5 mgauss/LSB
 
@@ -115,11 +116,7 @@ void lis2_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 	err |= i2c_burst_read_dt(dev_i2c, LIS2MDL_OUTX_L_REG, &rawData[0], 6);
 	if (err)
 		LOG_ERR("I2C error");
-	for (int i = 0; i < 3; i++) // x, y, z
-	{
-		m[i] = (int16_t)((((int16_t)rawData[(i * 2) + 1]) << 8) | rawData[i * 2]);
-		m[i] *= sensitivity;
-	}
+	lis3_mag_process(rawData, m);
 }
 
 float lis2_temp_read(const struct i2c_dt_spec *dev_i2c)
@@ -145,5 +142,7 @@ const sensor_mag_t sensor_mag_lis2mdl = {
 
 	*lis2_mag_oneshot,
 	*lis2_mag_read,
-	*lis2_temp_read
+	*lis2_temp_read,
+
+	*lis3_mag_process
 };

@@ -197,10 +197,15 @@ void bmm1_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 	err |= i2c_burst_read_dt(dev_i2c, BMM150_DATAX_LSB, &rawData[0], 8);
 	if (err)
 		LOG_ERR("I2C error");
+	bmm1_mag_process(rawData, m);
+}
+
+void bmm1_mag_process(uint8_t *raw_m, float m[3])
+{
 	int16_t mag[3] = {0};
 	for (int i = 0; i < 3; i++) // x, y, z
-		mag[i] = (int16_t)((((int16_t)rawData[(i * 2) + 1]) << 8) | (rawData[i * 2] & 0xFE)) / (i < 2 ? 8 : 2);
-	uint16_t rhall = (uint16_t)((((uint16_t)rawData[7]) << 6) | (rawData[6] >> 2));
+		mag[i] = (int16_t)((((int16_t)raw_m[(i * 2) + 1]) << 8) | (raw_m[i * 2] & 0xFE)) / (i < 2 ? 8 : 2);
+	uint16_t rhall = (uint16_t)((((uint16_t)raw_m[7]) << 6) | (raw_m[6] >> 2));
 	m[0] = compensate_x(mag[0], rhall) / 100; // uT to gauss
 	m[1] = compensate_y(mag[1], rhall) / 100;
 	m[2] = compensate_z(mag[2], rhall) / 100;
@@ -304,5 +309,7 @@ const sensor_mag_t sensor_mag_bmm150 = {
 
 	*bmm1_mag_oneshot,
 	*bmm1_mag_read,
-	*mag_none_temp_read
+	*mag_none_temp_read,
+
+	*bmm1_mag_process
 };

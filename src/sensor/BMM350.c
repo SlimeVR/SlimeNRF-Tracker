@@ -195,11 +195,7 @@ void bmm3_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 	err |= i2c_burst_read_dt(dev_i2c, BMM350_MAG_X_XLSB, &rawData[0], 9);
 	if (err)
 		LOG_ERR("I2C error");
-	for (int i = 0; i < 3; i++) // x, y, z
-	{
-		m[i] = (int32_t)((((int32_t)rawData[(i * 3) + 2]) << 24) | (((int32_t)rawData[(i * 3) + 1]) << 16) | (((int32_t)rawData[i * 3]) << 8)) / 256;
-		m[i] *= i < 2 ? sensitivity_xy : sensitivity_z;
-	}
+	bmm3_mag_process(rawData, m);
 }
 
 float bmm3_temp_read(const struct i2c_dt_spec *dev_i2c)
@@ -218,6 +214,15 @@ float bmm3_temp_read(const struct i2c_dt_spec *dev_i2c)
 	return temp;
 }
 
+void bmm3_mag_process(uint8_t *raw_m, float m[3])
+{
+	for (int i = 0; i < 3; i++) // x, y, z
+	{
+		m[i] = (int32_t)((((int32_t)raw_m[(i * 3) + 2]) << 24) | (((int32_t)raw_m[(i * 3) + 1]) << 16) | (((int32_t)raw_m[i * 3]) << 8)) / 256;
+		m[i] *= i < 2 ? sensitivity_xy : sensitivity_z;
+	}
+}
+
 // TODO: from BMM350_SensorAPI, add otp_dump_after_boot and update_mag_off_sens
 
 const sensor_mag_t sensor_mag_bmm350 = {
@@ -228,5 +233,7 @@ const sensor_mag_t sensor_mag_bmm350 = {
 
 	*bmm3_mag_oneshot,
 	*bmm3_mag_read,
-	*bmm3_temp_read
+	*bmm3_temp_read,
+
+	*bmm3_mag_process
 };

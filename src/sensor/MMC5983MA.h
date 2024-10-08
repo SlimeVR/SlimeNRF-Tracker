@@ -57,6 +57,8 @@ void mmc_mag_oneshot(const struct i2c_dt_spec *dev_i2c);
 void mmc_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3]);
 float mmc_temp_read(const struct i2c_dt_spec *dev_i2c);
 
+void mmc_mag_process(uint8_t *raw_m, float m[3]);
+
 extern const sensor_mag_t sensor_mag_mmc5983ma;
 
 #endif

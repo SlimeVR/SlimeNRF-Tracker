@@ -4,6 +4,7 @@
 #include <zephyr/kernel.h>
 
 #include "sensor_none.h"
+#include "sensor_ext.h"
 
 #include "BMI270.h"
 #include "ICM42688.h"

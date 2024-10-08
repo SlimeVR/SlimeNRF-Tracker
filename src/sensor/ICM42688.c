@@ -14,6 +14,7 @@
 #include <zephyr/drivers/i2c.h>
 
 #include "ICM42688.h"
+#include "sensor_none.h"
 
 static const float accel_sensitivity = 16.0f / 32768.0f; // Always 16G
 static const float gyro_sensitivity = 2000.0f / 32768.0f; // Always 2000dps
@@ -378,5 +379,9 @@ const sensor_imu_t sensor_imu_icm42688 = {
 	*icm_gyro_read,
 	*icm_temp_read,
 
-	*icm_setup_WOM
+	*icm_setup_WOM,
+	
+	*imu_none_fifo_process_ext,
+	*imu_none_ext_read,
+	*imu_none_ext_passthrough
 };

@@ -76,9 +76,7 @@ static const sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion; // TODO: ch
 
 static const sensor_imu_t *sensor_imu = &sensor_imu_none;
 static const sensor_mag_t *sensor_mag = &sensor_mag_none;
-static const sensor_mag_t *sensor_mag_aux = &sensor_mag_none;
-static bool accel_in_fifo = false;
-static bool mag_in_fifo = false;
+static bool use_ext_fifo = false;
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
@@ -130,12 +128,26 @@ int sensor_init(void)
 		return -1; // no IMU detected! something is very wrong
 	}
 
-	// IMU must support passthrough mode if the magnetometer is connected through the IMU instead of directly
-
-
 #if SENSOR_MAG_EXISTS
 	LOG_INF("Scanning bus for magnetometer");
 	int mag_id = sensor_scan_mag(&sensor_mag_dev, &sensor_mag_dev_reg);
+	if (mag_id < 0)
+	{
+		// IMU must support passthrough mode if the magnetometer is connected through the IMU instead of directly
+		int err = (*sensor_imu->ext_passthrough)(&sensor_imu_dev, true);
+		if (!err)
+		{
+			LOG_INF("Scanning bus for magnetometer through IMU passthrough");
+			mag_id = sensor_scan_mag(&sensor_mag_dev, &sensor_mag_dev_reg);
+			if (mag_id >= 0)
+				use_ext_fifo = true;
+		}
+		(*sensor_imu->ext_passthrough)(&sensor_imu_dev, false);
+	}
+	else
+	{
+		use_ext_fifo = false;
+	}
 #else
 	LOG_WRN("Magnetometer node does not exist");
 	int mag_id = -1;
@@ -164,6 +176,11 @@ int sensor_init(void)
 	{
 		sensor_mag = &sensor_mag_none; 
 		mag_available = false; // marked as not available
+	}
+	if (use_ext_fifo)
+	{
+		mag_ext_setup(sensor_imu, sensor_mag);
+		sensor_mag = &sensor_mag_ext;
 	}
 
 	sensor_scan_write();
@@ -247,7 +264,7 @@ void sensor_shutdown(void) // Communicate all imus to shut down
 		LOG_ERR("Failed to shutdown sensors");
 	if (mag_available)
 		(*sensor_mag->shutdown)(&sensor_mag_dev);
-};
+}
 
 void sensor_setup_WOM(void)
 {

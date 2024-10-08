@@ -45,6 +45,8 @@ void bmm3_mag_oneshot(const struct i2c_dt_spec *dev_i2c);
 void bmm3_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3]);
 float bmm3_temp_read(const struct i2c_dt_spec *dev_i2c);
 
+void bmm3_mag_process(uint8_t *raw_m, float m[3]);
+
 extern const sensor_mag_t sensor_mag_bmm350;
 
 #endif
