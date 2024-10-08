@@ -244,7 +244,7 @@ void lsm6dso_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL1, DSO_ODR_208Hz | DSO_FS_XL_8G); // set accel ODR and FS
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL6, DSO_OP_MODE_XL_NP); // set accel perf mode
-	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL5, 0x80); // enable accel ULP
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL5, 0x80); // enable accel ULP // TODO: for LSM6DSR this bit may be required to be 0
 	if (err)
 		LOG_ERR("I2C error");
 }
