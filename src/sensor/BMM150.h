@@ -39,7 +39,6 @@ int bmm1_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual
 
 void bmm1_mag_oneshot(const struct i2c_dt_spec *dev_i2c);
 void bmm1_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3]);
-float bmm1_temp_read(const struct i2c_dt_spec *dev_i2c);
 
 extern const sensor_mag_t sensor_mag_bmm150;
 

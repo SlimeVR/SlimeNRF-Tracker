@@ -37,6 +37,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <zephyr/drivers/i2c.h>
 
 #include "BMM150.h"
+#include "sensor_none.h"
 
 // Annoyingly, chip id cannot be read unless the BMM150 power control is enabled
 // In sensor_scan power control is enabled first to read chip id
@@ -205,11 +206,6 @@ void bmm1_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 	m[2] = compensate_z(mag[2], rhall) / 100;
 }
 
-float bmm1_temp_read(const struct i2c_dt_spec *dev_i2c)
-{
-	return 0; // no way to get temperature
-}
-
 // from boschsensortec BMM150_SensorAPI
 static int read_trim_registers(const struct i2c_dt_spec *dev_i2c)
 {
@@ -308,5 +304,5 @@ const sensor_mag_t sensor_mag_bmm150 = {
 
 	*bmm1_mag_oneshot,
 	*bmm1_mag_read,
-	*bmm1_temp_read
+	*mag_none_temp_read
 };
