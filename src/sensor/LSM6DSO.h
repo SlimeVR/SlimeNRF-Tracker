@@ -62,6 +62,8 @@ uint16_t lsm6dso_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data);
 
 void lsm6dso_setup_WOM(const struct i2c_dt_spec *dev_i2c);
 
+int lsm6dso_ext_setup(uint8_t ext_addr, uint8_t ext_reg);
+
 extern const sensor_imu_t sensor_imu_lsm6dso;
 
 #endif

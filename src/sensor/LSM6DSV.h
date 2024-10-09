@@ -26,6 +26,14 @@
 
 #define LSM6DSV_FIFO_DATA_OUT_TAG          0x78
 
+// Sensor Hub
+#define LSM6DSV_FUNC_CFG_ACCESS            0x01
+#define LSM6DSV_SENSOR_HUB_1               0x02
+#define LSM6DSV_MASTER_CONFIG              0x14
+#define LSM6DSV_SLV0_ADD                   0x15
+#define LSM6DSV_SLV0_SUBADD                0x16
+#define LSM6DSV_SLV0_CONFIG                0x17
+
 // Same for XL and G
 #define ODR_OFF     0x00
 #define ODR_1_875Hz 0x01
@@ -78,6 +86,13 @@ void lsm_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3]);
 float lsm_temp_read(const struct i2c_dt_spec *dev_i2c);
 
 void lsm_setup_WOM(const struct i2c_dt_spec *dev_i2c);
+
+int lsm_ext_setup(uint8_t ext_addr, uint8_t ext_reg);
+int lsm_fifo_process_ext(uint16_t index, uint8_t *data, float g[3], float a[3], uint8_t *raw_m);
+void lsm_ext_read(const struct i2c_dt_spec *dev_i2c, uint8_t *raw_m);
+int lsm_ext_passthrough(const struct i2c_dt_spec *dev_i2c, bool passthrough);
+
+int lsm_ext_init(const struct i2c_dt_spec *dev_i2c, uint8_t ext_addr, uint8_t ext_reg);
 
 extern const sensor_imu_t sensor_imu_lsm6dsv;
 

@@ -11,6 +11,10 @@ static uint8_t last_gyro_mode = 0xff;
 static uint8_t last_accel_odr = 0xff;
 static uint8_t last_gyro_odr = 0xff;
 
+static uint8_t ext_addr = 0xff;
+static uint8_t ext_reg = 0xff;
+static bool use_ext_fifo = false;
+
 LOG_MODULE_REGISTER(LSM6DSO, LOG_LEVEL_DBG);
 
 int lsm6dso_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
@@ -25,6 +29,8 @@ int lsm6dso_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float acce
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_FIFO_CTRL4, 0x01); // enable FIFO mode
 	if (err)
 		LOG_ERR("I2C error");
+	if (use_ext_fifo)
+		err |= lsm_ext_init(dev_i2c, ext_addr, ext_reg);
 	return (err < 0 ? err : 0);
 }
 
@@ -209,7 +215,7 @@ int lsm6dso_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, floa
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL7, OP_MODE_G); // set gyroscope perf mode
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_CTRL4, GYRO_SLEEP); // set gyroscope awake/sleep mode
 
-	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_FIFO_CTRL3, ODR_G); // set accel Not batched, set gyro batch rate
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_FIFO_CTRL3, (use_ext_fifo ? ODR_XL : 0x00) >> 4 | ODR_G); // set accel Not batched, set gyro batch rate
 	if (err)
 		LOG_ERR("I2C error");
 
@@ -250,6 +256,22 @@ void lsm6dso_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 		LOG_ERR("I2C error");
 }
 
+int lsm6dso_ext_setup(uint8_t addr, uint8_t reg)
+{
+	ext_addr = addr;
+	ext_reg = reg;
+	if (addr != 0xff && addr != 0xff)
+	{
+		use_ext_fifo = true;
+		return 0;
+	}
+	else
+	{
+		use_ext_fifo = false;
+		return 1;
+	}
+}
+
 const sensor_imu_t sensor_imu_lsm6dso = {
 	*lsm6dso_init,
 	*lsm6dso_shutdown,
@@ -262,5 +284,10 @@ const sensor_imu_t sensor_imu_lsm6dso = {
 	*lsm_gyro_read,
 	*lsm_temp_read,
 
-	*lsm6dso_setup_WOM
+	*lsm6dso_setup_WOM,
+	
+	*lsm6dso_ext_setup,
+	*lsm_fifo_process_ext,
+	*lsm_ext_read,
+	*lsm_ext_passthrough
 };

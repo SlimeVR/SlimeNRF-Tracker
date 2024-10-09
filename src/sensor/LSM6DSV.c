@@ -13,6 +13,10 @@ static uint8_t last_gyro_mode = 0xff;
 static uint8_t last_accel_odr = 0xff;
 static uint8_t last_gyro_odr = 0xff;
 
+static uint8_t ext_addr = 0xff;
+static uint8_t ext_reg = 0xff;
+static bool use_ext_fifo = false;
+
 LOG_MODULE_REGISTER(LSM6DSV, LOG_LEVEL_DBG);
 
 int lsm_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
@@ -28,6 +32,8 @@ int lsm_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_ti
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_FIFO_CTRL4, 0x01); // enable FIFO mode
 	if (err)
 		LOG_ERR("I2C error");
+	if (use_ext_fifo)
+		err |= lsm_ext_init(dev_i2c, ext_addr, ext_reg);
 	return (err < 0 ? err : 0);
 }
 
@@ -222,7 +228,7 @@ int lsm_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gy
 	int err = i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL1, OP_MODE_XL << 4 | ODR_XL); // set accel ODR and mode
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL2, OP_MODE_G << 4 | ODR_G); // set gyro ODR and mode
 
-	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_FIFO_CTRL3, 0x00 << 0 | ODR_G << 4); // set accel Not batched, set gyro batch rate
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_FIFO_CTRL3, (use_ext_fifo ? ODR_XL : 0x00) << 0 | ODR_G << 4); // set accel Not batched, set gyro batch rate
 	if (err)
 		LOG_ERR("I2C error");
 
@@ -315,6 +321,75 @@ void lsm_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 		LOG_ERR("I2C error");
 }
 
+int lsm_ext_setup(uint8_t addr, uint8_t reg)
+{
+	ext_addr = addr;
+	ext_reg = reg;
+	if (addr != 0xff && addr != 0xff)
+	{
+		use_ext_fifo = true;
+		return 0;
+	}
+	else
+	{
+		use_ext_fifo = false;
+		return 1;
+	}
+}
+
+int lsm_fifo_process_ext(uint16_t index, uint8_t *data, float g[3], float a[3], uint8_t *raw_m)
+{
+	if (!lsm_fifo_process(index, data, g)) // try processing gyro first
+		return 0;
+	index *= 7; // Packet size 7 bytes
+	if ((data[index] >> 3) == 0x02)
+	{
+		for (int i = 0; i < 3; i++) // x, y, z
+		{
+			a[i] = (int16_t)((((int16_t)data[index + (i * 2) + 2]) << 8) | data[index + (i * 2) + 1]);
+			a[i] *= accel_sensitivity;
+		}
+		return 0;
+	}
+	if ((data[index] >> 3) == 0x0E)
+	{
+		memcpy(raw_m, &data[index + 1], 6);
+		return 0;
+	}
+	// TODO: need to skip invalid data
+	return 1;
+}
+
+void lsm_ext_read(const struct i2c_dt_spec *dev_i2c, uint8_t *raw_m)
+{
+	int err = i2c_burst_read_dt(dev_i2c, LSM6DSV_SENSOR_HUB_1, raw_m, 6);
+	if (err)
+		LOG_ERR("I2C error");
+}
+
+int lsm_ext_passthrough(const struct i2c_dt_spec *dev_i2c, bool passthrough)
+{
+	int err = i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_FUNC_CFG_ACCESS, 0x40); // switch to sensor hub registers
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_MASTER_CONFIG, passthrough ? 0x34 : 0x24); // toggle passthrough (trigger from INT2, MASTER_ON)
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_FUNC_CFG_ACCESS, 0x00); // switch to normal registers
+	if (err)
+		LOG_ERR("I2C error");
+	return 0;
+}
+
+int lsm_ext_init(const struct i2c_dt_spec *dev_i2c, uint8_t ext_addr, uint8_t ext_reg)
+{
+	int err = i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_FUNC_CFG_ACCESS, 0x80); // enable sensor hub
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_MASTER_CONFIG, 0x24); // trigger from INT2, MASTER_ON
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_SLV0_ADD, (ext_addr << 1) | 0x01); // set external address, read mode
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_SLV0_SUBADD, ext_reg); // set external register
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_SLV0_CONFIG, 0x08 | 0x06); // enable external sensor fifo and set 6 read operations
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_FUNC_CFG_ACCESS, 0x00); // switch to normal registers
+	if (err)
+		LOG_ERR("I2C error");
+	return err;
+}
+
 const sensor_imu_t sensor_imu_lsm6dsv = {
 	*lsm_init,
 	*lsm_shutdown,
@@ -327,5 +402,10 @@ const sensor_imu_t sensor_imu_lsm6dsv = {
 	*lsm_gyro_read,
 	*lsm_temp_read,
 
-	*lsm_setup_WOM
+	*lsm_setup_WOM,
+	
+	*lsm_ext_setup,
+	*lsm_fifo_process_ext,
+	*lsm_ext_read,
+	*lsm_ext_passthrough
 };
