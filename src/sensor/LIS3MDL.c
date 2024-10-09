@@ -205,5 +205,6 @@ const sensor_mag_t sensor_mag_lis3mdl = {
 	*lis3_mag_read,
 	*lis3_temp_read,
 
-	*lis3_mag_process
+	*lis3_mag_process,
+	LIS3MDL_OUT_X_L
 };

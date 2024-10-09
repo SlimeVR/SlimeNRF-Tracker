@@ -9,10 +9,12 @@ static const sensor_mag_t *ext_mag = &sensor_mag_none;
 
 LOG_MODULE_REGISTER(sensor_ext, LOG_LEVEL_INF);
 
-void mag_ext_setup(const sensor_imu_t *imu, const sensor_mag_t *mag)
+int mag_ext_setup(const sensor_imu_t *imu, const sensor_mag_t *mag, uint8_t addr)
 {
 	ext_imu = imu;
 	ext_mag = mag;
+	uint8_t reg = ext_mag->ext_reg;
+	return (*ext_imu->ext_setup)(addr, reg);
 }
 
 int mag_ext_init(const struct i2c_dt_spec *dev_i2c, float time, float *actual_time)

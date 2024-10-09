@@ -179,8 +179,19 @@ int sensor_init(void)
 	}
 	if (use_ext_fifo)
 	{
-		mag_ext_setup(sensor_imu, sensor_mag);
-		sensor_mag = &sensor_mag_ext;
+		int err = mag_ext_setup(sensor_imu, sensor_mag, sensor_mag_dev.addr);
+		if (err)
+		{
+			LOG_ERR("Magnetometer not supported by external interface");
+			sensor_mag = &sensor_mag_none;
+			mag_available = false;
+		}
+		else
+		{
+			sensor_mag = &sensor_mag_ext;
+			mag_available = true;
+		}
+		
 	}
 
 	sensor_scan_write();

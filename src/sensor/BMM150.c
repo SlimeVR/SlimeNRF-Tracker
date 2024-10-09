@@ -311,5 +311,6 @@ const sensor_mag_t sensor_mag_bmm150 = {
 	*bmm1_mag_read,
 	*mag_none_temp_read,
 
-	*bmm1_mag_process
+	*bmm1_mag_process,
+	BMM150_DATAX_LSB // Note, rhall does not get read by limited external interface
 };
