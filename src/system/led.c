@@ -52,7 +52,7 @@ void set_led(enum sys_led_pattern led_pattern, int priority)
 		led_pattern = led_patterns[i];
 		break;
 	}
-	if (led_pattern == current_led_pattern)
+	if (led_pattern == current_led_pattern && led_pattern > SYS_LED_PATTERN_OFF)
 		return;
 	current_led_pattern = led_pattern;
 	led_pattern_state = 0;
