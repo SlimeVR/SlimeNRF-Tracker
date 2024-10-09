@@ -38,7 +38,7 @@ int main(void)
 #endif
 
 	uint8_t reboot_counter = reboot_counter_read();
-	bool booting_from_shutdown = !reboot_counter; // 0 means from user shutdown or failed ram validation;
+	bool booting_from_shutdown = !reboot_counter && (reset_pin_reset || button_read()); // 0 means from user shutdown or failed ram validation
 
 	if (booting_from_shutdown)
 		set_led(SYS_LED_PATTERN_ONESHOT_POWERON, SYS_LED_PRIORITY_BOOT);
