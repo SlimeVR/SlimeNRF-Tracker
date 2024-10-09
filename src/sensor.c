@@ -574,7 +574,7 @@ void main_imu_thread(void)
 				float g[3] = {0};
 				float m[] = {SENSOR_MAGNETOMETER_AXES_ALIGNMENT};
 				max_gyro_speed_square = 0;
-				for (uint16_t i = 0; i < packets; i++)
+				for (uint16_t i = 0; i < packets; i++) // TODO: fifo_process_ext is available, need to implement it
 				{
 					float raw_g[3];
 					if ((*sensor_imu->fifo_process)(i, rawData, raw_g))
