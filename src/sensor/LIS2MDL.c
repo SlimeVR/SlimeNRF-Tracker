@@ -116,7 +116,7 @@ void lis2_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 	err |= i2c_burst_read_dt(dev_i2c, LIS2MDL_OUTX_L_REG, &rawData[0], 6);
 	if (err)
 		LOG_ERR("I2C error");
-	lis3_mag_process(rawData, m);
+	lis2_mag_process(rawData, m);
 }
 
 float lis2_temp_read(const struct i2c_dt_spec *dev_i2c)
@@ -134,6 +134,15 @@ float lis2_temp_read(const struct i2c_dt_spec *dev_i2c)
 	return temp;
 }
 
+void lis2_mag_process(uint8_t *raw_m, float m[3])
+{
+	for (int i = 0; i < 3; i++) // x, y, z
+	{
+		m[i] = (int16_t)((((int16_t)raw_m[(i * 2) + 1]) << 8) | raw_m[i * 2]);
+		m[i] *= sensitivity;
+	}
+}
+
 const sensor_mag_t sensor_mag_lis2mdl = {
 	*lis2_init,
 	*lis2_shutdown,
@@ -144,6 +153,6 @@ const sensor_mag_t sensor_mag_lis2mdl = {
 	*lis2_mag_read,
 	*lis2_temp_read,
 
-	*lis3_mag_process,
+	*lis2_mag_process,
 	LIS2MDL_OUTX_L_REG
 };
