@@ -31,11 +31,12 @@ void event_handler(struct esb_evt const *event)
 	switch (event->evt_id)
 	{
 	case ESB_EVENT_TX_SUCCESS:
+		if (tx_errors >= 100)
+			set_status(SYS_STATUS_CONNECTION_ERROR, false);
 		tx_errors = 0;
-		set_status(SYS_STATUS_CONNECTION_ERROR, false);
 		break;
 	case ESB_EVENT_TX_FAILED:
-		if (++tx_errors > 100) // consecutive failure to transmit
+		if (++tx_errors == 100) // consecutive failure to transmit
 			set_status(SYS_STATUS_CONNECTION_ERROR, true);
 //		LOG_INF("TX FAILED");
 		LOG_DBG("TX FAILED");
