@@ -11,6 +11,8 @@
 #define MAIN_GYRO_BIAS_ID 4
 #define MAIN_MAG_BIAS_ID 5
 
+void configure_sense_pins(void);
+
 uint8_t reboot_counter_read(void);
 void reboot_counter_write(uint8_t reboot_counter);
 

@@ -60,41 +60,6 @@ static const struct gpio_dt_spec ldo_en = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, ldo
 // TODO: usually charging, i would flash LED but that will drain the battery while it is charging..
 // TODO: should not really shut off while plugged in
 
-static void configure_sense_pins(void)
-{
-	// Configure dock interrupt
-#if DOCK_EXISTS
-	if (dock_read())
-	{
-		nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_NOPULL); // Still works
-		nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_HIGH);
-	}
-	else
-	{
-		nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_PULLUP); // Still works
-		nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, dock_gpios), NRF_GPIO_PIN_SENSE_LOW);
-	}
-	LOG_INF("Configured dock interrupt");
-#endif
-	// Configure chgstat interrupt
-#if CHG_EXISTS
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), NRF_GPIO_PIN_PULLUP);
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, chg_gpios), chg_read() ? NRF_GPIO_PIN_SENSE_HIGH : NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured chg interrupt");
-#endif
-#if STBY_EXISTS
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), NRF_GPIO_PIN_PULLUP);
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, stby_gpios), stby_read() ? NRF_GPIO_PIN_SENSE_HIGH : NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured stby interrupt");
-#endif
-	// Configure sw0 interrupt
-#if BUTTON_EXISTS // Alternate button if available to use as "reset key"
-	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_PULLUP);
-	nrf_gpio_cfg_sense_set(NRF_DT_GPIOS_TO_PSEL(DT_ALIAS(sw0), gpios), NRF_GPIO_PIN_SENSE_LOW);
-	LOG_INF("Configured sw0 interrupt");
-#endif
-}
-
 static void configure_system_off(void)
 {
 	// TODO: not calling suspend here, because sensor can call it and stop the system from shutting down since it suspended itself
