@@ -17,6 +17,7 @@
 void q_normalize(const float *q, float *out);
 void q_multiply(const float *x, const float *y, float *out);
 void q_conj(const float *q, float *out);
+void q_negate(const float *q, float *out);
 float q_diff_mag(const float *x, const float *y);
 float v_diff_mag(const float *a, const float *b);
 bool q_epsilon(const float *x, const float *y, float eps);

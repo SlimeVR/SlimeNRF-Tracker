@@ -28,6 +28,14 @@ void q_conj(const float *q, float *out)
 	out[3] = -q[3];
 }
 
+void q_negate(const float *q, float *out)
+{
+	out[0] = -q[0];
+	out[1] = -q[1];
+	out[2] = -q[2];
+	out[3] = -q[3];
+}
+
 float q_diff_mag(const float *x, const float *y)
 {
 	float z[4];
