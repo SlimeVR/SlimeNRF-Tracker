@@ -361,7 +361,7 @@ void icm_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 	k_busy_wait(1000);
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_INT_SOURCE1, 0x07); // enable WOM interrupt
-	k_busy_wait(50000);
+	k_busy_wait(50000); // TODO: does this need to be 50ms?
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_SMD_CONFIG, 0x01); // enable WOM feature
 	if (err)
 		LOG_ERR("I2C error");
