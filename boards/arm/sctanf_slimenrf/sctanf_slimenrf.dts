@@ -47,7 +47,6 @@
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &slot0_partition;
-		zephyr,console = &cdc_acm_uart;
 	};
 
 	pwmleds {
@@ -154,7 +153,7 @@
 zephyr_udc0: &usbd {
 	compatible = "nordic,nrf-usbd";
 	status = "disabled";
-	cdc_acm_uart: cdc_acm_uart {
+	cdc_acm_uart0: cdc_acm_uart0 {
 		compatible = "zephyr,cdc-acm-uart";
 	};
 };
