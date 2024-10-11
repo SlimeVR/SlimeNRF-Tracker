@@ -355,7 +355,7 @@ void icm_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_INTF_CONFIG1, 0x00); // set low power clock
 	k_busy_wait(1000);
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_REG_BANK_SEL, 0x04); // select register bank 4
-	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_ACCEL_WOM_X_THR, 0x08); // set wake thresholds // 80 x 3.9 mg is ~312 mg
+	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_ACCEL_WOM_X_THR, 0x08); // set wake thresholds // 8 x 3.9 mg is ~31.25 mg
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_ACCEL_WOM_Y_THR, 0x08); // set wake thresholds
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_ACCEL_WOM_Z_THR, 0x08); // set wake thresholds
 	k_busy_wait(1000);
