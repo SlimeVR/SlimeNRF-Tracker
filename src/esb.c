@@ -42,7 +42,7 @@ void event_handler(struct esb_evt const *event)
 		LOG_DBG("TX FAILED");
 		break;
 	case ESB_EVENT_RX_RECEIVED:
-		if (esb_read_rx_payload(&rx_payload))
+		if (!esb_read_rx_payload(&rx_payload)) // zero, rx success
 		{
 			if (!paired_addr[0]) // zero, not paired
 			{
