@@ -44,7 +44,11 @@ void vqf_update_accel(float *a, float time)
 {
 	// TODO: time unused?
 	// TODO: how to handle change in sample rate
-	updateAcc(&params, &state, &coeffs, a);
+	float a_m_s2[3] = {0};
+	// a is in g, convert to m/s^2
+	for (int i = 0; i < 3; i++)
+		a_m_s2[i] = a[i] * CONST_EARTH_GRAVITY;
+	updateAcc(&params, &state, &coeffs, a_m_s2);
 }
 
 void vqf_update(float *g, float *a, float *m, float time)
@@ -53,10 +57,14 @@ void vqf_update(float *g, float *a, float *m, float time)
 	// g is in deg/s, convert to rad/s
 	for (int i = 0; i < 3; i++)
 		g_rad[i] = g[i] * DEG_TO_RAD;
+	float a_m_s2[3] = {0};
+	// a is in g, convert to m/s^2
+	for (int i = 0; i < 3; i++)
+		a_m_s2[i] = a[i] * CONST_EARTH_GRAVITY;
 	// TODO: time unused?
 	// TODO: gyro is a different rate to the others, should they be separated
 	updateGyr(&params, &state, &coeffs, g_rad);
-	updateAcc(&params, &state, &coeffs, a);
+	updateAcc(&params, &state, &coeffs, a_m_s2);
 	updateMag(&params, &state, &coeffs, m);
 }
 

@@ -57,14 +57,14 @@ typedef struct sensor_imu {
 
 	uint16_t (*fifo_read)(const struct i2c_dt_spec*, uint8_t*);
 	int (*fifo_process)(uint16_t, uint8_t*, float[3]); // deg/s TODO: is support accel needed?
-	void (*accel_read)(const struct i2c_dt_spec*, float[3]); // m/s^2
+	void (*accel_read)(const struct i2c_dt_spec*, float[3]); // g
 	void (*gyro_read)(const struct i2c_dt_spec*, float[3]); // deg/s
 	float (*temp_read)(const struct i2c_dt_spec*); // deg C
 
 	void (*setup_WOM)(const struct i2c_dt_spec*);
 
 	int (*ext_setup)(uint8_t, uint8_t); // setup external magnetometer
-	int (*fifo_process_ext)(uint16_t, uint8_t*, float[3], float[3], uint8_t*); // deg/s, m/s^2, raw magnetometer data
+	int (*fifo_process_ext)(uint16_t, uint8_t*, float[3], float[3], uint8_t*); // deg/s, g, raw magnetometer data
 	void (*ext_read)(const struct i2c_dt_spec*, uint8_t*); // raw data, to be processed in magnetometer driver
 	int (*ext_passthrough)(const struct i2c_dt_spec*, bool); // enable/disable passthrough mode, return 0 if success, -1 if error or not available
 } sensor_imu_t;
