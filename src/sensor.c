@@ -107,7 +107,7 @@ int sensor_init(void)
 		LOG_INF("Found %s", dev_imu_names[imu_id]);
 	if (imu_id >= 0)
 	{
-		if (imu_id >= (int)(sizeof(sensor_imus) / sizeof(sensor_imus[0])) || sensor_imus[imu_id] == NULL)
+		if (imu_id >= (int)(sizeof(sensor_imus) / sizeof(sensor_imus[0])) || sensor_imus[imu_id] == NULL || sensor_imus[imu_id] == &sensor_imu_none)
 		{
 			LOG_ERR("IMU not supported");
 			sensor_imu = &sensor_imu_none;
@@ -160,7 +160,7 @@ int sensor_init(void)
 		LOG_INF("Found %s", dev_mag_names[mag_id]);
 	if (mag_id >= 0) // if there is no magnetometer we do not care as much
 	{
-		if (mag_id >= (int)(sizeof(dev_mag_names) / sizeof(dev_mag_names[0])) || sensor_mags[mag_id] == NULL)
+		if (mag_id >= (int)(sizeof(dev_mag_names) / sizeof(dev_mag_names[0])) || sensor_mags[mag_id] == NULL || sensor_mags[mag_id] == &sensor_mag_none)
 		{
 			LOG_ERR("Magnetometer not supported");
 			sensor_mag = &sensor_mag_none; 
