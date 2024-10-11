@@ -636,6 +636,7 @@ void main_imu_thread(void)
 				int64_t imu_timeout = CLAMP(last_data_time, 1 * 1000, 15 * 1000); // Ramp timeout from last_data_time
 				if (k_uptime_get() - last_data_time > imu_timeout) // No motion in last 1s - 10s
 				{
+					last_data_time = INT64_MAX; // only try to suspend once
 					LOG_INF("No motion from sensors in %llds", imu_timeout/1000);
 					sys_request_WOM(); // TODO: this will suspend the thread, will the system still shut down properly? Otherwise this thread should queue shutdown and suspend itself
 //					main_imu_suspend(); // TODO: auto suspend, the device should configure WOM ASAP but it does not
