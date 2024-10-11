@@ -24,6 +24,8 @@
 #define LSM6DSO_WAKE_UP_DUR                0x5C
 #define LSM6DSO_MD1_CFG                    0x5E
 
+#define LSM6DSO_X_OFS_USR                  0x73
+
 #define LSM6DSO_FIFO_DATA_OUT_TAG          0x78
 
 #define DSO_FS_G_2000DPS 0x0C //0bxxxx1100

@@ -12,6 +12,7 @@
 #define LSM6DSV_CTRL3                      0x12
 #define LSM6DSV_CTRL6                      0x15
 #define LSM6DSV_CTRL8                      0x17
+#define LSM6DSV_CTRL9                      0x18
 
 #define LSM6DSV_FIFO_STATUS1               0x1B
 
@@ -23,6 +24,8 @@
 #define LSM6DSV_TAP_CFG0                   0x56
 #define LSM6DSV_WAKE_UP_THS                0x5B
 #define LSM6DSV_MD1_CFG                    0x5E
+
+#define LSM6DSV_X_OFS_USR                  0x73
 
 #define LSM6DSV_FIFO_DATA_OUT_TAG          0x78
 

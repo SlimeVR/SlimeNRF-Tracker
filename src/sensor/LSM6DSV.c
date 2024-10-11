@@ -312,10 +312,25 @@ void lsm_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 
 	int err = i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL8, FS_XL_8G); // set accel FS
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL1, OP_MODE_XL_LP1 << 4 | ODR_240Hz); // set accel low power mode 1, set accel ODR (enable accel)
-	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_TAP_CFG0, 0x10); // use HPF for wake-up
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL9, 0x02); // set offset weight to 2^-6 g/LSB
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_TAP_CFG0, 0x10); // set SLOPE_FDS (using user offset for wake-up)
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_WAKE_UP_THS, 0x40 | 0x04); // use offset correction for wake-up, set threshold, 4 * 7.8125 mg is ~31.25 mg
+	k_msleep(6); // need to wait for accel to settle
+
+	float accel_reference[3] = {0};
+	lsm_accel_read(dev_i2c, accel_reference); // need to read a reference value to set offset
+	int8_t offset[3] = {0};
+	for (int i = 0; i < 3; i++) // calculate offset
+	{
+		accel_reference[i] /= 2; // FS_XL_8G to FS_XL_16G
+		accel_reference[i] *= -1; // negate
+		accel_reference[i] *= 64; // offset is 2^-6 g/LSB
+		accel_reference[i] += accel_reference[i] < 0 ? -0.5 : 0.5; // round
+		offset[i] = CLAMP(accel_reference[i], -127, 127); // value must be in the range -127 to 127
+	}
+	err |= i2c_burst_write_dt(dev_i2c, LSM6DSV_X_OFS_USR, offset, 3); // set offset correction
+
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_FUNCTIONS_ENABLE, 0x80); // enable interrupts
-	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_WAKE_UP_THS, 0x28); // set threshold, 40 * 7.8125 mg is ~312 mg
-	k_msleep(10); // need to wait for accel to settle
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_MD1_CFG, 0x20); // route wake-up to INT1
 	if (err)
 		LOG_ERR("I2C error");
