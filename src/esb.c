@@ -109,7 +109,7 @@ int clocks_start(void)
 			LOG_ERR("Clock could not be started: %d", res);
 			return res;
 		}
-		if (err && ++fetch_attempts > 100) {
+		if (err && ++fetch_attempts > 10000) {
 			LOG_WRN("Unable to fetch Clock request result: %d", err);
 			return err;
 		}
