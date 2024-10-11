@@ -47,21 +47,21 @@ int main(void)
 
 	uint8_t reset_mode = -1;
 
+	if (reboot_counter == 0)
+		reboot_counter = 100;
+	else if (reboot_counter > 200)
+		reboot_counter = 200; // How did you get here
+	reset_mode = reboot_counter - 100;
 	if ((reset_pin_reset || button_read()) && !docked) // Count pin resets while not docked
 	{
-		if (reboot_counter == 0)
-			reboot_counter = 100;
-		else if (reboot_counter > 200)
-			reboot_counter = 200; // How did you get here
-		reset_mode = reboot_counter - 100;
 		reboot_counter++;
 		reboot_counter_write(reboot_counter);
 		LOG_INF("Reset count: %u", reboot_counter);
 		k_msleep(1000); // Wait before clearing counter and continuing
-		reboot_counter_write(100);
-		if (!reset_pin_reset && !button_read() && reset_mode == 0) // Only need to check once, if the button is pressed again an interrupt is triggered from before
-			reset_mode = -1; // Cancel reset_mode (shutdown)
 	}
+	reboot_counter_write(100);
+	if (!reset_pin_reset && !button_read() && reset_mode == 0) // Only need to check once, if the button is pressed again an interrupt is triggered from before
+		reset_mode = -1; // Cancel reset_mode (shutdown)
 // 0ms or 1000ms for reboot counter
 
 #if USER_SHUTDOWN_ENABLED
