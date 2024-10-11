@@ -109,9 +109,17 @@ int sensor_init(void)
 	{
 		if (imu_id >= (int)(sizeof(sensor_imus) / sizeof(sensor_imus[0])) || sensor_imus[imu_id] == NULL || sensor_imus[imu_id] == &sensor_imu_none)
 		{
-			LOG_ERR("IMU not supported");
 			sensor_imu = &sensor_imu_none;
 			sensor_sensor_scanning = false; // done
+//			if (sensor_imu_dev.addr < 0xFF) // If for some reason there actually is a valid IMU but we found some unsupported device first
+//			{
+//				LOG_WRN("IMU not supported");
+//				sensor_imu_dev.addr++;
+//				sensor_imu_dev_reg = 0xFF;
+//				sensor_scan_clear(); // clear the invalid data
+//				return sensor_init(); // try again
+//			}
+			LOG_ERR("IMU not supported");
 			set_status(SYS_STATUS_SENSOR_ERROR, true);
 			return -1; // an IMU was detected but not supported
 		}
@@ -162,9 +170,17 @@ int sensor_init(void)
 	{
 		if (mag_id >= (int)(sizeof(dev_mag_names) / sizeof(dev_mag_names[0])) || sensor_mags[mag_id] == NULL || sensor_mags[mag_id] == &sensor_mag_none)
 		{
-			LOG_ERR("Magnetometer not supported");
 			sensor_mag = &sensor_mag_none; 
 			mag_available = false;
+//			if (sensor_imu_dev.addr < 0xFF) // If for some reason there actually is a valid magnetometer but we found some unsupported device first
+//			{
+//				LOG_WRN("Magnetometer not supported");
+//				sensor_mag_dev.addr++;
+//				sensor_mag_dev_reg = 0xFF;
+//				sensor_scan_clear(); // clear the invalid data
+//				return sensor_init(); // try again
+//			}
+			LOG_ERR("Magnetometer not supported");
 		}
 		else
 		{
@@ -214,8 +230,8 @@ void sensor_scan_read(void) // TODO: move some of this to sys?
 		sensor_mag_dev.addr = retained.mag_addr;
 		sensor_mag_dev_reg = retained.mag_reg;
 	}
-	LOG_INF("IMU address: 0x%02x, register: 0x%02x", sensor_imu_dev.addr, sensor_imu_dev_reg);
-	LOG_INF("Magnetometer address: 0x%02x, register: 0x%02x", sensor_mag_dev.addr, sensor_mag_dev_reg);
+	LOG_INF("IMU address: 0x%02X, register: 0x%02X", sensor_imu_dev.addr, sensor_imu_dev_reg);
+	LOG_INF("Magnetometer address: 0x%02X, register: 0x%02X", sensor_mag_dev.addr, sensor_mag_dev_reg);
 }
 
 void sensor_scan_write(void) // TODO: move some of this to sys?

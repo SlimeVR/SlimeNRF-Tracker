@@ -37,7 +37,8 @@ int sensor_scan(struct i2c_dt_spec *i2c_dev, uint8_t *i2c_dev_reg, int dev_addr_
 		for (int j = 0; j < addr_count; j++)
 		{
 			addr = dev_addr[addr_index + j];
-			if (i2c_dev->addr >= SCAN_ADDR_START && i2c_dev->addr <= SCAN_ADDR_STOP && i2c_dev->addr != addr)
+//			if (i2c_dev->addr >= SCAN_ADDR_START && i2c_dev->addr <= SCAN_ADDR_STOP && addr < i2c_dev->addr)
+			if (i2c_dev->addr >= SCAN_ADDR_START && i2c_dev->addr <= SCAN_ADDR_STOP && addr != i2c_dev->addr)
 				continue; // if an address was provided try to scan it first
 			LOG_DBG("Scanning address: 0x%02X", addr);
 			int id_cnt = id_count;
@@ -68,7 +69,7 @@ int sensor_scan(struct i2c_dt_spec *i2c_dev, uint8_t *i2c_dev_reg, int dev_addr_
 						{
 							i2c_dev->addr = addr;
 							*i2c_dev_reg = reg;
-							LOG_INF("Valid device found at address: 0x%02X (register: 0x%02x, value: 0x%02x)", addr, reg, id);
+							LOG_INF("Valid device found at address: 0x%02X (register: 0x%02X, value: 0x%02X)", addr, reg, id);
 							return dev_ids[fnd_id + l];
 						}
 					}
