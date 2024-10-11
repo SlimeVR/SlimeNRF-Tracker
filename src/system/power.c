@@ -225,7 +225,7 @@ static void power_thread(void)
 		for (uint8_t i = 0; i < 15; i++)
 		{
 			if (last_battery_pptt[i] == 10001)
-				average_battery_pptt += battery_pptt / (i + 1);
+				average_battery_pptt += average_battery_pptt / (i + 1);
 			else
 				average_battery_pptt += last_battery_pptt[i];
 		}
