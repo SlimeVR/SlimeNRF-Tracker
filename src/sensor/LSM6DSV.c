@@ -21,8 +21,7 @@ LOG_MODULE_REGISTER(LSM6DSV, LOG_LEVEL_DBG);
 
 int lsm_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
 {
-	int err = i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL3, 0x44); // freeze register until done reading, increment register address during multi-byte access (BDU, IF_INC)
-	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL6, FS_G_2000DPS); // set gyro FS
+	int err = i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL6, FS_G_2000DPS); // set gyro FS
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSV_CTRL8, FS_XL_16G); // set accel FS
 	if (err)
 		LOG_ERR("I2C error");
