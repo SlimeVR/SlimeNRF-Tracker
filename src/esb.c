@@ -83,6 +83,7 @@ int clocks_start(void)
 	int res;
 	struct onoff_manager *clk_mgr;
 	struct onoff_client clk_cli;
+	int fetch_attempts = 0;
 
 	clk_mgr = z_nrf_clock_control_get_onoff(CLOCK_CONTROL_NRF_SUBSYS_HF);
 	if (!clk_mgr)
@@ -107,6 +108,10 @@ int clocks_start(void)
 		{
 			LOG_ERR("Clock could not be started: %d", res);
 			return res;
+		}
+		if (err && ++fetch_attempts > 100) {
+			LOG_WRN("Unable to fetch Clock request result: %d", err);
+			return err;
 		}
 	} while (err);
 
