@@ -275,6 +275,7 @@ void lsm_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3])
 		a[i] = (int16_t)((((int16_t)rawAccel[(i * 2) + 1]) << 8) | rawAccel[i * 2]);
 		a[i] *= accel_sensitivity;
 	}
+	// TODO: for ISM330BX, the accelerometer data is in ZYX order
 }
 
 void lsm_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3])
