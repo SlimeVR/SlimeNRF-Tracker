@@ -64,6 +64,7 @@ void set_led(enum sys_led_pattern led_pattern, int priority)
 	}
 	else
 	{
+		k_thread_suspend(led_thread_id);
 		k_thread_resume(led_thread_id);
 	}
 #else
