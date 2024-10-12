@@ -180,9 +180,9 @@ static void power_thread(void)
 		if ((battery_available && battery_pptt == 0) || docked)
 			sys_request_system_off();
 
-		if (!battery_low && battery_pptt < 1000)
+		if (battery_available && !battery_low && battery_pptt < 1000)
 			battery_low = true;
-		else if (battery_low && battery_pptt > 1500) // hysteresis
+		else if (!battery_available || (battery_low && battery_pptt > 1500)) // hysteresis
 			battery_low = false;
 
 		// Average battery readings across 16 samples (last reading is first sample)
