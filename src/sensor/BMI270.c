@@ -51,7 +51,7 @@ int bmi_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_ti
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_ACC_RANGE, RANGE_16G);
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_GYR_RANGE, RANGE_2000);
 	err |= bmi_update_odr(dev_i2c, accel_time, gyro_time, accel_actual_time, gyro_actual_time);
-	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_FIFO_CONFIG_0, 0x01); // stop FIFO when full, do not return sensortime frame
+	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_FIFO_CONFIG_0, 0x00); // do not return sensortime frame
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_FIFO_CONFIG_1, 0x80); // enable gyro data in FIFO, don't store header
 	if (err)
 		LOG_ERR("I2C error");

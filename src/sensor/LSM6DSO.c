@@ -26,7 +26,7 @@ int lsm6dso_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float acce
 	last_accel_odr = 0xff; // reset last odr
 	last_gyro_odr = 0xff; // reset last odr
 	err |= lsm6dso_update_odr(dev_i2c, accel_time, gyro_time, accel_actual_time, gyro_actual_time);
-	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_FIFO_CTRL4, 0x01); // enable FIFO mode
+	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_FIFO_CTRL4, 0x06); // enable Continuous mode
 	if (err)
 		LOG_ERR("I2C error");
 	if (use_ext_fifo)
