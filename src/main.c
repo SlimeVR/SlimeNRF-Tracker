@@ -95,6 +95,7 @@ int main(void)
 	case 1:
 		LOG_INF("IMU calibration requested");
 		sensor_calibration_clear();
+		sys_reboot(SYS_REBOOT_COLD); // TODO: this should not be needed
 		break;
 	case 2: // Reset mode pairing reset
 		LOG_INF("Pairing reset requested");
