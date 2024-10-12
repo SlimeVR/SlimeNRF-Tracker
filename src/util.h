@@ -1,6 +1,10 @@
 #ifndef SLIMENRF_UTILS
 #define SLIMENRF_UTILS
 
+#ifndef M_PI
+#define M_PI 3.141592653589793238462643383279502884f
+#endif
+
 // Saturate int to 16 bits
 // Optimized to a single ARM assembler instruction
 #define SATURATE_INT16(x) ((x) > 32767 ? 32767 : ((x) < -32768 ? -32768 : (x)))

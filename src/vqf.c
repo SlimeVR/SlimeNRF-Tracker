@@ -5,10 +5,6 @@
 
 #include "vqf.h"
 
-#ifndef M_PI
-#define M_PI 3.141592653589793238462643383279502884f
-#endif
-
 #ifndef DEG_TO_RAD
 #define DEG_TO_RAD (M_PI / 180.0f)
 #endif

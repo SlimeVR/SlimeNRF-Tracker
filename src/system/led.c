@@ -1,4 +1,5 @@
 #include "..\globals.h"
+#include "..\util.h"
 
 #include <math.h>
 #include <zephyr/drivers/gpio.h>
@@ -6,10 +7,6 @@
 #include <zephyr/kernel.h>
 
 #include "led.h"
-
-#ifndef M_PI
-#define M_PI 3.141592653589793238462643383279502884f
-#endif
 
 LOG_MODULE_REGISTER(led, LOG_LEVEL_INF);
 
