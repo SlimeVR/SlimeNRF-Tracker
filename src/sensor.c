@@ -141,11 +141,13 @@ int sensor_init(void)
 	int mag_id = sensor_scan_mag(&sensor_mag_dev, &sensor_mag_dev_reg);
 	if (mag_id < 0)
 	{
-		// IMU must support passthrough mode if the magnetometer is connected through the IMU instead of directly
+		// IMU must support passthrough mode if the magnetometer is connected through the IMU
 		int err = (*sensor_imu->ext_passthrough)(&sensor_imu_dev, true);
 		if (!err)
 		{
 			LOG_INF("Scanning bus for magnetometer through IMU passthrough");
+			sensor_mag_dev.addr = 0x00; // reset magnetometer data
+			sensor_mag_dev_reg = 0xFF;
 			mag_id = sensor_scan_mag(&sensor_mag_dev, &sensor_mag_dev_reg);
 			if (mag_id >= 0)
 				use_ext_fifo = true;
