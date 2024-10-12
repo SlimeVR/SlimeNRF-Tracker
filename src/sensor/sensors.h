@@ -61,8 +61,13 @@ STMicroelectronics
 
 Magnetometers:
 
+Honeywell
+-HMC5883L:1E,0A,48
 QST Corporation
--QMC5883L:0B,OD,FF
+-QMC5883L:0B,0D,FF
+AshaiKASEI
+-AK8963:0C/0D/0E/0F,00,48 // there is a device information register, datasheet does not specify the value. check AK09916 first
+-AK09916:0C,01,09
 Bosch Sensortec
 *BMM150:10/11/12/13,40,32
 *BMM350:14/15/16/17,00,33
@@ -78,7 +83,10 @@ memsic
 -MMC5616WA:30,39,11
 *MMC5983MA:30,2F,30
 
-0B,10/11/12/13,14/15/16/17,1C,1E,30
+0B,0C/0D/0E/0F,0C,10/11/12/13,14/15/16/17,1C,1E,30
+0A (48:HMC5883L)
+00 (48:AK8963)
+01 (09:AK09916)
 0D (FF:QMC5883L)
 40 (32:BMM150)
 00 (33:BMM350)
@@ -169,7 +177,10 @@ const int i2c_dev_imu[] = {
 };
 
 enum dev_mag {
+	MAG_HMC5883L,
 	MAG_QMC5883L,
+	MAG_AK8963,
+	MAG_AK09916,
 	MAG_BMM150,
 	MAG_BMM350,
 	MAG_LIS2MDL, // IIS2MDC/LIS2MDL
@@ -181,7 +192,10 @@ enum dev_mag {
 	MAG_MMC5983MA
 };
 const char *dev_mag_names[] = {
+	"HMC5883L",
 	"QMC5883L",
+	"AK8963",
+	"AK09916",
 	"BMM150",
 	"BMM350",
 	"IIS2MDC/LIS2MDL",
@@ -193,7 +207,10 @@ const char *dev_mag_names[] = {
 	"MMC5983MA"
 };
 const sensor_mag_t *sensor_mags[] = {
+	&sensor_mag_none, // will not implement, too low quality
 	&sensor_mag_none, // not implemented
+	&sensor_mag_none,
+	&sensor_mag_none,
 	&sensor_mag_bmm150,
 	&sensor_mag_bmm350,
 	&sensor_mag_lis2mdl,
@@ -204,9 +221,11 @@ const sensor_mag_t *sensor_mags[] = {
 	&sensor_mag_none,
 	&sensor_mag_mmc5983ma
 };
-const int i2c_dev_mag_addr_count = 6;
+const int i2c_dev_mag_addr_count = 8;
 const uint8_t i2c_dev_mag_addr[] = {
 	1,	0x0B,
+	1,	0x0C,
+	1,	0x0D,0x0E,0x0F,
 	4,	0x10,0x11,0x12,0x13, // why bosch
 	4,	0x14,0x15,0x16,0x17,
 	1,	0x1C,
@@ -215,33 +234,45 @@ const uint8_t i2c_dev_mag_addr[] = {
 };
 const uint8_t i2c_dev_mag_reg[] = {
 	1,	0x0D,
+	2,	0x01, // AK09916 first
+		0x00,
+	1,	0x00,
 	1,	0x40,
 	1,	0x00,
 	1,	0x0F,
-	2,	0x0F,
+	3,	0x0F,
 		0x4F,
+		0x0A,
 	3,	0x20,
 		0x2F,
 		0x39
 };
 const uint8_t i2c_dev_mag_id[] = {
 	1,	0xFF, // reg 0x0D
+	1,	0x09, // reg 0x01
+	1,	0x48, // reg 0x00
+	1,	0x48, // reg 0x00
 	1,	0x32, // reg 0x40
 	1,	0x33, // reg 0x00
 	1,	0x3D, // reg 0x0F
 	1,	0x3D, // reg 0x0F
 	1,	0x40, // reg 0x4F
+	1,	0x48, // reg 0x0A
 	1,	0x06, // reg 0x20
 	2,	0x0A,0x30, // reg 0x2F
 	2,	0x10,0x11 // reg 0x39
 };
 const int i2c_dev_mag[] = {
 	MAG_QMC5883L,
+	MAG_AK09916,
+	MAG_AK8963,
+	MAG_AK8963,
 	MAG_BMM150,
 	MAG_BMM350,
 	MAG_LIS3MDL,
 	MAG_LIS3MDL,
 	MAG_LIS2MDL,
+	MAG_HMC5883L,
 	MAG_MMC34160PJ,
 	MAG_MMC3630KJ, MAG_MMC5983MA,
 	MAG_MMC5633NJL, MAG_MMC5616WA
