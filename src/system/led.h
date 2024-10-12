@@ -29,7 +29,7 @@ enum sys_led_pattern {
 
 	SYS_LED_PATTERN_ONESHOT_POWERON, // 200ms on 200ms off, 3 times
 	SYS_LED_PATTERN_ONESHOT_POWEROFF, // 250ms off, 1000ms fade to off
-	SYS_LED_PATTERN_ONESHOT_PAIRED, // 200ms on 200ms off, 4 times
+	SYS_LED_PATTERN_ONESHOT_COMPLETE, // 200ms on 200ms off, 4 times
 
 	SYS_LED_PATTERN_ON_PERSIST, // 20% duty cycle
 	SYS_LED_PATTERN_LONG_PERSIST, // 20% duty cycle, 500ms on 500ms off

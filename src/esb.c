@@ -255,7 +255,8 @@ void esb_pair(void)
 			esb_start_tx();
 			k_msleep(1000);
 		}
-		set_led(SYS_LED_PATTERN_ONESHOT_PAIRED, SYS_LED_PRIORITY_CONNECTION);
+		set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_CONNECTION);
+		set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_HIGHEST);
 		LOG_INF("Paired");
 		sys_write(PAIRED_ID, retained.paired_addr, paired_addr, sizeof(paired_addr)); // Write new address and tracker id
 		esb_disable();

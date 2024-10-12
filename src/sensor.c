@@ -334,6 +334,7 @@ void sensor_calibrate_imu(void)
 		retained.fusion_data_stored = false; // Invalidate retained fusion data
 	}
 	set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
+	set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_HIGHEST);
 }
 
 void sensor_calibrate_mag(void)
@@ -690,6 +691,7 @@ void main_imu_thread(void)
 				{
 					sensor_calibrate_mag();
 					set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
+					set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_HIGHEST);
 				}
 				else // only enough time to do one of the two
 				{
