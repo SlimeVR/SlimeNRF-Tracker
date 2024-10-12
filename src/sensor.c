@@ -306,6 +306,8 @@ void sensor_calibrate_imu(void)
 {
 	LOG_INF("Calibrating main accelerometer and gyroscope zero rate offset");
 	LOG_INF("Rest the device on a stable surface");
+
+	set_led(SYS_LED_PATTERN_LONG, SYS_LED_PRIORITY_SENSOR);
 	if (!wait_for_motion(&sensor_imu_dev, false, 6)) // Wait for accelerometer to settle, timeout 3s
 		return; // Timeout, calibration failed
 
@@ -388,7 +390,6 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 	uint8_t counts = 0;
 	float a[3], last_a[3];
 	(*sensor_imu->accel_read)(dev_i2c, last_a);
-	set_led(SYS_LED_PATTERN_LONG, SYS_LED_PRIORITY_SENSOR);
 	for (int i = 0; i < samples + counts; i++)
 	{
 		LOG_INF("Accelerometer: %.5f %.5f %.5f", a[0], a[1], a[2]);
@@ -400,7 +401,6 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 			counts++;
 			if (counts == 2)
 			{
-				set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
 				return true;
 			}
 		}
@@ -411,7 +411,6 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 		memcpy(last_a, a, sizeof(a));
 	}
 	LOG_INF("Motion detected");
-	set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
 	return false;
 }
 
