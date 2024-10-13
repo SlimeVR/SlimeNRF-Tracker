@@ -1,4 +1,5 @@
 #include "..\globals.h"
+#include "..\connection.h"
 
 #include <zephyr/kernel.h>
 
@@ -35,6 +36,7 @@ void set_status(enum sys_status status, bool set)
 	{
 		status_state &= ~status;
 	}
+	connection_update_status(status_state);
 	LOG_INF("Status: %d", status_state);
 }
 
