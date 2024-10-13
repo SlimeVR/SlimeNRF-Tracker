@@ -86,7 +86,7 @@ void connection_update_status(int status)
 
 void connection_write_packet_0() // device info
 {
-	uint8_t data[20] = {0};
+	uint8_t data[16] = {0};
 	data[0] = 0; // packet 0
 	data[1] = tracker_id;
 	data[2] = FW_PROTO_VERSION; // proto
@@ -108,7 +108,7 @@ void connection_write_packet_0() // device info
 
 void connection_write_packet_1() // full precision quat and accel
 {
-	uint8_t data[20] = {0};
+	uint8_t data[16] = {0};
 	data[0] = 1; // packet 1
 	data[1] = tracker_id;
 	uint16_t *buf = (uint16_t *)&data[2];
@@ -124,7 +124,7 @@ void connection_write_packet_1() // full precision quat and accel
 #include <zephyr/kernel.h>
 void connection_write_packet_2() // reduced precision quat and accel with battery, temp, and rssi
 {
-	uint8_t data[20] = {0};
+	uint8_t data[16] = {0};
 	data[0] = 2; // packet 2
 	data[1] = tracker_id;
 	data[2] = batt;
@@ -156,7 +156,7 @@ void connection_write_packet_2() // reduced precision quat and accel with batter
 
 void connection_write_packet_3() // status
 {
-	uint8_t data[20] = {0};
+	uint8_t data[16] = {0};
 	data[0] = 3; // packet 3
 	data[1] = tracker_id;
 	data[2] = tracker_svr_status;
