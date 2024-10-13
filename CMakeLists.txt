@@ -19,3 +19,8 @@ target_sources(app PRIVATE ${files})
 
 FILE(GLOB_RECURSE files vqf-c/src/*.c)
 target_sources(app PRIVATE ${files})
+
+# Force recompile for updated build timestamp
+add_custom_target(touch_util_h ALL
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_SOURCE_DIR}/src/build_defines.h
+)
