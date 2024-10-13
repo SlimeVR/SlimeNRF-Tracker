@@ -1,4 +1,5 @@
 #include "sensor/sensors_enum.h"
+#include "system/status.h"
 
 #define FW_VERSION_MAJOR 0
 #define FW_VERSION_MINOR 6
@@ -24,6 +25,13 @@
 #define LSM6DSV 13
 #define LSM6DSO 14
 #define LSM6DSR 15
+// https://github.com/SlimeVR/SlimeVR-Server/blob/main/server/core/src/main/java/dev/slimevr/tracking/trackers/TrackerStatus.kt
+#define DISCONNECTED 0
+#define OK 1
+#define BUSY 2
+#define ERROR 3
+#define OCCLUDED 4
+#define TIMED_OUT 5
 
 // does not exist in server enums yet
 #if CONFIG_BOARD_NRF52840DK_NRF52840
@@ -61,7 +69,7 @@
 #define FW_MCU 0
 #endif
 
-static uint8_t get_server_constants_imu_id(int id)
+static uint8_t get_server_constant_imu_id(int id)
 {
 	switch (id)
 	{
@@ -105,7 +113,7 @@ static uint8_t get_server_constants_imu_id(int id)
 }
 
 // does not exist in server enums yet
-static uint8_t get_server_constants_mag_id(int id)
+static uint8_t get_server_constant_mag_id(int id)
 {
 	switch (id)
 	{
@@ -138,6 +146,14 @@ static uint8_t get_server_constants_mag_id(int id)
 	default:
 		return 0;
 	}
+}
+
+static uint8_t get_server_constant_tracker_status(int status)
+{
+	if (status & (SYS_STATUS_SENSOR_ERROR | SYS_STATUS_SYSTEM_ERROR))
+		return ERROR;
+	else
+		return OK;
 }
 
 // https://stackoverflow.com/questions/11697820/how-to-use-date-and-time-predefined-macros-in-as-two-integers-then-stri
