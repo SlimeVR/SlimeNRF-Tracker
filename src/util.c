@@ -1,6 +1,8 @@
 #include <math.h>
 #include <zephyr/kernel.h>
 
+#include "util.h"
+
 void q_normalize(const float *q, float *out)
 {
 	float mag = sqrtf(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
@@ -83,4 +85,33 @@ void apply_BAinv(float xyz[3], float BAinv[4][3])
 	xyz[0] = BAinv[1][0] * temp[0] + BAinv[1][1] * temp[1] + BAinv[1][2] * temp[2];
 	xyz[1] = BAinv[2][0] * temp[0] + BAinv[2][1] * temp[1] + BAinv[2][2] * temp[2];
 	xyz[2] = BAinv[3][0] * temp[0] + BAinv[3][1] * temp[1] + BAinv[3][2] * temp[2];
+}
+
+// http://marc-b-reynolds.github.io/quaternions/2017/05/02/QuatQuantPart1.html#fnref:pos:3
+// https://github.com/Marc-B-Reynolds/Stand-alone-junk/blob/559bd78893a3a95cdee1845834c632141b945a45/src/Posts/quatquant0.c#L898
+void q_fem(const float *q, float *out)
+{
+	float w = fabsf(q[3]);
+	float a = 1 - w * w;
+	float inv_sqrt_a = 1/sqrtf(a + EPS); // inversesqrt
+	float k = a * inv_sqrt_a;
+	float atan_term = (2 / M_PI) * atanf(k / w);
+	float sign_w = (q[3] == 0) ? 1 : copysignf(1, q[3]);
+	float s = atan_term * inv_sqrt_a * sign_w;
+	out[0] = s * q[0];
+	out[1] = s * q[1];
+	out[2] = s * q[2];
+}
+
+void q_iem(const float *v, float *out)
+{
+	float d = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
+	float inv_sqrt_d = 1/sqrtf(d + EPS); // inversesqrt
+	float a = (M_PI / 2) * d * inv_sqrt_d;
+	float s = sinf(a);
+	float k = s * inv_sqrt_d;
+	out[0] = k * v[0];
+	out[1] = k * v[1];
+	out[2] = k * v[2];
+	out[3] = cosf(a);
 }
