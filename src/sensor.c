@@ -39,6 +39,7 @@ static float last_q[4] = {1.0f, 0.0f, 0.0f, 0.0f}; // vector to hold quaternion
 static float q3[4] = {SENSOR_QUATERNION_CORRECTION}; // correction quaternion
 
 static int64_t last_data_time;
+static int64_t last_info_time;
 
 static float accelBias[3] = {0}, gyroBias[3] = {0}; // offset biases for the accel and gyro
 
@@ -213,6 +214,7 @@ int sensor_init(void)
 	}
 
 	sensor_scan_write();
+	connection_update_sensor_ids(imu_id, mag_id);
 
 	sensor_sensor_init = true; // successfully initialized
 	sensor_sensor_scanning = false; // done
@@ -493,6 +495,7 @@ static enum sensor_sensor_mode last_sensor_mode = SENSOR_SENSOR_MODE_LOW_NOISE;
 
 static bool main_running = false;
 static bool main_ok = false;
+static bool send_info = false;
 
 void main_imu_thread(void)
 {
@@ -521,6 +524,10 @@ void main_imu_thread(void)
 			// Call before FIFO and get the data after
 			if (mag_available && mag_enabled && mag_use_oneshot)
 				(*sensor_mag->mag_oneshot)(&sensor_mag_dev);
+
+			// Read IMU temperature
+			float temp = (*sensor_imu->temp_read)(&sensor_imu_dev); // TODO: use as calibration data
+			connection_update_sensor_temp(temp);
 
 			// Read gyroscope (FIFO)
 			uint8_t rawData[2080];
@@ -677,13 +684,35 @@ void main_imu_thread(void)
 				}
 			}
 
-			// Send packet with new orientation
-			if (!(q_epsilon(q, last_q, 0.001)))
+			// Check if last status is outdated
+			if (!send_info && (k_uptime_get() - last_info_time > 100))
 			{
+				send_info = true;
+				last_info_time = k_uptime_get();
+			}
+
+			// Send packet with new orientation
+			if (!q_epsilon(q, last_q, 0.001))
+			{
+				bool send_precise_quat = q_epsilon(q, last_q, 0.005);
 				memcpy(last_q, q, sizeof(q));
 				float q_offset[4];
 				q_multiply(q, q3, q_offset);
-				connection_write_packet_0(q_offset, lin_a);
+				connection_update_sensor_data(q_offset, lin_a);
+				if (send_info && !send_precise_quat) // prioritize quat precision
+				{
+					connection_write_packet_2();
+					send_info = false;
+				}
+				else
+				{
+					connection_write_packet_1();
+				}
+			}
+			else if (send_info)
+			{
+				connection_write_packet_0();
+				send_info = false;
 			}
 
 			// Handle magnetometer calibration or bridge offset calibration
