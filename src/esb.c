@@ -3,6 +3,7 @@
 #include "connection.h"
 
 #include <zephyr/drivers/clock_control/nrf_clock_control.h>
+#include <zephyr/sys/crc.h>
 
 #include "esb.h"
 
@@ -233,21 +234,21 @@ void esb_pair(void)
 		esb_initialize(true);
 //		timer_init(); // TODO: shouldn't be here!!!
 		tx_payload_pair.noack = false;
-		uint64_t addr = (((uint64_t)(NRF_FICR->DEVICEADDR[1]) << 32) | NRF_FICR->DEVICEADDR[0]) & 0xFFFFFF; // Use device address as unique identifier (although it is not actually guaranteed, see datasheet)
-		uint8_t check = addr & 0xFF;
-		if (check == 0)
-			check = 8;
-		LOG_INF("Check code: %02X", check);
-		tx_payload_pair.data[0] = check; // Use int from device address to make sure packet is for this device
-		for (int i = 0; i < 6; i++)
-			tx_payload_pair.data[i + 2] = (addr >> (8 * i)) & 0xFF;
+		uint64_t *addr = (uint64_t *)NRF_FICR->DEVICEADDR; // Use device address as unique identifier (although it is not actually guaranteed, see datasheet)
+		memcpy(&tx_payload_pair.data[2], addr, 6);
+		LOG_INF("Device address: %012llX", *addr & 0xFFFFFFFFFFFF);
+		uint8_t checksum = crc8_ccitt(0x07, &tx_payload_pair.data[2], 6);
+		if (checksum == 0)
+			checksum = 8;
+		LOG_INF("Checksum: %02X", checksum);
+		tx_payload_pair.data[0] = checksum; // Use checksum to make sure packet is for this device
 		set_led(SYS_LED_PATTERN_SHORT, SYS_LED_PRIORITY_CONNECTION);
-		while (paired_addr[0] != check)
+		while (paired_addr[0] != checksum)
 		{
 			if (paired_addr[0])
 			{
-				LOG_INF("Incorrect check code: %02X", paired_addr[0]);
-				paired_addr[0] = 0x00; // Packet not for this device
+				LOG_INF("Incorrect checksum: %02X", paired_addr[0]);
+				paired_addr[0] = 0; // Packet not for this device
 			}
 			esb_flush_rx();
 			esb_flush_tx();
@@ -262,10 +263,8 @@ void esb_pair(void)
 		esb_disable();
 		k_msleep(1500); // wait for led pattern
 	}
-	LOG_INF("Read pairing data");
-	LOG_INF("Check code: %02X", paired_addr[0]);
 	LOG_INF("Tracker ID: %u", paired_addr[1]);
-	LOG_INF("Address: %02X %02X %02X %02X %02X %02X", paired_addr[2], paired_addr[3], paired_addr[4], paired_addr[5], paired_addr[6], paired_addr[7]);
+	LOG_INF("Receiver Address: %012llX", (*(uint64_t *)&retained.paired_addr[0] >> 16) & 0xFFFFFFFFFFFF);
 
 	connection_set_id(paired_addr[1]);
 
