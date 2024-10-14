@@ -79,7 +79,7 @@ void connection_update_status(int status)
 
 //|b0      |b1      |b2      |b3      |b4      |b5      |b6      |b7      |b8      |b9      |b10     |b11     |b12     |b13     |b14     |b15     |
 //|type    |id      |packet data                                                                                                                  |
-//|0       |id      |proto   |batt    |batt_v  |temp    |brd_id  |mcu_id  |imu_id  |mag_id  |fw_date          |major   |minor   |patch   |rssi    |
+//|0       |id      |batt    |batt_v  |temp    |brd_id  |mcu_id  |resv    |imu_id  |mag_id  |fw_date          |major   |minor   |patch   |rssi    |
 //|1       |id      |q0               |q1               |q2               |q3               |a0               |a1               |a2               |
 //|2       |id      |batt    |batt_v  |temp    |q_buf                              |a0               |a1               |a2               |rssi    |
 //|3	   |id      |svr_stat|status  |resv                                                                                              |rssi    |
@@ -89,12 +89,12 @@ void connection_write_packet_0() // device info
 	uint8_t data[16] = {0};
 	data[0] = 0; // packet 0
 	data[1] = tracker_id;
-	data[2] = FW_PROTO_VERSION; // proto
-	data[3] = batt;
-	data[4] = batt_v;
-	data[5] = sensor_temp; // temp
-	data[6] = FW_BOARD; // brd_id
-	data[7] = FW_MCU; // mcu_id
+	data[2] = batt;
+	data[3] = batt_v;
+	data[4] = sensor_temp; // temp
+	data[5] = FW_BOARD; // brd_id
+	data[6] = FW_MCU; // mcu_id
+	data[7] = 0; // resv
 	data[8] = imu_id; // imu_id
 	data[9] = mag_id; // mag_id
 	uint16_t *buf = (uint16_t *)&data[10];
