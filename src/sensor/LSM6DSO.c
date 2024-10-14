@@ -249,7 +249,7 @@ void lsm6dso_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_TAP_CFG0, 0x10); // set SLOPE_FDS (using user offset for wake-up)
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_WAKE_UP_THS, 0x40 | 0x01); // use offset correction for wake-up, set threshold, 1 * 31.25 mg is ~31.25 mg
 	err |= i2c_reg_write_byte_dt(dev_i2c, LSM6DSO_WAKE_UP_DUR, 0x10); // set 1 LSB threshold to FS_XL / 256 (31.25mg)
-	k_msleep(7); // need to wait for accel to settle
+	k_msleep(12); // need to wait for accel to settle
 
 	float accel_reference[3] = {0};
 	lsm_accel_read(dev_i2c, accel_reference); // need to read a reference value to set offset
