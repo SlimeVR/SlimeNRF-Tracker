@@ -98,7 +98,7 @@ void connection_write_packet_0() // device info
 	data[8] = imu_id; // imu_id
 	data[9] = mag_id; // mag_id
 	uint16_t *buf = (uint16_t *)&data[10];
-	buf[0] = ((BUILD_YEAR - 2020) & 127) << 9 | (BUILD_MONTH & 15) << 5 | (BUILD_DAY & 31) << 4; // fw_date
+	buf[0] = ((BUILD_YEAR - 2020) & 127) << 9 | (BUILD_MONTH & 15) << 5 | (BUILD_DAY & 31); // fw_date
 	data[12] = FW_VERSION_MAJOR & 255; // fw_major
 	data[13] = FW_VERSION_MINOR & 255; // fw_minor
 	data[14] = FW_VERSION_PATCH & 255; // fw_patch
