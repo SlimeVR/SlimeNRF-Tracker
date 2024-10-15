@@ -14,37 +14,38 @@ int mag_ext_setup(const sensor_imu_t *imu, const sensor_mag_t *mag, uint8_t addr
 	ext_imu = imu;
 	ext_mag = mag;
 	uint8_t reg = ext_mag->ext_reg;
-	return (*ext_imu->ext_setup)(addr, reg);
+	// return (*ext_imu->ext_setup)(addr, reg);
+	return 0;
 }
 
 int mag_ext_init(const struct i2c_dt_spec *dev_i2c, float time, float *actual_time)
 {
-	(*ext_imu->ext_passthrough)(dev_i2c, true);
+	// (*ext_imu->ext_passthrough)(dev_i2c, true);
 	int err = (*ext_mag->init)(dev_i2c, time, actual_time);
-	(*ext_imu->ext_passthrough)(dev_i2c, false);
+	// (*ext_imu->ext_passthrough)(dev_i2c, false);
 	return err;
 }
 
 void mag_ext_shutdown(const struct i2c_dt_spec *dev_i2c)
 {
-	(*ext_imu->ext_passthrough)(dev_i2c, true);
+	// (*ext_imu->ext_passthrough)(dev_i2c, true);
 	(*ext_mag->shutdown)(dev_i2c);
-	(*ext_imu->ext_passthrough)(dev_i2c, false);
+	// (*ext_imu->ext_passthrough)(dev_i2c, false);
 }
 
 int mag_ext_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual_time)
 {
-	(*ext_imu->ext_passthrough)(dev_i2c, true);
+	// (*ext_imu->ext_passthrough)(dev_i2c, true);
 	int err = (*ext_mag->update_odr)(dev_i2c, time, actual_time);
-	(*ext_imu->ext_passthrough)(dev_i2c, false);
+	// (*ext_imu->ext_passthrough)(dev_i2c, false);
 	return err;
 }
 
 void mag_ext_mag_oneshot(const struct i2c_dt_spec *dev_i2c)
 {
-	(*ext_imu->ext_passthrough)(dev_i2c, true);
+	// (*ext_imu->ext_passthrough)(dev_i2c, true);
 	(*ext_mag->mag_oneshot)(dev_i2c);
-	(*ext_imu->ext_passthrough)(dev_i2c, false);
+	// (*ext_imu->ext_passthrough)(dev_i2c, false);
 }
 
 void mag_ext_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
@@ -56,9 +57,9 @@ void mag_ext_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 
 float mag_ext_temp_read(const struct i2c_dt_spec *dev_i2c)
 {
-	(*ext_imu->ext_passthrough)(dev_i2c, true);
+	// (*ext_imu->ext_passthrough)(dev_i2c, true);
 	float temp = (*ext_mag->temp_read)(dev_i2c);
-	(*ext_imu->ext_passthrough)(dev_i2c, false);
+	// (*ext_imu->ext_passthrough)(dev_i2c, false);
 	return temp;
 }
 

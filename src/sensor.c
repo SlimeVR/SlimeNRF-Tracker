@@ -147,13 +147,23 @@ int sensor_init(void)
 		if (!err)
 		{
 			LOG_INF("Scanning bus for magnetometer through IMU passthrough");
-			sensor_mag_dev.addr = 0x00; // reset magnetometer data
-			sensor_mag_dev_reg = 0xFF;
+			if (sensor_mag_dev.addr > 0x80) // marked as passthrough
+			{
+				sensor_mag_dev.addr &= 0x7F;
+			}
+			else
+			{
+				sensor_mag_dev.addr = 0x00; // reset magnetometer data
+				sensor_mag_dev_reg = 0xFF;
+			}
 			mag_id = sensor_scan_mag(&sensor_mag_dev, &sensor_mag_dev_reg);
 			if (mag_id >= 0)
+			{
+				sensor_mag_dev.addr |= 0x80; // mark as passthrough
 				use_ext_fifo = true;
+			}
 		}
-		(*sensor_imu->ext_passthrough)(&sensor_imu_dev, false);
+		// (*sensor_imu->ext_passthrough)(&sensor_imu_dev, false);
 	}
 	else
 	{

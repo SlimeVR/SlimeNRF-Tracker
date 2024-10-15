@@ -11,9 +11,9 @@ LOG_MODULE_REGISTER(sensor_scan, LOG_LEVEL_INF);
 
 int sensor_scan(struct i2c_dt_spec *i2c_dev, uint8_t *i2c_dev_reg, int dev_addr_count, const uint8_t dev_addr[], const uint8_t dev_reg[], const uint8_t dev_id[], const int dev_ids[])
 {
-	if (i2c_dev->addr >= 0xFF) // ignoring device
+	if (i2c_dev->addr > 0x7F) // ignoring device
 	{
-		i2c_dev->addr = 0xFF; // no device found, mark as ignored
+//		i2c_dev->addr = 0xFF; // no device found, mark as ignored
 		return -1;
 	}
 
