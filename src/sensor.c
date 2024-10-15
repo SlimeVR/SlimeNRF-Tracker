@@ -573,6 +573,7 @@ void main_imu_thread(void)
 						mag_progress = new_mag_progress;
 						//LOG_INF("Magnetometer calibration progress: %d", new_mag_progress);
 						LOG_INF("Magnetometer calibration progress: %s %s %s %s %s %s" , (new_mag_progress & 0x01) ? "X-" : "--", (new_mag_progress & 0x02) ? "X+" : "--", (new_mag_progress & 0x04) ? "Y-" : "--", (new_mag_progress & 0x08) ? "Y+" : "--", (new_mag_progress & 0x10) ? "Z-" : "--", (new_mag_progress & 0x20) ? "Z+" : "--");
+						set_led(SYS_LED_PATTERN_ONESHOT_PROGRESS, SYS_LED_PRIORITY_HIGHEST);
 					}
 				}
 				else
@@ -581,7 +582,7 @@ void main_imu_thread(void)
 					last_mag_progress = new_mag_progress;
 				}
 				if (mag_progress == 0b111111)
-					set_led(SYS_LED_PATTERN_ON, SYS_LED_PRIORITY_SENSOR); // Magnetometer calibration is ready to apply
+					set_led(SYS_LED_PATTERN_FLASH, SYS_LED_PRIORITY_SENSOR); // Magnetometer calibration is ready to apply
 			}
 
 			if (mag_available && mag_enabled && reconfig) // TODO: get rid of reconfig?
