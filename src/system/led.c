@@ -97,6 +97,11 @@ static void led_thread(void)
 			gpio_pin_set_dt(&led, led_pattern_state);
 			k_msleep(500);
 			break;
+		case SYS_LED_PATTERN_FLASH:
+			led_pattern_state = (led_pattern_state + 1) % 2;
+			gpio_pin_set_dt(&led, led_pattern_state);
+			k_msleep(200);
+			break;
 
 		case SYS_LED_PATTERN_ONESHOT_POWERON:
 			led_pattern_state++;
@@ -117,6 +122,14 @@ static void led_thread(void)
 				k_msleep(250);
 			else
 				k_msleep(50);
+			break;
+		case SYS_LED_PATTERN_ONESHOT_PROGRESS:
+			led_pattern_state++;
+			gpio_pin_set_dt(&led, !(led_pattern_state % 2));
+			if (led_pattern_state == 5)
+				set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_HIGHEST); // Sets highest priority to OFF, better not set SYS_LED_PATTERN_ONESHOT_PROGRESS on another priority
+			else
+				k_msleep(200);
 			break;
 		case SYS_LED_PATTERN_ONESHOT_COMPLETE:
 			led_pattern_state++;
