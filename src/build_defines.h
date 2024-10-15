@@ -7,29 +7,61 @@
 
 // constants from server, should include BoardType, MCUType, IMUType, MagType (not yet)
 // https://github.com/SlimeVR/SlimeVR-Server/blob/main/server/core/src/main/java/dev/slimevr/tracking/trackers/udp/FirmwareConstants.kt
-#define UNKNOWN 0
-#define MPU9250 1
-#define MPU6500 2
-#define BNO080 3
-#define BNO085 4
-#define BNO055 5
-#define MPU6050 6
-#define BNO086 7
-#define BMI160 8
-#define ICM20948 9
-#define ICM42688 10
-#define BMI270 11
-#define LSM6DS3TRC 12
-#define LSM6DSV 13
-#define LSM6DSO 14
-#define LSM6DSR 15
+#define SVR_IMU_UNKNOWN 0
+#define SVR_IMU_MPU9250 1
+#define SVR_IMU_MPU6500 2
+#define SVR_IMU_BNO080 3
+#define SVR_IMU_BNO085 4
+#define SVR_IMU_BNO055 5
+#define SVR_IMU_MPU6050 6
+#define SVR_IMU_BNO086 7
+#define SVR_IMU_BMI160 8
+#define SVR_IMU_ICM20948 9
+#define SVR_IMU_ICM42688 10
+#define SVR_IMU_BMI270 11
+#define SVR_IMU_LSM6DS3TRC 12
+#define SVR_IMU_LSM6DSV 13
+#define SVR_IMU_LSM6DSO 14
+#define SVR_IMU_LSM6DSR 15
+
+#define SVR_BOARD_UNKNOWN 0
+#define SVR_BOARD_SLIMEVR_LEGACY 1
+#define SVR_BOARD_SLIMEVR_DEV 2
+#define SVR_BOARD_NODEMCU 3
+#define SVR_BOARD_CUSTOM 4
+#define SVR_BOARD_WROOM32 5
+#define SVR_BOARD_WEMOSD1MINI 6
+#define SVR_BOARD_TTGO_TBASE 7
+#define SVR_BOARD_ESP01 8
+#define SVR_BOARD_SLIMEVR 9
+#define SVR_BOARD_LOLIN_C3_MINI 10
+#define SVR_BOARD_BEETLE32C32 11
+#define SVR_BOARD_ES32C3DEVKITM1 12
+#define SVR_BOARD_OWOTRACK 13
+#define SVR_BOARD_WRANGLER 14
+#define SVR_BOARD_MOCOPI 15
+#define SVR_BOARD_WEMOSWROOM02 16
+#define SVR_BOARD_XIAO_ESP32C3 17
+#define SVR_BOARD_HARITORA 18
+#define SVR_BOARD_DEV_RESERVED 250
+
+#define SVR_MCU_UNKNOWN 0
+#define SVR_MCU_ESP8266 1
+#define SVR_MCU_ESP32 2
+#define SVR_MCU_OWOTRACK_ANDROID 3
+#define SVR_MCU_WRANGLER 4
+#define SVR_MCU_OWOTRACK_IOS 5
+#define SVR_MCU_ESP32_C3 6
+#define SVR_MCU_MOCOPI 7
+#define SVR_MCU_HARITORA 8
+#define SVR_MCU_DEV_RESERVED 250
 // https://github.com/SlimeVR/SlimeVR-Server/blob/main/server/core/src/main/java/dev/slimevr/tracking/trackers/TrackerStatus.kt
-#define DISCONNECTED 0
-#define OK 1
-#define BUSY 2
-#define ERROR 3
-#define OCCLUDED 4
-#define TIMED_OUT 5
+#define SVR_STATUS_DISCONNECTED 0
+#define SVR_STATUS_OK 1
+#define SVR_STATUS_BUSY 2
+#define SVR_STATUS_ERROR 3
+#define SVR_STATUS_OCCLUDED 4
+#define SVR_STATUS_TIMED_OUT 5
 
 // does not exist in server enums yet
 #if CONFIG_BOARD_NRF52840DK_NRF52840
@@ -72,21 +104,21 @@ static uint8_t get_server_constant_imu_id(int id)
 	switch (id)
 	{
 	case IMU_BMI160:
-		return BMI160;
+		return SVR_IMU_BMI160;
 	case IMU_BMI270:
-		return BMI270;
+		return SVR_IMU_BMI270;
 	case IMU_BMI323:
 		return 0;
 	case IMU_MPU6050:
-		return MPU6050;
+		return SVR_IMU_MPU6050;
 	case IMU_MPU6500:
-		return MPU6500;
+		return SVR_IMU_MPU6500;
 	case IMU_MPU9250:
-		return MPU9250;
+		return SVR_IMU_MPU9250;
 	case IMU_ICM20948:
-		return ICM20948;
+		return SVR_IMU_ICM20948;
 	case IMU_ICM42688:
-		return ICM42688;
+		return SVR_IMU_ICM42688;
 	case IMU_ICM45686:
 		return 0;
 	case IMU_ISM330IS:
@@ -94,19 +126,19 @@ static uint8_t get_server_constant_imu_id(int id)
 	case IMU_LSM6DS3:
 		return 0;
 	case IMU_LSM6DSM:
-		return LSM6DS3TRC;
+		return SVR_IMU_LSM6DS3TRC;
 	case IMU_LSM6DSR:
-		return LSM6DSR;
+		return SVR_IMU_LSM6DSR;
 	case IMU_LSM6DSO:
-		return LSM6DSO;
+		return SVR_IMU_LSM6DSO;
 	case IMU_LSM6DST:
 		return 0;
 	case IMU_LSM6DSV:
-		return LSM6DSV;
+		return SVR_IMU_LSM6DSV;
 	case IMU_ISM330BX:
-		return LSM6DSV; // not really
+		return SVR_IMU_LSM6DSV; // not really
 	default:
-		return UNKNOWN;
+		return SVR_IMU_UNKNOWN;
 	}
 }
 
@@ -149,9 +181,9 @@ static uint8_t get_server_constant_mag_id(int id)
 static uint8_t get_server_constant_tracker_status(int status)
 {
 	if (status & (SYS_STATUS_SENSOR_ERROR | SYS_STATUS_SYSTEM_ERROR))
-		return ERROR;
+		return SVR_STATUS_ERROR;
 	else
-		return OK;
+		return SVR_STATUS_OK;
 }
 
 // https://stackoverflow.com/questions/11697820/how-to-use-date-and-time-predefined-macros-in-as-two-integers-then-stri

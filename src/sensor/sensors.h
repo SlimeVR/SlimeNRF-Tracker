@@ -38,7 +38,7 @@ const char *dev_imu_names[] = {
 	"LSM6DSO",
 	"LSM6DST",
 	"LSM6DSV",
-	"LSM6DSV16B/SM330BX"
+	"LSM6DSV16B/ISM330BX"
 };
 const sensor_imu_t *sensor_imus[] = {
 	&sensor_imu_none, // will not implement, too low quality

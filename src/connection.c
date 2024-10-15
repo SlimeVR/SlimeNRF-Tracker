@@ -4,7 +4,7 @@
 #include "build_defines.h"
 
 static uint8_t tracker_id, batt, batt_v, sensor_temp, imu_id, mag_id, tracker_status;
-static uint8_t tracker_svr_status = OK;
+static uint8_t tracker_svr_status = SVR_STATUS_OK;
 static float sensor_q[4], sensor_a[3];
 
 LOG_MODULE_REGISTER(connection, LOG_LEVEL_INF);
