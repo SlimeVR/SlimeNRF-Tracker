@@ -41,6 +41,8 @@ static int led_pattern_state;
 void set_led(enum sys_led_pattern led_pattern, int priority)
 {
 #if LED_EXISTS
+	if (led_pattern >= SYS_LED_PATTERN_ONESHOT_POWERON && led_pattern <= SYS_LED_PATTERN_ONESHOT_COMPLETE)
+		priority = SYS_LED_PRIORITY_HIGHEST; // only use highest priority for oneshot patterns
 	led_patterns[priority] = led_pattern;
 	for (int i = 0; i < SYS_LED_PATTERN_DEPTH; i++)
 	{
