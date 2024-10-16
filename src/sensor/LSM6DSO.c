@@ -257,7 +257,7 @@ void lsm6dso_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 	for (int i = 0; i < 3; i++) // calculate offset
 	{
 		accel_reference[i] /= 2; // FS_XL_8G to FS_XL_16G
-		accel_reference[i] *= -1; // negate
+		// dont invert, for some reason
 		accel_reference[i] *= 64; // offset is 2^-6 g/LSB
 		accel_reference[i] += accel_reference[i] < 0 ? -0.5 : 0.5; // round
 		offset[i] = CLAMP(accel_reference[i], -127, 127); // value must be in the range -127 to 127
