@@ -59,7 +59,7 @@ void set_led(enum sys_led_pattern led_pattern, int priority)
 		gpio_pin_set_dt(&led, 0);
 		k_thread_suspend(led_thread_id);
 	}
-	else
+	else if (k_current_get() != led_thread_id) // do not suspend if called from thread
 	{
 		k_thread_suspend(led_thread_id);
 		k_thread_resume(led_thread_id);
