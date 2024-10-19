@@ -165,7 +165,7 @@ int bmm3_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual
 
 	uint8_t AGGR_SET = AGGR_AVG << 4 | AGGR;
 	if (last_odr == AGGR_SET)
-		return -1;
+		return 1;
 	else
 		last_odr = AGGR_SET;
 

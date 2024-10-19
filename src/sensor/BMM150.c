@@ -166,7 +166,7 @@ int bmm1_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual
 
 	uint8_t OP_SET = DR << 2 | OPMODE;
 	if (last_odr == OP_SET)
-		return -1;
+		return 1;
 	else
 		last_odr = OP_SET;
 

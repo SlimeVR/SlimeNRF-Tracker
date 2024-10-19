@@ -136,7 +136,7 @@ int lis3_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual
 
 	uint8_t ctrl = OM << 5 | DO << 2 | FAST_ODR << 1;
 	if (last_odr == ctrl)
-		return -1;
+		return 1;
 	else
 		last_odr = ctrl;
 

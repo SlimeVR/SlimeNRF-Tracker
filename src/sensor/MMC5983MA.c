@@ -116,7 +116,7 @@ int mmc_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual_
 	}
 
 	if (last_odr == MODR)
-		return -1;
+		return 1;
 	else
 		last_odr = MODR;
 
