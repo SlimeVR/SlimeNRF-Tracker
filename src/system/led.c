@@ -36,24 +36,27 @@ static const struct pwm_dt_spec pwm_led = {0};
 
 static enum sys_led_pattern led_patterns[SYS_LED_PATTERN_DEPTH] = {[0 ... (SYS_LED_PATTERN_DEPTH - 1)] = SYS_LED_PATTERN_OFF};
 static enum sys_led_pattern current_led_pattern;
+static int current_priority;
 static int led_pattern_state;
 
 void set_led(enum sys_led_pattern led_pattern, int priority)
 {
 #if LED_EXISTS
-	if (led_pattern >= SYS_LED_PATTERN_ONESHOT_POWERON && led_pattern <= SYS_LED_PATTERN_ONESHOT_COMPLETE)
-		priority = SYS_LED_PRIORITY_HIGHEST; // only use highest priority for oneshot patterns
-	led_patterns[priority] = led_pattern;
-	for (int i = 0; i < SYS_LED_PATTERN_DEPTH; i++)
+	if (led_pattern <= SYS_LED_PATTERN_OFF && k_current_get() == led_thread_id)
+		led_patterns[current_priority] = led_pattern;
+	else
+		led_patterns[priority] = led_pattern;
+	for (priority = 0; priority < SYS_LED_PATTERN_DEPTH; priority++)
 	{
-		if (led_patterns[i] == SYS_LED_PATTERN_OFF)
+		if (led_patterns[priority] == SYS_LED_PATTERN_OFF)
 			continue;
-		led_pattern = led_patterns[i];
+		led_pattern = led_patterns[priority];
 		break;
 	}
 	if (led_pattern == current_led_pattern && led_pattern > SYS_LED_PATTERN_OFF)
 		return;
 	current_led_pattern = led_pattern;
+	current_priority = priority;
 	led_pattern_state = 0;
 	if (current_led_pattern <= SYS_LED_PATTERN_OFF)
 	{
@@ -64,6 +67,10 @@ void set_led(enum sys_led_pattern led_pattern, int priority)
 	else if (k_current_get() != led_thread_id) // do not suspend if called from thread
 	{
 		k_thread_suspend(led_thread_id);
+		k_thread_resume(led_thread_id);
+	}
+	else
+	{
 		k_thread_resume(led_thread_id);
 	}
 #else
@@ -109,7 +116,7 @@ static void led_thread(void)
 			led_pattern_state++;
 			gpio_pin_set_dt(&led, !(led_pattern_state % 2));
 			if (led_pattern_state == 7)
-				set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_HIGHEST); // Sets highest priority to OFF, better not set ONESHOT_POWERON on another priority
+				set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_HIGHEST);
 			else
 				k_msleep(200);
 			break;
@@ -129,7 +136,7 @@ static void led_thread(void)
 			led_pattern_state++;
 			gpio_pin_set_dt(&led, !(led_pattern_state % 2));
 			if (led_pattern_state == 5)
-				set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_HIGHEST); // Sets highest priority to OFF, better not set SYS_LED_PATTERN_ONESHOT_PROGRESS on another priority
+				set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_HIGHEST);
 			else
 				k_msleep(200);
 			break;
@@ -137,7 +144,7 @@ static void led_thread(void)
 			led_pattern_state++;
 			gpio_pin_set_dt(&led, !(led_pattern_state % 2));
 			if (led_pattern_state == 9)
-				set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_HIGHEST); // Sets highest priority to OFF, better not set SYS_LED_PATTERN_ONESHOT_COMPLETE on another priority
+				set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_HIGHEST);
 			else
 				k_msleep(200);
 			break;
