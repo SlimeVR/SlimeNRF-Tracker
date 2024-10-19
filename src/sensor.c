@@ -41,7 +41,7 @@ static float q3[4] = {SENSOR_QUATERNION_CORRECTION}; // correction quaternion
 static int64_t last_data_time;
 static int64_t last_info_time;
 
-static float accelBias[3] = {0}, gyroBias[3] = {0}; // offset biases for the accel and gyro
+static float accelBias[3] = {0}, gyroBias[3] = {0}, magBias[3] = {0}; // offset biases
 
 static int mag_progress;
 static int last_mag_progress;
@@ -271,9 +271,11 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 	// Read calibration from retained
 	memcpy(accelBias, retained.accelBias, sizeof(accelBias));
 	memcpy(gyroBias, retained.gyroBias, sizeof(gyroBias));
+	memcpy(magBias, retained.magBias, sizeof(magBias));
 	memcpy(magBAinv, retained.magBAinv, sizeof(magBAinv));
 	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	LOG_INF("Magnetometer bridge offset: %.5f %.5f %.5f", magBias[0], magBias[1], magBias[2]);
 	LOG_INF("Magnetometer matrix:");
 	for (int i = 0; i < 3; i++)
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
@@ -291,6 +293,7 @@ void sensor_retained_write(void) // TODO: move to sys?
 {
 	if (!sensor_fusion_init)
 		return;
+	memcpy(retained.magBias, magBias, sizeof(magBias));
 	(*sensor_fusion->save)(retained.fusion_data);
 	retained.fusion_data_stored = true;
 	retained_update();
@@ -556,6 +559,8 @@ void main_imu_thread(void)
 			{
 				float m[3];
 				(*sensor_mag->mag_read)(&sensor_mag_dev, m);
+				for (int i = 0; i < 3; i++)
+					m[i] -= magBias[i];
 				magneto_sample(m[0], m[1], m[2], ata, &norm_sum, &sample_count); // 400us
 				apply_BAinv(m, magBAinv);
 				mx = m[0];
@@ -736,7 +741,8 @@ void main_imu_thread(void)
 				}
 				else // only enough time to do one of the two
 				{
-					(*sensor_mag->temp_read)(&sensor_mag_dev); // for some applicable magnetometer, calibrates bridge offsets
+					(*sensor_mag->temp_read)(&sensor_mag_dev, magBias); // for some applicable magnetometer, calibrates bridge offsets
+					sensor_retained_write();
 				}
 			}
 		}

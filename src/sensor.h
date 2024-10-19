@@ -77,7 +77,7 @@ typedef struct sensor_mag {
 
 	void (*mag_oneshot)(const struct i2c_dt_spec*); // trigger oneshot if exists
 	void (*mag_read)(const struct i2c_dt_spec*, float[3]); // any unit
-	float (*temp_read)(const struct i2c_dt_spec*); // deg C
+	float (*temp_read)(const struct i2c_dt_spec*, float[3]); // deg C
 
 	void (*mag_process)(uint8_t*, float[3]); // use if magnetometer is present as an auxiliary sensor, from data read by IMU
 	uint8_t ext_reg; // register for auxiliary interface to read magnetometer data

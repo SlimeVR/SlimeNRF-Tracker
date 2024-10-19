@@ -198,7 +198,7 @@ void bmm3_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 	bmm3_mag_process(rawData, m);
 }
 
-float bmm3_temp_read(const struct i2c_dt_spec *dev_i2c)
+float bmm3_temp_read(const struct i2c_dt_spec *dev_i2c, float bias[3])
 {
 	uint8_t rawTemp[3];
 	int err = i2c_burst_read_dt(dev_i2c, BMM350_TEMP_XLSB, &rawTemp[0], 3);

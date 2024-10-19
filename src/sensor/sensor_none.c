@@ -133,7 +133,7 @@ void mag_none_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 	return;
 }
 
-float mag_none_temp_read(const struct i2c_dt_spec *dev_i2c)
+float mag_none_temp_read(const struct i2c_dt_spec *dev_i2c, float bias[3])
 {
 	LOG_DBG("mag_none_temp_read, sensor has no magnetometer or magnetometer has no temperature register");
 	return 0;

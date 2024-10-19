@@ -18,6 +18,7 @@
 #define MMC5983MA_XOUT_0        0x00
 #define MMC5983MA_TOUT          0x07
 
+#define MMC5983MA_STATUS        0x08
 #define MMC5983MA_CONTROL_0     0x09
 #define MMC5983MA_CONTROL_1     0x0A
 #define MMC5983MA_CONTROL_2     0x0B
@@ -55,7 +56,7 @@ int mmc_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual_
 
 void mmc_mag_oneshot(const struct i2c_dt_spec *dev_i2c);
 void mmc_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3]);
-float mmc_temp_read(const struct i2c_dt_spec *dev_i2c);
+float mmc_temp_read(const struct i2c_dt_spec *dev_i2c, float bias[3]);
 
 void mmc_mag_process(uint8_t *raw_m, float m[3]);
 

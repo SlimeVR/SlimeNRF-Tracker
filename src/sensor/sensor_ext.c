@@ -55,10 +55,10 @@ void mag_ext_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 	(*ext_mag->mag_process)(raw_m, m);
 }
 
-float mag_ext_temp_read(const struct i2c_dt_spec *dev_i2c)
+float mag_ext_temp_read(const struct i2c_dt_spec *dev_i2c, float bias[3])
 {
 	// (*ext_imu->ext_passthrough)(dev_i2c, true);
-	float temp = (*ext_mag->temp_read)(dev_i2c);
+	float temp = (*ext_mag->temp_read)(dev_i2c, bias);
 	// (*ext_imu->ext_passthrough)(dev_i2c, false);
 	return temp;
 }

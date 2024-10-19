@@ -30,7 +30,7 @@ int mag_none_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *ac
 
 void mag_none_mag_oneshot(const struct i2c_dt_spec *dev_i2c);
 void mag_none_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3]);
-float mag_none_temp_read(const struct i2c_dt_spec *dev_i2c);
+float mag_none_temp_read(const struct i2c_dt_spec *dev_i2c, float bias[3]);
 
 void mag_none_mag_process(uint8_t *raw_m, float m[3]);
 

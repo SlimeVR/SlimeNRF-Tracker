@@ -19,6 +19,7 @@ struct retained_data {
 
 	float accelBias[3];
 	float gyroBias[3];
+	float magBias[3];
 	float magBAinv[4][3];
 
 	bool fusion_data_stored;

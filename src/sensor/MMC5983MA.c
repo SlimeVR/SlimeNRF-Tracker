@@ -20,8 +20,9 @@ static const float offset = 131072.0f; // mag range unsigned to signed
 
 static uint8_t last_odr = 0xff;
 static float last_time = 0;
-static uint8_t last_rawTemp;
-static float bridge_offset[3] = {0};
+static uint8_t last_rawTemp = 0xff;
+static bool oneshot_triggered = false;
+static bool auto_set_reset = true;
 
 LOG_MODULE_REGISTER(MMC5983MA, LOG_LEVEL_DBG);
 
@@ -123,8 +124,8 @@ int mmc_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual_
 	int err = i2c_reg_write_byte_dt(dev_i2c, MMC5983MA_CONTROL_1, MBW);
 
 	// enable continuous measurement mode (bit 3 == 1), set sample rate
-	// enable automatic Set/Reset (bit 8 == 1), set set/reset rate
-	err |= i2c_reg_write_byte_dt(dev_i2c, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | 0x08 | MODR);
+	// enable automatic Set/Reset (bit 7 == 1), set set/reset rate
+	err |= i2c_reg_write_byte_dt(dev_i2c, MMC5983MA_CONTROL_2, 0x80 | (MSET << 4) | (MODR ? 0x08 : 0) | MODR);
 	if (err)
 		LOG_ERR("I2C error");
 
@@ -135,7 +136,8 @@ int mmc_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual_
 void mmc_mag_oneshot(const struct i2c_dt_spec *dev_i2c)
 {
 	// enable auto set/reset (bit 5 == 1) and trigger oneshot
-	int err = i2c_reg_write_byte_dt(dev_i2c, MMC5983MA_CONTROL_0, 0x20 | 0x02);
+	int err = i2c_reg_write_byte_dt(dev_i2c, MMC5983MA_CONTROL_0, (auto_set_reset ? 0x20 : 0) | 0x01);
+	oneshot_triggered = true;
 	if (err)
 		LOG_ERR("I2C error");
 }
@@ -143,9 +145,10 @@ void mmc_mag_oneshot(const struct i2c_dt_spec *dev_i2c)
 void mmc_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 {
 	int err = 0;
-	uint8_t status;
-	while (status & 0x02) // wait for oneshot to complete
-		err |= i2c_reg_read_byte_dt(dev_i2c, MMC5983MA_CONTROL_0, &status);
+	uint8_t status = oneshot_triggered ? 0x00 : 0x01;
+	while (~status & 0x01) // wait for oneshot to complete
+		err |= i2c_reg_read_byte_dt(dev_i2c, MMC5983MA_STATUS, &status);
+	oneshot_triggered = false;
 	uint8_t rawData[7]; // x/y/z mag register data stored here
 	err |= i2c_burst_read_dt(dev_i2c, MMC5983MA_XOUT_0, &rawData[0], 7); // Read the 7 raw data registers into data array
 	if (err)
@@ -155,7 +158,7 @@ void mmc_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 
 // MMC must trigger the measurement, which will take significant time
 // instead, the temperature is read from the last measurement and then another measurement is immediately triggered
-float mmc_temp_read(const struct i2c_dt_spec *dev_i2c) // TODO: Not working
+float mmc_temp_read(const struct i2c_dt_spec *dev_i2c, float bias[3])
 {
 	uint8_t rawTemp;
 	int err = i2c_reg_read_byte_dt(dev_i2c, MMC5983MA_TOUT, &rawTemp);
@@ -165,35 +168,36 @@ float mmc_temp_read(const struct i2c_dt_spec *dev_i2c) // TODO: Not working
 	temp -= 75;
 
 	// USING SET AND RESET TO REMOVE BRIDGE OFFSET in datasheet
-	if (last_rawTemp != rawTemp && last_odr > 1.0 / 50) // calculate offset at low motion only
+	if (last_rawTemp != rawTemp && last_time > 1.0 / 50) // calculate offset at low motion only
 	{ // TODO: does the temp register have hysteresis?
 		float mPos[3], mNeg[3];
 		float actual_time;
 
 		last_rawTemp = rawTemp;
 		for (int i = 0; i < 3; i++) // clear stored offset
-			bridge_offset[i] = 0;
+			bias[i] = 0;
 
 		err |= mmc_update_odr(dev_i2c, INFINITY, &actual_time); // set oneshot mode
-
-		mmc_SET(dev_i2c);
-		mmc_mag_oneshot(dev_i2c);
-		mmc_mag_read(dev_i2c, mPos);
+		auto_set_reset = false; // disable auto set/reset
 
 		mmc_RESET(dev_i2c);
 		mmc_mag_oneshot(dev_i2c);
 		mmc_mag_read(dev_i2c, mNeg);
 
-		for (int i = 0; i < 3; i++) // store bridge offset for future readings
-			bridge_offset[i] = (mPos[i] + mNeg[i]) / 2; // ((+H + Offset) + (-H + Offset)) / 2
-
 		mmc_SET(dev_i2c);
+		mmc_mag_oneshot(dev_i2c);
+		mmc_mag_read(dev_i2c, mPos);
+
+		for (int i = 0; i < 3; i++) // store bridge offset for future readings
+			bias[i] = (mPos[i] + mNeg[i]) / 2; // ((+H + Offset) + (-H + Offset)) / 2
+
+		auto_set_reset = true; // enable auto set/reset
 		err |= mmc_update_odr(dev_i2c, last_time, &actual_time); // reset odr
 	}
 
 	// enable auto set/reset (bit 5 == 1) and trigger measurement
-	err |= i2c_reg_write_byte_dt(dev_i2c, MMC5983MA_CONTROL_0, 0x20 | 0x01);
-	if (err)
+	err |= i2c_reg_write_byte_dt(dev_i2c, MMC5983MA_CONTROL_0, 0x20 | 0x02);
+	if (err < 0)
 		LOG_ERR("I2C error");
 	return temp;
 }
@@ -205,7 +209,7 @@ void mmc_mag_process(uint8_t *raw_m, float m[3])
 	rawMag[1] = (uint32_t)(raw_m[2] << 10 | raw_m[3] << 2 | (raw_m[6] & 0x30) >> 4); // Turn the 18 bits into a unsigned 32-bit value
 	rawMag[2] = (uint32_t)(raw_m[4] << 10 | raw_m[5] << 2 | (raw_m[6] & 0x0C) >> 2); // Turn the 18 bits into a unsigned 32-bit value
 	for (int i = 0; i < 3; i++) // x, y, z
-		m[i] = ((float)rawMag[i] - offset) * sensitivity - bridge_offset[i];
+		m[i] = ((float)rawMag[i] - offset) * sensitivity;
 }
 
 static void mmc_SET(const struct i2c_dt_spec *dev_i2c)

@@ -119,7 +119,7 @@ void lis2_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 	lis2_mag_process(rawData, m);
 }
 
-float lis2_temp_read(const struct i2c_dt_spec *dev_i2c)
+float lis2_temp_read(const struct i2c_dt_spec *dev_i2c, float bias[3])
 {
 	uint8_t rawTemp[2];
 	int err = i2c_burst_read_dt(dev_i2c, LIS2MDL_TEMP_OUT_L_REG, &rawTemp[0], 2);
