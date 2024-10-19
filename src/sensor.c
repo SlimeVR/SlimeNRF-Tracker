@@ -347,8 +347,7 @@ void sensor_calibrate_imu(void)
 	{ // TODO: always clearing the fusion?
 		retained.fusion_data_stored = false; // Invalidate retained fusion data
 	}
-	set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
-	set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_HIGHEST);
+	set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_SENSOR);
 }
 
 void sensor_calibrate_mag(void)
@@ -573,7 +572,7 @@ void main_imu_thread(void)
 						mag_progress = new_mag_progress;
 						//LOG_INF("Magnetometer calibration progress: %d", new_mag_progress);
 						LOG_INF("Magnetometer calibration progress: %s %s %s %s %s %s" , (new_mag_progress & 0x01) ? "X-" : "--", (new_mag_progress & 0x02) ? "X+" : "--", (new_mag_progress & 0x04) ? "Y-" : "--", (new_mag_progress & 0x08) ? "Y+" : "--", (new_mag_progress & 0x10) ? "Z-" : "--", (new_mag_progress & 0x20) ? "Z+" : "--");
-						set_led(SYS_LED_PATTERN_ONESHOT_PROGRESS, SYS_LED_PRIORITY_HIGHEST);
+						set_led(SYS_LED_PATTERN_ONESHOT_PROGRESS, SYS_LED_PRIORITY_SENSOR);
 					}
 				}
 				else
@@ -733,8 +732,7 @@ void main_imu_thread(void)
 				if (mag_progress == 0b111111) // Save magnetometer calibration while idling
 				{
 					sensor_calibrate_mag();
-					set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
-					set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_HIGHEST);
+					set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_SENSOR);
 				}
 				else // only enough time to do one of the two
 				{
