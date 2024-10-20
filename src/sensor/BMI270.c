@@ -150,7 +150,7 @@ int bmi_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gy
 	if (gyro_time <= 0 || gyro_time == INFINITY) // off, standby interpreted as off
 		ODR = 0;
 	else
-		ODR = 1 / accel_time;
+		ODR = 1 / gyro_time;
 
 	if (ODR == 0)
 	{
