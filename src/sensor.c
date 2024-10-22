@@ -349,6 +349,7 @@ void sensor_calibrate_imu(void)
 	else
 	{ // TODO: always clearing the fusion?
 		retained.fusion_data_stored = false; // Invalidate retained fusion data
+		retained_update();
 	}
 	set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_SENSOR);
 }
@@ -399,6 +400,7 @@ void sensor_calibration_clear(void)
 	else
 	{ // TODO: always clearing the fusion?
 		retained.fusion_data_stored = false; // Invalidate retained fusion data
+		retained_update();
 	}
 }
 
