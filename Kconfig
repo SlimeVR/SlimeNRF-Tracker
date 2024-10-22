@@ -8,4 +8,28 @@ source "Kconfig.zephyr"
 
 menu "SlimeNRF"
 
+config USER_SHUTDOWN
+    bool "User Shutdown"
+    default y
+    help
+        Allow user to use reset or sw0 to shutdown.
+
+config USE_MAG
+    bool "Magnetometer Support"
+    default y
+    help
+        Use magnetometer if it is present.
+
+config IGNORE_RESET
+    bool "Ignore Reset"
+    default y
+    help
+        If sw0 available, don't change any reset behavior.
+
+config WOM_USE_DCDC
+    bool "WOM Use DCDC"
+    default n
+    help
+        Use DCDC instead of LDO for WOM if it is more efficient.
+
 endmenu
