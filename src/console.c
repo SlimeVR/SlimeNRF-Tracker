@@ -13,6 +13,13 @@
 
 LOG_MODULE_REGISTER(console, LOG_LEVEL_INF);
 
+static void usb_init_thread(void);
+K_THREAD_DEFINE(usb_init_thread_id, 256, usb_init_thread, NULL, NULL, NULL, 6, 0, 500); // Wait before enabling USB
+
+static void console_thread(void);
+static struct k_thread console_thread_id;
+static K_THREAD_STACK_DEFINE(console_thread_id_stack, 512);
+
 #define DFU_EXISTS CONFIG_BUILD_OUTPUT_UF2
 
 static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
@@ -21,9 +28,11 @@ static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 	{
 	case USB_DC_CONNECTED:
 		set_status(SYS_STATUS_USB_CONNECTED, true);
+		k_thread_create(&console_thread_id, console_thread_id_stack, K_THREAD_STACK_SIZEOF(console_thread_id_stack), (k_thread_entry_t)console_thread, NULL, NULL, NULL, 6, 0, K_NO_WAIT);
 		break;
 	case USB_DC_DISCONNECTED:
 		set_status(SYS_STATUS_USB_CONNECTED, false);
+		k_thread_abort(&console_thread_id);
 		break;
 	default:
 		LOG_DBG("status %u unhandled", status);
@@ -31,15 +40,12 @@ static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 	}
 }
 
-void usb_init_thread(void)
+static void usb_init_thread(void)
 {
-	k_msleep(500); // Wait before enabling USB
 	usb_enable(status_cb);
 }
 
-K_THREAD_DEFINE(usb_init_thread_id, 256, usb_init_thread, NULL, NULL, NULL, 6, 0, 0);
-
-void console_thread(void)
+static void console_thread(void)
 {
 	console_getline_init();
 	printk("*** " CONFIG_USB_DEVICE_MANUFACTURER " " CONFIG_USB_DEVICE_PRODUCT " ***\n");
@@ -92,7 +98,5 @@ void console_thread(void)
 		}
 	}
 }
-
-K_THREAD_DEFINE(console_thread_id, 512, console_thread, NULL, NULL, NULL, 6, 0, 0);
 
 #endif
