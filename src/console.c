@@ -14,6 +14,7 @@ static const struct device *hdev;
 static ATOMIC_DEFINE(hid_ep_in_busy, 1);
 
 #define HID_EP_BUSY_FLAG 0
+#include <ctype.h>
 
 LOG_MODULE_REGISTER(console, LOG_LEVEL_INF);
 
