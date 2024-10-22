@@ -2,7 +2,7 @@
 #include "system.h"
 
 #define USB DT_NODELABEL(usbd)
-#if DT_NODE_HAS_STATUS(USB, okay) && CONFIG_USB_DEVICE_STACK
+#if DT_NODE_HAS_STATUS(USB, okay) && CONFIG_USE_SLIMENRF_CONSOLE
 
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/usb/class/usb_hid.h>
