@@ -13,7 +13,7 @@ int mag_ext_setup(const sensor_imu_t *imu, const sensor_mag_t *mag, uint8_t addr
 {
 	ext_imu = imu;
 	ext_mag = mag;
-	uint8_t reg = ext_mag->ext_reg;
+	// uint8_t reg = ext_mag->ext_reg;
 	// return (*ext_imu->ext_setup)(addr, reg);
 	return 0;
 }
