@@ -31,6 +31,12 @@ config APP_USE_RETAINED_MEM
 
 endchoice
 
+config USE_IMU_WAKE_UP
+    bool "IMU wake up support"
+    default y
+    help
+        Use sleep states if IMU wake up is present.
+
 config USER_SHUTDOWN
     bool "User Shutdown"
     default y
