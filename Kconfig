@@ -38,27 +38,28 @@ config USE_IMU_WAKE_UP
         Use sleep states if IMU wake up is present.
 
 config USER_SHUTDOWN
-    bool "User Shutdown"
+    bool "User shutdown support"
     default y
     help
         Allow user to use reset or sw0 to shutdown.
 
 config USE_MAG
-    bool "Magnetometer Support"
+    bool "Magnetometer support"
     default y
     help
         Use magnetometer if it is present.
 
 config IGNORE_RESET
-    bool "Ignore Reset"
+    bool "Ignore reset"
     default y
     help
-        If sw0 available, don't change any reset behavior.
+        If sw0 is available, don't change any reset behavior.
 
 config WOM_USE_DCDC
-    bool "WOM Use DCDC"
+    bool "Use DCDC in IMU wake up mode"
+    depends on USE_IMU_WAKE_UP
     default n
     help
-        Use DCDC instead of LDO for WOM if it is more efficient.
+        Use DCDC instead of LDO in sleep states if it is more efficient.
 
 endmenu
