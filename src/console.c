@@ -9,36 +9,21 @@
 #include <zephyr/console/console.h>
 #include <zephyr/sys/reboot.h>
 
-static bool configured;
-static const struct device *hdev;
-static ATOMIC_DEFINE(hid_ep_in_busy, 1);
-
-#define HID_EP_BUSY_FLAG 0
 #include <ctype.h>
 
 LOG_MODULE_REGISTER(console, LOG_LEVEL_INF);
 
-static void int_in_ready_cb(const struct device *dev)
-{
-	ARG_UNUSED(dev);
-	if (!atomic_test_and_clear_bit(hid_ep_in_busy, HID_EP_BUSY_FLAG)) {
-		LOG_WRN("IN endpoint callback without preceding buffer write");
-	}
-}
+#define DFU_EXISTS CONFIG_BUILD_OUTPUT_UF2
 
 static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
-	switch (status) {
-	case USB_DC_RESET:
-		configured = false;
+	switch (status)
+	{
+	case USB_DC_CONNECTED:
+		set_status(SYS_STATUS_USB_CONNECTED, true);
 		break;
-	case USB_DC_CONFIGURED:
-		if (!configured) {
-			int_in_ready_cb(hdev);
-			configured = true;
-		}
-		break;
-	case USB_DC_SOF:
+	case USB_DC_DISCONNECTED:
+		set_status(SYS_STATUS_USB_CONNECTED, false);
 		break;
 	default:
 		LOG_DBG("status %u unhandled", status);
@@ -48,9 +33,7 @@ static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 
 void usb_init_thread(void)
 {
-	k_msleep(1000);
-	usb_disable();
-	k_msleep(1000); // Wait before enabling USB // TODO: why does it need to wait so long
+	k_msleep(500); // Wait before enabling USB
 	usb_enable(status_cb);
 }
 
@@ -63,12 +46,16 @@ void console_thread(void)
 	printk("reboot                       Soft reset the device\n");
 	printk("calibrate                    Calibrate sensor ZRO\n");
 	printk("pair                         Clear pairing data\n");
-	printk("dfu                          Enter DFU bootloader\n");
 
 	uint8_t command_reboot[] = "reboot";
 	uint8_t command_calibrate[] = "calibrate";
 	uint8_t command_pair[] = "pair";
+
+#if DFU_EXISTS
+	printk("dfu                          Enter DFU bootloader\n");
+
 	uint8_t command_dfu[] = "dfu";
+#endif
 
 	while (1) {
 		uint8_t *line = console_getline();
@@ -92,11 +79,13 @@ void console_thread(void)
 			k_msleep(1);
 			sys_reboot(SYS_REBOOT_WARM);
 		}
+#if DFU_EXISTS
 		else if (memcmp(line, command_dfu, sizeof(command_dfu)) == 0)
 		{
 			NRF_POWER->GPREGRET = 0x57;
 			sys_reboot(SYS_REBOOT_COLD);
 		}
+#endif
 		else
 		{
 			printk("Unknown command\n");

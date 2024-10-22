@@ -28,6 +28,10 @@ void set_status(enum sys_status status, bool set)
 			break;
 		case SYS_STATUS_SYSTEM_ERROR:
 			LOG_ERR("General error");
+			break;
+		case SYS_STATUS_USB_CONNECTED:
+			LOG_INF("USB connected");
+			break;
 		default:
 			break;
 		}
@@ -44,22 +48,23 @@ static void status_thread(void)
 {
 	while (1) // cycle through errors
 	{
-		if (status_state & SYS_STATUS_SENSOR_ERROR)
+		int status = status_state & (SYS_STATUS_SENSOR_ERROR | SYS_STATUS_CONNECTION_ERROR | SYS_STATUS_SYSTEM_ERROR);
+		if (status & SYS_STATUS_SENSOR_ERROR)
 		{
 			set_led(SYS_LED_PATTERN_ERROR_A, SYS_LED_PRIORITY_STATUS);
 			k_msleep(5000);
 		}
-		if (status_state & SYS_STATUS_CONNECTION_ERROR)
+		if (status & SYS_STATUS_CONNECTION_ERROR)
 		{
 			set_led(SYS_LED_PATTERN_ERROR_B, SYS_LED_PRIORITY_STATUS);
 			k_msleep(5000);
 		}
-		if (status_state & SYS_STATUS_SYSTEM_ERROR)
+		if (status & SYS_STATUS_SYSTEM_ERROR)
 		{
 			set_led(SYS_LED_PATTERN_ERROR_C, SYS_LED_PRIORITY_STATUS);
 			k_msleep(5000);
 		}
-		if (!status_state)
+		if (!status)
 		{
 			set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_STATUS);
 			k_msleep(100);
@@ -67,7 +72,7 @@ static void status_thread(void)
 	}
 }
 
-bool status_ready(void) // true if no important status errors are active
+bool status_ready(void) // true if no important statuses are active
 {
 	return (status_state & ~SYS_STATUS_CONNECTION_ERROR) == 0; // connection error is temporary, not critical
 }

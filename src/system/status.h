@@ -4,7 +4,8 @@
 enum sys_status {
 	SYS_STATUS_SENSOR_ERROR = 1,
 	SYS_STATUS_CONNECTION_ERROR = 2,
-	SYS_STATUS_SYSTEM_ERROR = 4
+	SYS_STATUS_SYSTEM_ERROR = 4,
+	SYS_STATUS_USB_CONNECTED = 8
 };
 
 void set_status(enum sys_status status, bool set);
