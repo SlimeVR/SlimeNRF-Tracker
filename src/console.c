@@ -2,7 +2,7 @@
 #include "system.h"
 
 #define USB DT_NODELABEL(usbd)
-#if DT_NODE_HAS_STATUS(USB, okay)
+#if DT_NODE_HAS_STATUS(USB, okay) && CONFIG_USB_DEVICE_STACK
 
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/usb/class/usb_hid.h>
@@ -45,10 +45,18 @@ static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 	}
 }
 
+void usb_init_thread(void)
+{
+	k_msleep(1000);
+	usb_disable();
+	k_msleep(1000); // Wait before enabling USB // TODO: why does it need to wait so long
+	usb_enable(status_cb);
+}
+
+K_THREAD_DEFINE(usb_init_thread_id, 256, usb_init_thread, NULL, NULL, NULL, 6, 0, 0);
+
 void console_thread(void)
 {
-	usb_enable(status_cb);
-
 	console_getline_init();
 	printk("*** " CONFIG_USB_DEVICE_MANUFACTURER " " CONFIG_USB_DEVICE_PRODUCT " ***\n");
 	printk("reboot                       Soft reset the device\n");
@@ -63,6 +71,9 @@ void console_thread(void)
 
 	while (1) {
 		uint8_t *line = console_getline();
+		for (uint8_t *p = line; *p; ++p) {
+			*p = tolower(*p);
+		}
 
 		if (memcmp(line, command_reboot, sizeof(command_reboot)) == 0)
 		{
