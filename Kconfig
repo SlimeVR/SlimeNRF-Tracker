@@ -58,8 +58,13 @@ config IGNORE_RESET
 config WOM_USE_DCDC
     bool "Use DCDC in IMU wake up mode"
     depends on USE_IMU_WAKE_UP
-    default n
     help
         Use DCDC instead of LDO in sleep states if it is more efficient.
+
+config USE_SENSOR_CLOCK
+    bool "Use external IMU clock"
+    default y
+    help
+        Use external IMU clock if it is present.
 
 endmenu

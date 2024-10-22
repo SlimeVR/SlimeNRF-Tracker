@@ -452,9 +452,12 @@ int main_imu_init(void)
 	if (mag_available)
 		(*sensor_mag->shutdown)(&sensor_mag_dev);
 
-	float clock_actual_rate;
+	float clock_actual_rate = 0;
+#if CONFIG_USE_SENSOR_CLOCK
 	set_sensor_clock(true, 32768, &clock_actual_rate); // enable the clock source for IMU if present
-	LOG_INF("Sensor clock rate: %.2fHz", clock_actual_rate);
+#endif
+	if (clock_actual_rate != 0)
+		LOG_INF("Sensor clock rate: %.2fHz", clock_actual_rate);
 
 	k_usleep(250); // wait for sensor register reset
 	float accel_initial_time = sensor_update_time_ms / 1000.0; // configure with ~200Hz ODR
