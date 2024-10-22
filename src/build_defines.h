@@ -1,9 +1,11 @@
 #include "sensor/sensors_enum.h"
 #include "system/status.h"
 
-#define FW_VERSION_MAJOR 0
-#define FW_VERSION_MINOR 6
-#define FW_VERSION_PATCH 9
+#include "app_version.h"
+
+#define FW_VERSION_MAJOR APP_VERSION_MAJOR
+#define FW_VERSION_MINOR APP_VERSION_MINOR
+#define FW_VERSION_PATCH APP_PATCHLEVEL
 
 // constants from server, should include BoardType, MCUType, IMUType, MagType (not yet)
 // https://github.com/SlimeVR/SlimeVR-Server/blob/main/server/core/src/main/java/dev/slimevr/tracking/trackers/udp/FirmwareConstants.kt
