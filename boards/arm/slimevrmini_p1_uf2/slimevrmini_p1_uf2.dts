@@ -8,14 +8,14 @@
 &pinctrl {
 	i2c0_default: i2c0_default {
 		group1 {
-			psels = <NRF_PSEL(TWIM_SDA, 0, 26)>, <NRF_PSEL(TWIM_SCL, 0, 6)>;
+			psels = <NRF_PSEL(TWIM_SDA, 0, 3)>, <NRF_PSEL(TWIM_SCL, 0, 2)>;
 			bias-disable;
 		};
 	};
 
 	i2c0_sleep: i2c0_sleep {
 		group1 {
-			psels = <NRF_PSEL(TWIM_SDA, 0, 26)>, <NRF_PSEL(TWIM_SCL, 0, 6)>;
+			psels = <NRF_PSEL(TWIM_SDA, 0, 3)>, <NRF_PSEL(TWIM_SCL, 0, 2)>;
 			bias-disable;
 			low-power-enable;
 		};
@@ -23,13 +23,13 @@
 
 	pwm0_default: pwm0_default {
 		group1 {
-			psels = <NRF_PSEL(PWM_OUT0, 0, 7)>;
+			psels = <NRF_PSEL(PWM_OUT0, 0, 31)>;
 		};
 	};
 
 	pwm0_sleep: pwm0_sleep {
 		group1 {
-			psels = <NRF_PSEL(PWM_OUT0, 0, 7)>;
+			psels = <NRF_PSEL(PWM_OUT0, 0, 31)>;
 			low-power-enable;
 		};
 	};
@@ -58,7 +58,7 @@
 	buttons {
 		compatible = "gpio-keys";
 		button0: button_0 {
-			gpios = <&gpio0 13 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			gpios = <&gpio0 4 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 			label = "Push button switch 0";
 		};
 	};
@@ -70,21 +70,17 @@
 	battery-divider {
 		compatible = "voltage-divider";
 		status = "okay";
-		io-channels = <&adc 1>;
-		output-ohms = <510000>;
-		full-ohms = <(1000000+510000)>;
-		power-gpios = <&gpio1 10 (GPIO_OPEN_DRAIN|GPIO_ACTIVE_LOW)>;
+		io-channels = <&adc 3>;
+		output-ohms = <40200>;
+		full-ohms = <(1000000+40200)>;
+		power-gpios = <&gpio1 9 (GPIO_OPEN_DRAIN | GPIO_ACTIVE_LOW)>;
 	};
 
 	zephyr,user {
-		dock-gpios = <&gpio0 4 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		int0-gpios = <&gpio0 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		led-gpios = <&gpio0 7 (GPIO_OPEN_DRAIN|GPIO_ACTIVE_LOW)>;
-		clk-gpios = <&gpio0 28 GPIO_OPEN_DRAIN>;
-		chg-gpios = <&gpio1 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		stby-gpios = <&gpio0 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		dcdc-gpios = <&gpio0 31 GPIO_OPEN_DRAIN>;
-		ldo-gpios = <&gpio0 30 GPIO_PUSH_PULL>;
+		int0-gpios = <&gpio0 28 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		int1-gpios = <&gpio0 17 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		chg-gpios = <&gpio0 11 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		stby-gpios = <&gpio0 15 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 	};
 
 };
