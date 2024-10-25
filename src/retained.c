@@ -171,9 +171,6 @@ bool retained_validate(void)
 		memset(&retained, 0, sizeof(retained));
 	}
 
-	/* Reset to accrue runtime from this session. */
-	retained.uptime_latest = 0;
-
 	/* Reconfigure to retain the state during system off, regardless of
 	 * whether validation succeeded.  Although these values can sometimes
 	 * be observed to be preserved across System OFF, the product
@@ -187,11 +184,6 @@ bool retained_validate(void)
 
 void retained_update(void)
 {
-	uint64_t now = k_uptime_ticks();
-
-	retained.uptime_sum += (now - retained.uptime_latest);
-	retained.uptime_latest = now;
-
 	uint32_t crc = crc32_ieee((const uint8_t *)&retained,
 				  RETAINED_CRC_OFFSET);
 
