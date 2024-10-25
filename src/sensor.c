@@ -366,9 +366,7 @@ void sensor_calibrate_mag(void)
 	//mag_progress |= 1 << 7;
 	mag_progress = 0;
 	// clear data
-	//memset(ata[0], 0, sizeof(ata)); // TODO: does this work??
-	for (int i = 0; i < 100; i++)
-		ata[i] = 0.0;
+	memset(ata, 0, sizeof(ata)); // TODO: does this work??
 	norm_sum = 0.0;
 	sample_count = 0.0;
 }
