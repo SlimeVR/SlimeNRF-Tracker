@@ -49,6 +49,19 @@ float q_diff_mag(const float *x, const float *y)
 	return fabsf(2 * acosf(q[0]));
 }
 
+void v_rotate(const float *v, const float *q, float *out) // TODO: not the most optimal
+{
+    float p[4] = {0, v[0], v[1], v[2]};
+    float conj[4];
+    float temp[4];
+    q_conj(q, conj);
+    q_multiply(q, p, temp);
+    q_multiply(temp, conj, p);
+    out[0] = p[1];
+    out[1] = p[2];
+    out[2] = p[3];
+}
+
 float v_diff_mag(const float *a, const float *b)
 {
 	float x = a[0] - b[0];

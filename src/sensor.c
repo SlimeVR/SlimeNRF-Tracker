@@ -719,6 +719,7 @@ void main_imu_thread(void)
 				memcpy(last_q, q, sizeof(q));
 				float q_offset[4];
 				q_multiply(q, q3, q_offset);
+				v_rotate(lin_a, q3, lin_a);
 				connection_update_sensor_data(q_offset, lin_a);
 				if (send_info && !send_precise_quat) // prioritize quat precision
 				{
