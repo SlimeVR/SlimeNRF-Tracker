@@ -146,8 +146,11 @@ void mmc_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 {
 	int err = 0;
 	uint8_t status = oneshot_triggered ? 0x00 : 0x01;
-	while (~status & 0x01) // wait for oneshot to complete
+	int64_t timeout = k_uptime_get() + 3; // 3ms timeout // TODO: preferably don't have this
+	while ((~status & 0x01) && k_uptime_get() < timeout) // wait for oneshot to complete or timeout
 		err |= i2c_reg_read_byte_dt(dev_i2c, MMC5983MA_STATUS, &status);
+	if (k_uptime_get() >= timeout)
+		LOG_ERR("Read timeout");
 	oneshot_triggered = false;
 	uint8_t rawData[7]; // x/y/z mag register data stored here
 	err |= i2c_burst_read_dt(dev_i2c, MMC5983MA_XOUT_0, &rawData[0], 7); // Read the 7 raw data registers into data array
