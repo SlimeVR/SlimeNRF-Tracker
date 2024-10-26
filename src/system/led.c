@@ -71,9 +71,10 @@ void set_led(enum sys_led_pattern led_pattern, int priority)
 	if (current_led_pattern <= SYS_LED_PATTERN_OFF)
 	{
 		pwm_set_pulse_dt(&pwm_led, 0);
-		led_gpio_init(); // reinit led
 		gpio_pin_set_dt(&led, 0);
 		k_thread_suspend(led_thread_id);
+		led_gpio_init(); // reinit led
+		gpio_pin_set_dt(&led, 0);
 	}
 	else if (k_current_get() != led_thread_id) // do not suspend if called from thread
 	{
@@ -99,7 +100,6 @@ static void led_thread(void)
 	while (1)
 	{
 		pwm_set_pulse_dt(&pwm_led, 0);
-		led_gpio_init(); // reinit led
 		gpio_pin_set_dt(&led, 0);
 		switch (current_led_pattern)
 		{
