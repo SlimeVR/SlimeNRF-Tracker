@@ -8,14 +8,14 @@
 &pinctrl {
 	i2c0_default: i2c0_default {
 		group1 {
-			psels = <NRF_PSEL(TWIM_SDA, 0, 3)>, <NRF_PSEL(TWIM_SCL, 0, 2)>;
+			psels = <NRF_PSEL(TWIM_SDA, 0, 20)>, <NRF_PSEL(TWIM_SCL, 0, 17)>;
 			bias-disable;
 		};
 	};
 
 	i2c0_sleep: i2c0_sleep {
 		group1 {
-			psels = <NRF_PSEL(TWIM_SDA, 0, 3)>, <NRF_PSEL(TWIM_SCL, 0, 2)>;
+			psels = <NRF_PSEL(TWIM_SDA, 0, 20)>, <NRF_PSEL(TWIM_SCL, 0, 17)>;
 			bias-disable;
 			low-power-enable;
 		};
@@ -78,7 +78,7 @@
 
 	zephyr,user {
 		int0-gpios = <&gpio0 28 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		int1-gpios = <&gpio0 17 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		led-gpios = <&gpio0 31 (GPIO_OPEN_DRAIN | GPIO_ACTIVE_LOW)>;
 		chg-gpios = <&gpio0 11 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 		stby-gpios = <&gpio0 15 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 	};
@@ -97,20 +97,21 @@
 		};
 		slot0_partition: partition@c000 {
 			label = "image-0";
-			reg = <0xc000 0x72000>;
+			reg = <0xc000 0x37000>;
 		};
-		slot1_partition: partition@7e000 {
+		slot1_partition: partition@43000 {
 			label = "image-1";
-			reg = <0x7e000 0x72000>;
+			reg = <0x43000 0x37000>;
 		};
-		scratch_partition: partition@f0000 {
+		scratch_partition: partition@7a000 {
 			label = "image-scratch";
-			reg = <0xf0000 0xa000>;
+			reg = <0x7a000 0x2000>;
 		};
-		storage_partition: partition@fa000 {
+		storage_partition: partition@7c000 {
 			label = "storage";
-			reg = <0xfa000 0x6000>;
+			reg = <0x7c000 0x4000>;
 		};
+		// size limt is 0x80_000 (512KB)
 	};
 };
 
