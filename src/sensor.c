@@ -326,7 +326,10 @@ void sensor_calibrate_imu(void)
 
 	set_led(SYS_LED_PATTERN_LONG, SYS_LED_PRIORITY_SENSOR);
 	if (!wait_for_motion(&sensor_imu_dev, false, 6)) // Wait for accelerometer to settle, timeout 3s
+	{
+		set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
 		return; // Timeout, calibration failed
+	}
 
 	set_led(SYS_LED_PATTERN_ON, SYS_LED_PRIORITY_SENSOR);
 	k_msleep(500); // Delay before beginning acquisition
@@ -337,7 +340,11 @@ void sensor_calibrate_imu(void)
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
-	sensor_calibration_validate();
+	if (sensor_calibration_validate())
+	{
+		set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
+		return;
+	}
 
 	LOG_INF("Finished calibration");
 	if (sensor_fusion_init)
@@ -371,7 +378,7 @@ void sensor_calibrate_mag(void)
 	sample_count = 0.0;
 }
 
-void sensor_calibration_validate(void)
+int sensor_calibration_validate(void)
 {
 	float zero[3] = {0};
 	if (!v_epsilon(accelBias, zero, 1.0) || !v_epsilon(gyroBias, zero, 100.0)) // TODO: this is using v_epsilon to compare zero. Check accel is <1G and gyro <100dps
@@ -379,7 +386,9 @@ void sensor_calibration_validate(void)
 		sensor_calibration_clear();
 		LOG_WRN("Invalidated calibration");
 		LOG_WRN("The IMU may be damaged or calibration was not completed properly");
+		return -1;
 	}
+	return 0;
 }
 
 void sensor_calibration_clear(void)
@@ -417,9 +426,7 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 			LOG_INF("No motion detected");
 			counts++;
 			if (counts == 2)
-			{
 				return true;
-			}
 		}
 		else
 		{
