@@ -122,15 +122,15 @@ static void led_thread(void)
 			break;
 		case SYS_LED_PATTERN_ONESHOT_POWEROFF:
 			if (led_pattern_state++ > 0)
-				pwm_set_pulse_dt(&pwm_led, PWM_MSEC(22 - led_pattern_state));
+				pwm_set_pulse_dt(&pwm_led, pwm_led.period * (202 - led_pattern_state) / 200);
 			else
 				gpio_pin_set_dt(&led, 0);
-			if (led_pattern_state == 22)
+			if (led_pattern_state == 202)
 				set_led(SYS_LED_PATTERN_OFF_FORCE, SYS_LED_PRIORITY_HIGHEST);
 			else if (led_pattern_state == 1)
 				k_msleep(250);
 			else
-				k_msleep(50);
+				k_msleep(5);
 			break;
 		case SYS_LED_PATTERN_ONESHOT_PROGRESS:
 			led_pattern_state++;
@@ -150,19 +150,19 @@ static void led_thread(void)
 			break;
 
 		case SYS_LED_PATTERN_ON_PERSIST:
-			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(4)); // 20% duty cycle, should look like ~50% brightness
+			pwm_set_pulse_dt(&pwm_led, pwm_led.period / 5); // 20% duty cycle, should look like ~50% brightness
 			k_thread_suspend(led_thread_id);
 			break;
 		case SYS_LED_PATTERN_LONG_PERSIST:
 			led_pattern_state = (led_pattern_state + 1) % 2;
-			pwm_set_pulse_dt(&pwm_led, led_pattern_state ? PWM_MSEC(4) : 0); // 20% duty cycle, should look like ~50% brightness
+			pwm_set_pulse_dt(&pwm_led, led_pattern_state ? pwm_led.period / 5 : 0); // 20% duty cycle, should look like ~50% brightness
 			k_msleep(500);
 			break;
 		case SYS_LED_PATTERN_PULSE_PERSIST:
-			led_pattern_state = (led_pattern_state + 1) % 100;
-			float led_value = sinf(led_pattern_state * (M_PI / 100));
-			pwm_set_pulse_dt(&pwm_led, PWM_MSEC(20 * led_value));
-			k_msleep(50);
+			led_pattern_state = (led_pattern_state + 1) % 1000;
+			float led_value = sinf(led_pattern_state * (M_PI / 1000));
+			pwm_set_pulse_dt(&pwm_led, pwm_led.period * led_value);
+			k_msleep(5);
 			break;
 		case SYS_LED_PATTERN_ACTIVE_PERSIST: // off duration first because the device may turn on multiple times rapidly and waste battery power
 			led_pattern_state = (led_pattern_state + 1) % 2;
