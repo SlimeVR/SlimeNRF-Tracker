@@ -24,6 +24,7 @@ static bool battery_low = false;
 
 static bool plugged = false;
 static bool power_init = false;
+static bool device_plugged = false;
 
 LOG_MODULE_REGISTER(power, LOG_LEVEL_INF);
 
@@ -208,6 +209,17 @@ static void power_thread(void)
 			last_battery_pptt[15] = average_battery_pptt;
 
 		connection_update_battery(battery_available, charging || charged || plugged, last_battery_pptt[15], battery_mV);
+
+		if (!device_plugged && (charging || charged || plugged))
+		{
+			device_plugged = true;
+			set_status(SYS_STATUS_PLUGGED, true);
+		}
+		else if (device_plugged)
+		{
+			device_plugged = false;
+			set_status(SYS_STATUS_PLUGGED, false);
+		}
 
 		if (charging)
 			set_led(SYS_LED_PATTERN_PULSE_PERSIST, SYS_LED_PRIORITY_SYSTEM);

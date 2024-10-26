@@ -32,6 +32,9 @@ void set_status(enum sys_status status, bool set)
 		case SYS_STATUS_USB_CONNECTED:
 			LOG_INF("USB connected");
 			break;
+		case SYS_STATUS_PLUGGED:
+			LOG_INF("Charger plugged");
+			break;
 		default:
 			break;
 		}
