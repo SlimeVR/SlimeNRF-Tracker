@@ -215,7 +215,7 @@ static void power_thread(void)
 			device_plugged = true;
 			set_status(SYS_STATUS_PLUGGED, true);
 		}
-		else if (device_plugged)
+		else if (device_plugged && !(charging || charged || plugged))
 		{
 			device_plugged = false;
 			set_status(SYS_STATUS_PLUGGED, false);
