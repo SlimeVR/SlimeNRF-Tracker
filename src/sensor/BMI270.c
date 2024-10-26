@@ -25,7 +25,7 @@ int bmi_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_ti
 	err |= i2c_reg_read_byte_dt(dev_i2c, BMI270_INTERNAL_STATUS, &status);
 	if ((status & 0x7) != 0x1) // ASIC is not initialized
 	{
-		LOG_DBG("ASIC not initialized, uploading config file");
+		// LOG_DBG("ASIC not initialized, uploading config file");
 		err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_CMD, 0xB6); // softreset
 		k_msleep(2);
 		err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
@@ -41,10 +41,10 @@ int bmi_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_ti
 			};
 			k_msleep(1);
 			err |= i2c_reg_read_byte_dt(dev_i2c, BMI270_INTERNAL_STATUS, &status);
-			LOG_DBG("Status: 0x%02X", status);
+			// LOG_DBG("Status: 0x%02X", status);
 			retry_count++;
 		}
-		LOG_DBG("ASIC initialized");
+		// LOG_DBG("ASIC initialized");
 	}
 	last_accel_odr = 0xff; // reset last odr
 	last_gyro_odr = 0xff; // reset last odr
@@ -209,7 +209,7 @@ int bmi_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gy
 		err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_ACC_CONF, 0xA0 | acc_odr);
 	if (gyr_odr != 0)
 		err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_GYR_CONF, 0xE0 | gyr_odr); // set performance opt. noise performance
-	
+
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CTRL, 0x08 | (acc_odr != 0 ? 0x04 : 0) | (gyr_odr != 0 ? 0x02 : 0)); // enable temp, set accel and gyro power
 	if (err)
 		LOG_ERR("I2C error");
@@ -312,7 +312,7 @@ void bmi_setup_WOM(const struct i2c_dt_spec *dev_i2c) // TODO: seems too sensiti
 	if (err)
 		LOG_ERR("I2C error");
 	k_busy_wait(2000); // wait for sensor to settle
-	LOG_DBG("WOM setup complete");
+	// LOG_DBG("WOM setup complete");
 }
 
 // write_config_file function from https://github.com/zephyrproject-rtos/zephyr/blob/main/drivers/sensor/bosch/bmi270/bmi270.c
@@ -332,7 +332,7 @@ static int upload_config_file(const struct i2c_dt_spec *dev_i2c)
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_INIT_CTRL, 0x01); // complete config load
 	if (err)
 		LOG_ERR("I2C error");
-	LOG_DBG("Completed config load");
+	// LOG_DBG("Completed config load");
 	return 0;
 }
 
