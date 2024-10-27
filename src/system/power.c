@@ -103,7 +103,7 @@ void sys_request_WOM() // TODO: if IMU interrupt does not exist what does the sy
 #if IMU_INT_EXISTS
 	int64_t system_off_timeout = k_uptime_get() + 30000; // allow system off after 30 seconds if status errors are still active
 	while (k_uptime_get() < system_off_timeout && (!esb_ready() || !status_ready())) // Wait for esb to pair in case the user is still trying to pair the device
-		k_usleep(1);
+		k_usleep(1); // this will obviously prevent the system from working normally
 	configure_system_off(); // Common subsystem shutdown and prepare sense pins
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);
@@ -159,8 +159,9 @@ static void power_thread(void)
 		int battery_mV;
 		uint32_t battery_pptt = read_batt_mV(&battery_mV);
 
-		bool battery_available = battery_mV > 1500; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
-		plugged = battery_mV > 4300; // Separate detection of vin
+		bool abnormal_reading = battery_mV < 100 || battery_mV > 6000;
+		bool battery_available = battery_mV > 1500 && !abnormal_reading; // Keep working without the battery connected, otherwise it is obviously too dead to boot system
+		plugged = battery_mV > 4300 && !abnormal_reading; // Separate detection of vin
 
 		if (!power_init)
 		{
@@ -169,7 +170,7 @@ static void power_thread(void)
 				LOG_INF("Battery %u%% (%dmV)", battery_pptt/100, battery_mV);
 			else
 				LOG_INF("Battery not available (%dmV)", battery_mV);
-			if (battery_mV < 100 || battery_mV > 6000) // abnormal reading
+			if (abnormal_reading)
 			{
 				LOG_ERR("Battery voltage reading is abnormal");
 				set_status(SYS_STATUS_SYSTEM_ERROR, true);
