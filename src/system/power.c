@@ -101,9 +101,11 @@ void sys_request_WOM() // TODO: if IMU interrupt does not exist what does the sy
 {
 	LOG_INF("IMU wake up requested");
 #if IMU_INT_EXISTS
+#if CONFIG_DELAY_SLEEP_ON_STATUS
 	int64_t system_off_timeout = k_uptime_get() + 30000; // allow system off after 30 seconds if status errors are still active
 	while (k_uptime_get() < system_off_timeout && (!esb_ready() || !status_ready())) // Wait for esb to pair in case the user is still trying to pair the device
 		k_usleep(1); // this will obviously prevent the system from working normally
+#endif
 	configure_system_off(); // Common subsystem shutdown and prepare sense pins
 	// Configure WOM interrupt
 	nrf_gpio_cfg_input(NRF_DT_GPIOS_TO_PSEL(ZEPHYR_USER_NODE, int0_gpios), NRF_GPIO_PIN_PULLUP);

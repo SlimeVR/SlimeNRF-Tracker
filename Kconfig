@@ -31,11 +31,11 @@ config APP_USE_RETAINED_MEM
 
 endchoice
 
-config USE_IMU_WAKE_UP
-    bool "IMU wake up support"
+config IGNORE_RESET
+    bool "Ignore reset"
     default y
     help
-        Use sleep states if IMU wake up is present.
+        If sw0 is available, don't change any reset behavior.
 
 config USER_SHUTDOWN
     bool "User shutdown support"
@@ -43,23 +43,30 @@ config USER_SHUTDOWN
     help
         Allow user to use reset or sw0 to shutdown.
 
-config USE_MAG
-    bool "Magnetometer support"
+config USE_IMU_WAKE_UP
+    bool "IMU wake up support"
     default y
     help
-        Use magnetometer if it is present.
+        Use IMU wake up state if IMU wake up is present.
 
-config IGNORE_RESET
-    bool "Ignore reset"
+config DELAY_SLEEP_ON_STATUS
+    bool "Delay IMU wake up mode on status flags"
     default y
+    depends on USE_IMU_WAKE_UP
     help
-        If sw0 is available, don't change any reset behavior.
+        Delay IMU wake up state if there is an active status flag or in pairing mode.
 
 config WOM_USE_DCDC
     bool "Use DCDC in IMU wake up mode"
     depends on USE_IMU_WAKE_UP
     help
-        Use DCDC instead of LDO in sleep states if it is more efficient.
+        Use DCDC instead of LDO in IMU wake up state if it is more efficient.
+
+config USE_MAG
+    bool "Magnetometer support"
+    default y
+    help
+        Use magnetometer if it is present.
 
 config USE_SENSOR_CLOCK
     bool "Use external IMU clock"
