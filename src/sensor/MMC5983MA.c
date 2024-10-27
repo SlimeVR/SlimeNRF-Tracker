@@ -21,7 +21,7 @@ static const float offset = 131072.0f; // mag range unsigned to signed
 static uint8_t last_odr = 0xff;
 static float last_time = 0;
 static uint8_t last_rawTemp = 0xff;
-static bool oneshot_triggered = false;
+static int64_t oneshot_trigger_time = 0;
 static bool auto_set_reset = true;
 
 LOG_MODULE_REGISTER(MMC5983MA, LOG_LEVEL_DBG);
@@ -137,7 +137,7 @@ void mmc_mag_oneshot(const struct i2c_dt_spec *dev_i2c)
 {
 	// enable auto set/reset (bit 5 == 1) and trigger oneshot
 	int err = i2c_reg_write_byte_dt(dev_i2c, MMC5983MA_CONTROL_0, (auto_set_reset ? 0x20 : 0) | 0x01);
-	oneshot_triggered = true;
+	oneshot_trigger_time = k_uptime_get();
 	if (err)
 		LOG_ERR("I2C error");
 }
@@ -145,13 +145,15 @@ void mmc_mag_oneshot(const struct i2c_dt_spec *dev_i2c)
 void mmc_mag_read(const struct i2c_dt_spec *dev_i2c, float m[3])
 {
 	int err = 0;
-	uint8_t status = oneshot_triggered ? 0x00 : 0x01;
-	int64_t timeout = k_uptime_get() + 3; // 3ms timeout // TODO: preferably don't have this
+	uint8_t status = oneshot_trigger_time ? 0x00 : 0x01;
+	int64_t timeout = oneshot_trigger_time + 2; // 2ms timeout
+	if (k_uptime_get() >= timeout) // already passed timeout
+		oneshot_trigger_time = 0;
 	while ((~status & 0x01) && k_uptime_get() < timeout) // wait for oneshot to complete or timeout
 		err |= i2c_reg_read_byte_dt(dev_i2c, MMC5983MA_STATUS, &status);
-	if (k_uptime_get() >= timeout)
-		LOG_ERR("Read timeout");
-	oneshot_triggered = false;
+	if (oneshot_trigger_time ? k_uptime_get() >= timeout : false)
+		LOG_ERR("Read timeout %lld", oneshot_trigger_time);
+	oneshot_trigger_time = 0;
 	uint8_t rawData[7]; // x/y/z mag register data stored here
 	err |= i2c_burst_read_dt(dev_i2c, MMC5983MA_XOUT_0, &rawData[0], 7); // Read the 7 raw data registers into data array
 	if (err)
