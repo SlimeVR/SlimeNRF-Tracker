@@ -73,7 +73,11 @@ static bool mag_enabled = MAG_ENABLED; // TODO: toggle from server
 static bool mag_enabled = false;
 #endif
 
+#if CONFIG_SENSOR_USE_XIOFUSION
 static const sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion; // TODO: change from server
+#elif CONFIG_SENSOR_USE_VQF
+static const sensor_fusion_t *sensor_fusion = &sensor_fusion_vqf; // TODO: change from server
+#endif
 
 static const sensor_imu_t *sensor_imu = &sensor_imu_none;
 static const sensor_mag_t *sensor_mag = &sensor_mag_none;

@@ -74,4 +74,21 @@ config USE_SENSOR_CLOCK
     help
         Use external IMU clock if it is present.
 
+choice
+	prompt "Sensor fusion"
+
+config SENSOR_USE_XIOFUSION
+    bool "Use x-io Technologies Fusion"
+    help
+        Use x-io Technologies Fusion for sensor fusion.
+        Based on Madgwick filter.
+
+config SENSOR_USE_VQF
+    bool "Use VQF"
+    help
+        Use VQF for sensor fusion.
+        Based on Kalman filter.
+
+endchoice
+
 endmenu
