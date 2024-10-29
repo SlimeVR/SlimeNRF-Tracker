@@ -120,9 +120,8 @@ int fusion_get_gyro_sanity(void)
 void fusion_get_lin_a(float *lin_a)
 {
 	const FusionVector ahrs_lin_a = FusionAhrsGetLinearAcceleration(&ahrs); // im going insane
-	lin_a[0] = ahrs_lin_a.array[0] * CONST_EARTH_GRAVITY; // Also change to m/s for SlimeVR server
-	lin_a[1] = ahrs_lin_a.array[1] * CONST_EARTH_GRAVITY;
-	lin_a[2] = ahrs_lin_a.array[2] * CONST_EARTH_GRAVITY;
+	for (int i = 0; i < 3; i++)
+		lin_a[i] = ahrs_lin_a.array[i] * CONST_EARTH_GRAVITY; // Also change to m/s for SlimeVR server
 }
 
 void fusion_get_quat(float *q)
