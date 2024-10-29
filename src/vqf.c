@@ -13,6 +13,8 @@ static vqf_params_t params;
 static vqf_state_t state;
 static vqf_coeffs_t coeffs;
 
+static float last_a[3] = {0};
+
 void vqf_init(float time)
 {
 	init_params(&params);
@@ -44,6 +46,8 @@ void vqf_update_accel(float *a, float time)
 	// a is in g, convert to m/s^2
 	for (int i = 0; i < 3; i++)
 		a_m_s2[i] = a[i] * CONST_EARTH_GRAVITY;
+	if (a_m_s2[0] != 0 || a_m_s2[1] != 0 || a_m_s2[2] != 0)
+		memcpy(last_a, a_m_s2, sizeof(a_m_s2));
 	updateAcc(&params, &state, &coeffs, a_m_s2);
 }
 
@@ -57,6 +61,8 @@ void vqf_update(float *g, float *a, float *m, float time)
 	// a is in g, convert to m/s^2
 	for (int i = 0; i < 3; i++)
 		a_m_s2[i] = a[i] * CONST_EARTH_GRAVITY;
+	if (a_m_s2[0] != 0 || a_m_s2[1] != 0 || a_m_s2[2] != 0)
+		memcpy(last_a, a_m_s2, sizeof(a_m_s2));
 	// TODO: time unused?
 	// TODO: gyro is a different rate to the others, should they be separated
 	updateGyr(&params, &state, &coeffs, g_rad);
@@ -96,7 +102,8 @@ void vqf_get_lin_a(float *lin_a)
 	vec_gravity[1] = 2.0f * (q[2] * q[3] + q[0] * q[1]);
 	vec_gravity[2] = 2.0f * (q[0] * q[0] - 0.5f + q[3] * q[3]);
 
-	float *a = state.lastAccLp;
+//	float *a = state.lastAccLp; // not usable, rotated by inertial frame
+	float *a = last_a;
 	for (int i = 0; i < 3; i++)
 		lin_a[i] = a[i] - vec_gravity[i] * CONST_EARTH_GRAVITY; // gravity vector to m/s^2 before subtracting
 }
