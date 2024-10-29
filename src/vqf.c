@@ -98,9 +98,7 @@ void vqf_get_lin_a(float *lin_a)
 
 	float *a = state.lastAccLp;
 	for (int i = 0; i < 3; i++)
-	{
-		lin_a[i] = a[i] -vec_gravity[i];
-	}
+		lin_a[i] = a[i] - vec_gravity[i] * CONST_EARTH_GRAVITY; // gravity vector to m/s^2 before subtracting
 }
 
 void vqf_get_quat(float *q)
