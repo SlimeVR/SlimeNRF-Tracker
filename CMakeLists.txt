@@ -17,6 +17,9 @@ target_sources(app PRIVATE ${app_sources})
 FILE(GLOB_RECURSE files Fusion/Fusion/*.c)
 target_sources(app PRIVATE ${files})
 
+#FILE(GLOB_RECURSE files NXP-ISSDK-SensorFusion/sources/*.c)
+#target_sources(app PRIVATE ${files})
+
 FILE(GLOB_RECURSE files vqf-c/src/*.c)
 target_sources(app PRIVATE ${files})
 
