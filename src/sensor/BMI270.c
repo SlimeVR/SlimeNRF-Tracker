@@ -326,7 +326,7 @@ void bmi_setup_WOM(const struct i2c_dt_spec *dev_i2c) // TODO: seems too sensiti
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_FEAT_PAGE, 0x01); // go to page 1
 	err |= i2c_burst_write_dt(dev_i2c, BMI270_ANYMO_1, config, sizeof(config)); // Start write buffer
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_INT1_IO_CTRL, 0x0C); // set INT1 active low, open-drain, output enabled
-	k_msleep(12); // wait for sensor to settle
+	k_msleep(55); // wait for sensor to settle
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_INT1_MAP_FEAT, 0x40); // enable any_motion_out (interrupt)
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x01); // enable adv_power_save (suspend)
 	if (err)
