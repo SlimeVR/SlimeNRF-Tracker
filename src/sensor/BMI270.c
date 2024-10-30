@@ -12,10 +12,12 @@ static const float gyro_sensitivity = 2000.0f / 32768.0f; // Always 2000dps
 
 static uint8_t last_accel_odr = 0xff;
 static uint8_t last_gyro_odr = 0xff;
+static float factor_zx;
 
 LOG_MODULE_REGISTER(BMI270, LOG_LEVEL_DBG);
 
 static int upload_config_file(const struct i2c_dt_spec *dev_i2c);
+static int factor_zx_read(const struct i2c_dt_spec *dev_i2c);
 
 int bmi_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time)
 {
@@ -46,6 +48,7 @@ int bmi_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_ti
 		}
 		// LOG_DBG("ASIC initialized");
 	}
+	factor_zx = factor_zx_read(dev_i2c);
 	last_accel_odr = 0xff; // reset last odr
 	last_gyro_odr = 0xff; // reset last odr
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_ACC_RANGE, RANGE_16G);
@@ -250,6 +253,8 @@ int bmi_fifo_process(uint16_t index, uint8_t *data, float g[3])
 		g_bmi[i] = (int16_t)((((int16_t)data[index + (i * 2) + 1]) << 8) | data[index + (i * 2)]);
 		g_bmi[i] *= gyro_sensitivity;
 	}
+	// Ratex = DATA_15<<8+DATA_14 - GYR_CAS.factor_zx * (DATA_19<<8+DATA_18) / 2^9
+	g_bmi[0] -= g_bmi[2] * factor_zx;
 	g[0] = -g_bmi[1];
 	g[1] = g_bmi[0];
 	g[2] = g_bmi[2];
@@ -285,6 +290,8 @@ void bmi_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3])
 		g_bmi[i] = (int16_t)((((int16_t)rawGyro[(i * 2) + 1]) << 8) | rawGyro[i * 2]);
 		g_bmi[i] *= gyro_sensitivity;
 	}
+	// Ratex = DATA_15<<8+DATA_14 - GYR_CAS.factor_zx * (DATA_19<<8+DATA_18) / 2^9
+	g_bmi[0] -= g_bmi[2] * factor_zx;
 	g[0] = -g_bmi[1];
 	g[1] = g_bmi[0];
 	g[2] = g_bmi[2];
@@ -311,19 +318,19 @@ void bmi_setup_WOM(const struct i2c_dt_spec *dev_i2c) // TODO: seems too sensiti
 	uint8_t config[4] = {0};
 	uint16_t *ptr = (uint16_t *)config;
 	ptr[0] = 0x7 << 13 | 0x000; // enable all axes, set detection duration to 0
-	ptr[1] = 0x1 << 15 | 0x7 << 11 | 0x041; // enable any_motion, set out_conf to bit 6, set threshold (1LSB equals to 0.48mg, 65 * 0.48mg is ~31.25mg)
+	ptr[1] = 0x1 << 15 | 0x7 << 11 | 0x040; // enable any_motion, set out_conf to bit 6, set threshold (1LSB equals to 0.488mg, 64 * 0.488mg is ~31.25mg)
 	int err = i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
-	k_busy_wait(500);
+	k_usleep(500);
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_ACC_CONF, ODR_200); // disable filters, set accel ODR
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CTRL, 0x04); // enable accel
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_FEAT_PAGE, 0x01); // go to page 1
 	err |= i2c_burst_write_dt(dev_i2c, BMI270_ANYMO_1, config, sizeof(config)); // Start write buffer
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_INT1_IO_CTRL, 0x0C); // set INT1 active low, open-drain, output enabled
+	k_msleep(12); // wait for sensor to settle
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_INT1_MAP_FEAT, 0x40); // enable any_motion_out (interrupt)
 	err |= i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x01); // enable adv_power_save (suspend)
 	if (err)
 		LOG_ERR("I2C error");
-	k_busy_wait(2000); // wait for sensor to settle
 	// LOG_DBG("WOM setup complete");
 }
 
@@ -346,6 +353,20 @@ static int upload_config_file(const struct i2c_dt_spec *dev_i2c)
 		LOG_ERR("I2C error");
 	// LOG_DBG("Completed config load");
 	return 0;
+}
+
+static int factor_zx_read(const struct i2c_dt_spec *dev_i2c)
+{
+	uint8_t data;
+	int err = i2c_reg_write_byte_dt(dev_i2c, BMI270_FEAT_PAGE, 0x00); // go to page 0
+	err |= i2c_reg_read_byte_dt(dev_i2c, BMI270_GYR_CAS, &data);
+	// GYR_CAS.factor_zx is a 7-bit two-complement encoded signed value
+	data <<= 1; // shift to 8-bit
+	// Ratex = DATA_15<<8+DATA_14 - GYR_CAS.factor_zx * (DATA_19<<8+DATA_18) / 2^9
+	float factor_zx = (int8_t)data / 2 / 512.0;
+	if (err)
+		LOG_ERR("I2C error");
+	return factor_zx;
 }
 
 const sensor_imu_t sensor_imu_bmi270 = {

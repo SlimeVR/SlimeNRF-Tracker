@@ -13,6 +13,9 @@
 #define BMI270_FIFO_DATA 0x26
 
 #define BMI270_FEAT_PAGE 0x2F
+// page 0
+#define BMI270_GYR_CAS 0x3C
+// page 2
 #define BMI270_ANYMO_1 0x3C
 #define BMI270_ANYMO_2 0x3E
 
