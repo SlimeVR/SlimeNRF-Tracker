@@ -72,7 +72,7 @@
 		status = "okay";
 		io-channels = <&adc 3>;
 		output-ohms = <40200>;
-		full-ohms = <(1000000+40200)>;
+		full-ohms = <(100000+40200)>;
 		power-gpios = <&gpio1 9 (GPIO_OPEN_DRAIN | GPIO_ACTIVE_LOW)>;
 	};
 
