@@ -4,3 +4,6 @@
 [submodule "Fusion"]
 	path = Fusion
 	url = https://github.com/xioTechnologies/Fusion
+[submodule "NXP-ISSDK-SensorFusion"]
+	path = NXP-ISSDK-SensorFusion
+	url = https://github.com/sctanf/NXP-ISSDK-SensorFusion/
