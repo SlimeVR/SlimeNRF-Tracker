@@ -353,15 +353,15 @@ void icm_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_ACCEL_CONFIG0, AFS_8G << 5 | AODR_200Hz); // set accel ODR and FS
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_PWR_MGMT0, aMode_LP); // set accel and gyro modes
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_INTF_CONFIG1, 0x00); // set low power clock
-	k_busy_wait(1000);
+	k_msleep(1);
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_REG_BANK_SEL, 0x04); // select register bank 4
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_ACCEL_WOM_X_THR, 0x08); // set wake thresholds // 8 x 3.9 mg is ~31.25 mg
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_ACCEL_WOM_Y_THR, 0x08); // set wake thresholds
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_ACCEL_WOM_Z_THR, 0x08); // set wake thresholds
-	k_busy_wait(1000);
+	k_msleep(1);
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_REG_BANK_SEL, 0x00); // select register bank 0
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_INT_SOURCE1, 0x07); // enable WOM interrupt
-	k_busy_wait(50000); // TODO: does this need to be 50ms?
+	k_msleep(50); // TODO: does this need to be 50ms?
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM42688_SMD_CONFIG, 0x01); // enable WOM feature
 	if (err)
 		LOG_ERR("I2C error");
