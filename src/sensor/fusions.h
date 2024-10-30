@@ -2,6 +2,7 @@
 #define SLIMENRF_SENSOR_FUSIONS
 
 #include "fusion/fusion.h"
+#include "fusion/sensorfusion.h"
 #include "fusion/vqf.h"
 
 #endif
