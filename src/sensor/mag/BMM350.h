@@ -1,7 +1,7 @@
 #ifndef BMM350_h
 #define BMM350_h
 
-#include "../sensor.h"
+#include "../../sensor.h"
 
 // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmm350-ds00.pdf
 #define BMM350_PMU_CMD_AGGR_SET 0x04

@@ -12,7 +12,7 @@
 #ifndef MMC5983MA_h
 #define MMC5983MA_h
 
-#include "../sensor.h"
+#include "../../sensor.h"
 
 // http://www.memsic.com/userfiles/files/DataSheets/Magnetic-Sensors-Datasheets/MMC5983MA_Datasheet.pdf
 #define MMC5983MA_XOUT_0        0x00

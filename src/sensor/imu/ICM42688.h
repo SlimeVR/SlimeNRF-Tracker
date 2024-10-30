@@ -12,7 +12,7 @@
 #ifndef ICM42688_h
 #define ICM42688_h
 
-#include "../sensor.h"
+#include "../../sensor.h"
 
 // https://media.digikey.com/pdf/Data%20Sheets/TDK%20PDFs/ICM-42688-P_DS_Rev1.2.pdf
 

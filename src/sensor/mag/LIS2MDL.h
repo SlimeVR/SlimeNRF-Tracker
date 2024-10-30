@@ -1,7 +1,7 @@
 #ifndef LIS2MDL_h
 #define LIS2MDL_h
 
-#include "../sensor.h"
+#include "../../sensor.h"
 
 // https://www.st.com/resource/en/datasheet/lis2mdl.pdf
 #define LIS2MDL_CFG_REG_A 0x60

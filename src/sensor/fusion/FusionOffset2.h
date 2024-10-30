@@ -11,7 +11,7 @@
 //------------------------------------------------------------------------------
 // Includes
 
-#include "../../Fusion/Fusion/FusionOffset.h"
+#include "../../../Fusion/Fusion/FusionOffset.h"
 
 //------------------------------------------------------------------------------
 // Function declarations

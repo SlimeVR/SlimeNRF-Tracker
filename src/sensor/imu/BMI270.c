@@ -5,7 +5,7 @@
 
 #include "BMI270.h"
 #include "BMI270_firmware.h"
-#include "sensor_none.h"
+#include "../sensor_none.h"
 
 static const float accel_sensitivity = 16.0f / 32768.0f; // Always 16G
 static const float gyro_sensitivity = 2000.0f / 32768.0f; // Always 2000dps

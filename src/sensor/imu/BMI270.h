@@ -1,7 +1,7 @@
 #ifndef BMI270_h
 #define BMI270_h
 
-#include "../sensor.h"
+#include "../../sensor.h"
 
 #define BMI270_INTERNAL_STATUS 0x21
 

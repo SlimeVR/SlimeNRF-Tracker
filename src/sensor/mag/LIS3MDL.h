@@ -1,7 +1,7 @@
 #ifndef LIS3MDL_h
 #define LIS3MDL_h
 
-#include "../sensor.h"
+#include "../../sensor.h"
 
 // https://www.st.com/resource/en/datasheet/lis3mdl.pdf
 #define LIS3MDL_CTRL_REG1 0x20

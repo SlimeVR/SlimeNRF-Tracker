@@ -5,8 +5,8 @@
 
 #include <math.h>
 
-#include "fusion.h"
-#include "vqf.h"
+#include "sensor/fusions.h"
+
 #include "magneto/magneto1_4.h"
 
 #include "sensor/sensors.h"

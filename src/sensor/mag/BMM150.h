@@ -1,7 +1,7 @@
 #ifndef BMM150_h
 #define BMM150_h
 
-#include "../sensor.h"
+#include "../../sensor.h"
 
 // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmm150-ds001.pdf
 #define BMM150_DATAX_LSB 0x42

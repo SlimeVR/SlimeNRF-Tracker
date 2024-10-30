@@ -1,7 +1,7 @@
 #ifndef SLIMENRF_VQF
 #define SLIMENRF_VQF
 
-#include "sensor.h"
+#include "../../sensor.h"
 
 void vqf_init(float time);
 void vqf_load(const void *data);

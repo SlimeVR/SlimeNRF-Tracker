@@ -37,7 +37,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <zephyr/drivers/i2c.h>
 
 #include "BMM150.h"
-#include "sensor_none.h"
+#include "../sensor_none.h"
 
 // Annoyingly, chip id cannot be read unless the BMM150 power control is enabled
 // In sensor_scan power control is enabled first to read chip id

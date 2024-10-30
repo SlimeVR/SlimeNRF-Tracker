@@ -1,7 +1,7 @@
 #ifndef LSM6DSV_h
 #define LSM6DSV_h
 
-#include "../sensor.h"
+#include "../../sensor.h"
 
 // https://www.st.com/resource/en/datasheet/lsm6dsv.pdf
 #define LSM6DSV_FIFO_CTRL3                 0x09

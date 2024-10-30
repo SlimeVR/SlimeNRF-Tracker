@@ -1,7 +1,7 @@
-#include "globals.h"
-#include "util.h"
+#include "../../globals.h"
+#include "../../util.h"
 
-#include "../vqf-c/src/vqf.h"
+#include "../../../vqf-c/src/vqf.h"
 
 #include "vqf.h"
 

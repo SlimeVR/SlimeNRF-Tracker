@@ -1,8 +1,8 @@
-#include "globals.h"
-#include "util.h"
+#include "../../globals.h"
+#include "../../util.h"
 
-#include "../Fusion/Fusion/Fusion.h"
-#include "Fusion/FusionOffset2.h"
+#include "../../../Fusion/Fusion/Fusion.h"
+#include "FusionOffset2.h"
 
 #include "fusion.h"
 
