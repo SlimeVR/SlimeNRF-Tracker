@@ -270,7 +270,6 @@ uint16_t icm_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data)
 	uint8_t rawCount[2];
 	int err = i2c_burst_read_dt(dev_i2c, ICM42688_FIFO_COUNTH, &rawCount[0], 2);
 	uint16_t count = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
-	count += 32; // Add a few read buffer packets, since the FIFO may contain more data than when we begin reading (allowing 4ms of transaction time for 1000hz ODR)
 	uint16_t packets = count / 8; // FIFO packet size is 8 bytes for Packet 2
 	uint16_t offset = 0;
 	uint8_t addr = ICM42688_FIFO_DATA;
@@ -283,6 +282,8 @@ uint16_t icm_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data)
 	}
 	if (err)
 		LOG_ERR("I2C error");
+	else if (packets != 0) // keep reading until FIFO is empty
+		packets += icm_fifo_read(dev_i2c, &data[packets * 8])
 	return packets;
 }
 
