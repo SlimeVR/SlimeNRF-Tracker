@@ -239,7 +239,7 @@ uint16_t bmi_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data)
 	if (err)
 		LOG_ERR("I2C error");
 	else if (packets != 0) // keep reading until FIFO is empty
-		packets += icm_fifo_read(dev_i2c, &data[packets * 6])
+		packets += bmi_fifo_read(dev_i2c, &data[packets * 6]);
 	return packets;
 }
 

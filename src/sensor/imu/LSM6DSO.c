@@ -235,7 +235,7 @@ uint16_t lsm6dso_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data)
 	if (err)
 		LOG_ERR("I2C error");
 	else if (count != 0) // keep reading until FIFO is empty
-		count += lsm6dso_fifo_read(dev_i2c, &data[count * 7])
+		count += lsm6dso_fifo_read(dev_i2c, &data[count * 7]);
 	return count;
 }
 
