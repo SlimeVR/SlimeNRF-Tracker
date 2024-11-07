@@ -140,6 +140,7 @@ void lis2_mag_process(uint8_t *raw_m, float m[3])
 	{
 		m[i] = (int16_t)((((int16_t)raw_m[(i * 2) + 1]) << 8) | raw_m[i * 2]);
 		m[i] *= sensitivity;
+		m[i] /= 1000; // mGauss to gauss
 	}
 }
 

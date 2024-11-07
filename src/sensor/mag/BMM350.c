@@ -220,6 +220,7 @@ void bmm3_mag_process(uint8_t *raw_m, float m[3])
 	{
 		m[i] = (int32_t)((((int32_t)raw_m[(i * 3) + 2]) << 24) | (((int32_t)raw_m[(i * 3) + 1]) << 16) | (((int32_t)raw_m[i * 3]) << 8)) / 256;
 		m[i] *= i < 2 ? sensitivity_xy : sensitivity_z;
+		m[i] /= 100; // uT to gauss
 	}
 }
 
