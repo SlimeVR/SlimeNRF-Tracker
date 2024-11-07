@@ -76,7 +76,7 @@ typedef struct sensor_mag {
 	int (*update_odr)(const struct i2c_dt_spec*, float, float*); // return actual update time, return 0 if success, 1 if odr is same, -1 if general error
 
 	void (*mag_oneshot)(const struct i2c_dt_spec*); // trigger oneshot if exists
-	void (*mag_read)(const struct i2c_dt_spec*, float[3]); // any unit
+	void (*mag_read)(const struct i2c_dt_spec*, float[3]); // any unit (usually gauss)
 	float (*temp_read)(const struct i2c_dt_spec*, float[3]); // deg C
 
 	void (*mag_process)(uint8_t*, float[3]); // use if magnetometer is present as an auxiliary sensor, from data read by IMU

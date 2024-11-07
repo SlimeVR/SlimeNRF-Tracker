@@ -457,9 +457,9 @@ int main_imu_init(void)
 	err = sensor_init(); // IMUs discovery
 	if (err)
 		return err;
-	(*sensor_imu->shutdown)(&sensor_imu_dev);
+	(*sensor_imu->shutdown)(&sensor_imu_dev); // TODO: is this needed?
 	if (mag_available)
-		(*sensor_mag->shutdown)(&sensor_mag_dev);
+		(*sensor_mag->shutdown)(&sensor_mag_dev); // TODO: is this needed?
 
 	float clock_actual_rate = 0;
 #if CONFIG_USE_SENSOR_CLOCK
@@ -468,7 +468,7 @@ int main_imu_init(void)
 	if (clock_actual_rate != 0)
 		LOG_INF("Sensor clock rate: %.2fHz", clock_actual_rate);
 
-	k_usleep(250); // wait for sensor register reset
+	k_usleep(250); // wait for sensor register reset // TODO: is this needed?
 	float accel_initial_time = sensor_update_time_ms / 1000.0; // configure with ~200Hz ODR
 #if CONFIG_FPU
 	float gyro_initial_time = 1.0 / 800; // configure with ~1000Hz ODR
@@ -493,12 +493,15 @@ int main_imu_init(void)
 
 	// Setup fusion
 	sensor_retained_read();
-	(*sensor_fusion->init)(gyro_actual_time);
 	if (retained.fusion_data_stored)
 	{ // Load state if the data is valid (fusion was initialized before)
 		(*sensor_fusion->load)(retained.fusion_data);
 		retained.fusion_data_stored = false; // Invalidate retained fusion data
 		retained_update();
+	}
+	else
+	{
+		(*sensor_fusion->init)(gyro_actual_time);
 	}
 
 	// Calibrate IMU

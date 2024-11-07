@@ -15,7 +15,7 @@ static vqf_coeffs_t coeffs;
 
 static float last_a[3] = {0};
 
-void vqf_init(float time)
+static void set_params()
 {
 	init_params(&params);
 	params.biasSigmaInit = 1.0f; // naive values from https://github.com/kounocom/SlimeVR-Tracker-ESP/blob/dynamic-sfusion/src/sensors/SensorFusion.h
@@ -25,17 +25,25 @@ void vqf_init(float time)
 	params.biasSigmaRest = 0.007f;
 	params.restThGyr = 1.0f; // 400 norm
 	params.restThAcc = 0.196f; // 100 norm
+}
+
+void vqf_init(float time)
+{
+	set_params();
 	initVqf(&params, &state, &coeffs, time, 0, 0);
 }
 
 void vqf_load(const void *data)
 {
+	set_params();
 	memcpy(&state, data, sizeof(state));
+	memcpy(&coeffs, (uint8_t *)data + sizeof(state), sizeof(coeffs));
 }
 
 void vqf_save(void *data)
 {
 	memcpy(data, &state, sizeof(state));
+	memcpy((uint8_t *)data + sizeof(state), &coeffs, sizeof(coeffs));
 }
 
 void vqf_update_accel(float *a, float time)

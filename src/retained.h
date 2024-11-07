@@ -7,9 +7,6 @@
 #ifndef RETAINED_H_
 #define RETAINED_H_
 
-//#include "../Fusion/Fusion/Fusion.h"
-//#include "../vqf-c/src/vqf.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -25,7 +22,7 @@ struct retained_data {
 	float magBAinv[4][3];
 
 	bool fusion_data_stored;
-	uint8_t fusion_data[364]; // MAX(sizeof(FusionAhrs)+sizeof(FusionOffset), sizeof(vqf_state_t))
+	uint8_t fusion_data[512];
 
 	uint16_t imu_addr;
 	uint16_t mag_addr;

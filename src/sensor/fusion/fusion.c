@@ -19,7 +19,6 @@ void fusion_init(float time)
 	unsigned int rate = 1.0f / time;
 	FusionOffsetInitialise2(&offset, rate);
 	FusionAhrsInitialise(&ahrs);
-	// ahrs.initialising = true; // cancel fusion init, maybe only if there is a quat stored? oh well
 	const FusionAhrsSettings settings = {
 			.convention = FusionConventionNwu,
 			.gain = 0.5f,
@@ -47,11 +46,11 @@ void fusion_update_accel(float *a, float time)
 {
 	FusionVector vec_a = {.array = {a[0], a[1], a[2]}};
 
-	ahrs.initialising = true;
-	ahrs.rampedGain = 10.0f;
-	ahrs.accelerometerIgnored = false;
-	ahrs.accelerationRecoveryTrigger = 0;
-	ahrs.accelerationRecoveryTimeout = 0;
+//	ahrs.initialising = true;
+//	ahrs.rampedGain = 10.0f;
+//	ahrs.accelerometerIgnored = false;
+//	ahrs.accelerationRecoveryTrigger = 0;
+//	ahrs.accelerationRecoveryTimeout = 0;
 
 	FusionAhrsUpdate(&ahrs, FUSION_VECTOR_ZERO, vec_a, FUSION_VECTOR_ZERO, time);
 }
