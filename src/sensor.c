@@ -503,7 +503,7 @@ int main_imu_init(void)
 	}
 	else
 	{
-		(*sensor_fusion->init)(gyro_actual_time);
+		(*sensor_fusion->init)(gyro_actual_time, accel_initial_time, accel_initial_time); // TODO: using initial time since accel and mag are not polled at the actual rate
 	}
 
 	// Calibrate IMU
@@ -628,6 +628,7 @@ void main_imu_thread(void)
 			float a[] = {SENSOR_ACCELEROMETER_AXES_ALIGNMENT};
 			float g[3] = {0};
 			float m[] = {SENSOR_MAGNETOMETER_AXES_ALIGNMENT};
+			float z[3] = {0};
 			max_gyro_speed_square = 0;
 			for (uint16_t i = 0; i < packets; i++) // TODO: fifo_process_ext is available, need to implement it
 			{
@@ -642,7 +643,8 @@ void main_imu_thread(void)
 				memcpy(g, g_aligned, sizeof(g));
 
 				// Process fusion
-				(*sensor_fusion->update)(g, a, m, gyro_actual_time);
+				(*sensor_fusion->update_gyro)(g, gyro_actual_time);
+//				(*sensor_fusion->update)(g, a, m, gyro_actual_time);
 
 				if (mag_available && mag_enabled)
 				{
@@ -658,6 +660,7 @@ void main_imu_thread(void)
 						max_gyro_speed_square = gyro_speed_square;
 				}
 			}
+			(*sensor_fusion->update)(z, a, m, sensor_update_time_ms / 1000.0); // TODO: use actual time?
 
 			// Update fusion gyro sanity?
 			(*sensor_fusion->update_gyro_sanity)(g, m);

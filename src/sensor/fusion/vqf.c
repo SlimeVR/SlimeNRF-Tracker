@@ -27,10 +27,10 @@ static void set_params()
 	params.restThAcc = 0.196f; // 100 norm
 }
 
-void vqf_init(float time)
+void vqf_init(float g_time, float a_time, float m_time)
 {
 	set_params();
-	initVqf(&params, &state, &coeffs, time, 0, 0);
+	initVqf(&params, &state, &coeffs, g_time, a_time, m_time);
 }
 
 void vqf_load(const void *data)
@@ -46,6 +46,16 @@ void vqf_save(void *data)
 	memcpy((uint8_t *)data + sizeof(state), &coeffs, sizeof(coeffs));
 }
 
+void vqf_update_gyro(float *g, float time)
+{
+	// TODO: time unused?
+	float g_rad[3] = {0};
+	// g is in deg/s, convert to rad/s
+	for (int i = 0; i < 3; i++)
+		g_rad[i] = g[i] * DEG_TO_RAD;
+	updateGyr(&params, &state, &coeffs, g_rad);
+}
+
 void vqf_update_accel(float *a, float time)
 {
 	// TODO: time unused?
@@ -59,23 +69,20 @@ void vqf_update_accel(float *a, float time)
 	updateAcc(&params, &state, &coeffs, a_m_s2);
 }
 
+void vqf_update_mag(float *m, float time)
+{
+	// TODO: time unused?
+	updateMag(&params, &state, &coeffs, m);
+}
+
 void vqf_update(float *g, float *a, float *m, float time)
 {
-	float g_rad[3] = {0};
-	// g is in deg/s, convert to rad/s
-	for (int i = 0; i < 3; i++)
-		g_rad[i] = g[i] * DEG_TO_RAD;
-	float a_m_s2[3] = {0};
-	// a is in g, convert to m/s^2
-	for (int i = 0; i < 3; i++)
-		a_m_s2[i] = a[i] * CONST_EARTH_GRAVITY;
-	if (a_m_s2[0] != 0 || a_m_s2[1] != 0 || a_m_s2[2] != 0)
-		memcpy(last_a, a_m_s2, sizeof(a_m_s2));
 	// TODO: time unused?
 	// TODO: gyro is a different rate to the others, should they be separated
-	updateGyr(&params, &state, &coeffs, g_rad);
-	updateAcc(&params, &state, &coeffs, a_m_s2);
-	updateMag(&params, &state, &coeffs, m);
+	if (g[0] != 0 || g[1] != 0 || g[2] != 0) // ignore zeroed gyro
+		vqf_update_gyro(g, time);
+	vqf_update_accel(a, time);
+	vqf_update_mag(m, time);
 }
 
 void vqf_get_gyro_bias(float *g_off)
@@ -126,7 +133,9 @@ const sensor_fusion_t sensor_fusion_vqf = {
 	*vqf_load,
 	*vqf_save,
 
+	*vqf_update_gyro,
 	*vqf_update_accel,
+	*vqf_update_mag,
 	*vqf_update,
 
 	*vqf_get_gyro_bias,

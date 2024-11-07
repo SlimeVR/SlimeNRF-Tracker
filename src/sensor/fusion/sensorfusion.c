@@ -7,7 +7,7 @@
 
 LOG_MODULE_REGISTER(sensorfusion, LOG_LEVEL_INF);
 
-void sensorfusion_init(float time)
+void sensorfusion_init(float g_time, float a_time, float m_time)
 {
 }
 
@@ -19,7 +19,15 @@ void sensorfusion_save(void *data)
 {
 }
 
+void sensorfusion_update_gyro(float *g, float time)
+{
+}
+
 void sensorfusion_update_accel(float *a, float time)
+{
+}
+
+void sensorfusion_update_mag(float *m, float time)
 {
 }
 
@@ -57,7 +65,9 @@ const sensor_fusion_t sensor_fusion_sensorfusion = {
 	*sensorfusion_load,
 	*sensorfusion_save,
 
+	*sensorfusion_update_gyro,
 	*sensorfusion_update_accel,
+	*sensorfusion_update_mag,
 	*sensorfusion_update,
 
 	*sensorfusion_get_gyro_bias,

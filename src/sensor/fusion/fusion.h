@@ -3,11 +3,13 @@
 
 #include "../../sensor.h"
 
-void fusion_init(float time);
+void fusion_init(float g_time, float a_time, float m_time);
 void fusion_load(const void *data);
 void fusion_save(void *data);
 
+void fusion_update_gyro(float *g, float time);
 void fusion_update_accel(float *a, float time);
+void fusion_update_mag(float *m, float time);
 void fusion_update(float *g, float *a, float *m, float time);
 
 void fusion_get_gyro_bias(float *g_off);
