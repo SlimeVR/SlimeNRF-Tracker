@@ -107,10 +107,8 @@ void sys_request_WOM() // TODO: if IMU interrupt does not exist what does the sy
 	if (!esb_ready() || !status_ready()) // Wait for esb to pair in case the user is still trying to pair the device
 	{
 		if (!system_off_timeout)
-		{
 			system_off_timeout = k_uptime_get() + 30000; // allow system off after 30 seconds if status errors are still active
-		}
-		else if (k_uptime_get() < system_off_timeout)
+		if (k_uptime_get() < system_off_timeout)
 		{
 			LOG_INF("IMU wake up not available, waiting on ESB/status ready");
 			return; // not timed out yet, skip system off
