@@ -97,14 +97,27 @@ static void set_regulator(enum sys_regulator regulator)
 #endif
 }
 
+static int64_t system_off_timeout = 0;
+
 void sys_request_WOM() // TODO: if IMU interrupt does not exist what does the system do?
 {
 	LOG_INF("IMU wake up requested");
 #if IMU_INT_EXISTS
 #if CONFIG_DELAY_SLEEP_ON_STATUS
-	int64_t system_off_timeout = k_uptime_get() + 30000; // allow system off after 30 seconds if status errors are still active
-	while (k_uptime_get() < system_off_timeout && (!esb_ready() || !status_ready())) // Wait for esb to pair in case the user is still trying to pair the device
-		k_usleep(1); // this will obviously prevent the system from working normally
+	if (!esb_ready() || !status_ready()) // Wait for esb to pair in case the user is still trying to pair the device
+	{
+		if (!system_off_timeout)
+		{
+			system_off_timeout = k_uptime_get() + 30000; // allow system off after 30 seconds if status errors are still active
+		}
+		else if (k_uptime_get() < system_off_timeout)
+		{
+			LOG_INF("IMU wake up not available, waiting on ESB/status ready");
+			return; // not timed out yet, skip system off
+		}
+		LOG_INF("ESB/status ready timed out");
+		// this may mean the system never enters system off if sys_request_WOM is not called again after the timeout
+	}
 #endif
 	configure_system_off(); // Common subsystem shutdown and prepare sense pins
 	// Configure WOM interrupt
