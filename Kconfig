@@ -99,6 +99,22 @@ config SENSOR_GYRO_ODR
         A higher rate will increase the time to read and process sensor data.
         400Hz is recommended for IMUs with poor gyrometer rate noise density. (Ex. BMI270, LSM6DS3TR-C)
 
+config SENSOR_GYRO_FS
+    int "Gyrometer full scale (dps)"
+    default 2000
+    help
+        Requested gyrometer full scale.
+        Actual scale will be raised to the nearest supported scale.
+        A lower scale may improve noise performance, but is more likely to saturate.
+
+config SENSOR_ACCEL_FS
+    int "Accelerometer full scale (g)"
+    default 16
+    help
+        Requested accelerometer full scale.
+        Actual scale will be raised to the nearest supported scale.
+        A lower scale may improve noise performance, but is more likely to saturate.
+
 config SENSOR_USE_MAG
     bool "Magnetometer support"
     default y
