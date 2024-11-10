@@ -95,6 +95,7 @@ config SENSOR_USE_XIOFUSION
 
 config SENSOR_USE_VQF
     bool "Use VQF"
+    depends on CPU_HAS_FPU
     help
         Use VQF for sensor fusion.
         Based on Kalman filter.
