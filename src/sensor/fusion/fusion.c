@@ -14,9 +14,9 @@ static int gyro_sanity = 0;
 
 LOG_MODULE_REGISTER(fusion, LOG_LEVEL_INF);
 
-void fusion_init(float time)
+void fusion_init(float g_time, float a_time, float m_time)
 {
-	unsigned int rate = 1.0f / time;
+	unsigned int rate = 1.0f / g_time;
 	FusionOffsetInitialise2(&offset, rate);
 	FusionAhrsInitialise(&ahrs);
 	const FusionAhrsSettings settings = {
@@ -42,7 +42,19 @@ void fusion_save(void *data)
 	memcpy((uint8_t *)data + sizeof(ahrs), &offset, sizeof(offset));
 }
 
-void fusion_update_accel(float *a, float time)
+void fusion_update_gyro(float *g, float time)
+{
+	FusionVector vec_g = {.array = {g[0], g[1], g[2]}};
+
+	FusionVector g_off = FusionOffsetUpdate2(&offset, vec_g);
+
+	if (offset.timer < offset.timeout) // Don't fuse gyro if not moving
+		FusionAhrsUpdate(&ahrs, g_off, FUSION_VECTOR_ZERO, FUSION_VECTOR_ZERO, time); // TODO: okay with no gyro data?
+	else
+		FusionAhrsUpdate(&ahrs, FUSION_VECTOR_ZERO, FUSION_VECTOR_ZERO, FUSION_VECTOR_ZERO, time); // TODO: okay with no gyro data?
+}
+
+void fusion_update_accel(float *a, float time) // TODO: is fusion okay with updating separately?
 {
 	FusionVector vec_a = {.array = {a[0], a[1], a[2]}};
 
@@ -52,7 +64,14 @@ void fusion_update_accel(float *a, float time)
 //	ahrs.accelerationRecoveryTrigger = 0;
 //	ahrs.accelerationRecoveryTimeout = 0;
 
-	FusionAhrsUpdate(&ahrs, FUSION_VECTOR_ZERO, vec_a, FUSION_VECTOR_ZERO, time);
+	FusionAhrsUpdate(&ahrs, FUSION_VECTOR_ZERO, vec_a, FUSION_VECTOR_ZERO, time); // TODO: okay with no gyro data?
+}
+
+void fusion_update_mag(float *m, float time) // TODO: is fusion okay with updating separately?
+{
+	FusionVector vec_m = {.array = {m[0], m[1], m[2]}};
+
+	FusionAhrsUpdate(&ahrs, FUSION_VECTOR_ZERO, FUSION_VECTOR_ZERO, vec_m, time);
 }
 
 void fusion_update(float *g, float *a, float *m, float time)
@@ -133,7 +152,9 @@ const sensor_fusion_t sensor_fusion_fusion = {
 	*fusion_load,
 	*fusion_save,
 
+	*fusion_update_gyro,
 	*fusion_update_accel,
+	*fusion_update_mag,
 	*fusion_update,
 
 	*fusion_get_gyro_bias,

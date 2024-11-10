@@ -32,11 +32,13 @@ void main_imu_wakeup(void);
 void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *dest2);
 
 typedef struct sensor_fusion {
-	void (*init)(float);
+	void (*init)(float, float, float); // gyro_time, accel_time, mag_time
 	void (*load)(const void *);
 	void (*save)(void *);
 
-	void (*update_accel)(float *, float);
+	void (*update_gyro)(float *, float); // deg/s
+	void (*update_accel)(float *, float); // g
+	void (*update_mag)(float *, float); // any unit (usually gauss)
 	void (*update)(float *, float *, float *, float);
 
 	void (*get_gyro_bias)(float *);
