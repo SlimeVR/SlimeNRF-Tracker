@@ -67,8 +67,8 @@ static bool sensor_sensor_scanning;
 static bool main_suspended;
 
 static bool mag_available;
-#ifdef MAG_ENABLED
-static bool mag_enabled = MAG_ENABLED; // TODO: toggle from server
+#if MAG_ENABLED
+static bool mag_enabled = true; // TODO: toggle from server
 #else
 static bool mag_enabled = false;
 #endif
