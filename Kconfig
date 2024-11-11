@@ -100,4 +100,11 @@ config SENSOR_USE_VQF
 
 endchoice
 
+config RADIO_TX_POWER
+    int "Radio output power (dBm)"
+    default 8
+    help
+        Radio output power level.
+        A lower value may reduce power consumption.
+
 endmenu
