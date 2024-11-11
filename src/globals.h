@@ -6,7 +6,7 @@
 #include "retained.h"
 
 #define USER_SHUTDOWN_ENABLED CONFIG_USER_SHUTDOWN // Allow user to use reset or sw0 to shutdown
-#define MAG_ENABLED CONFIG_USE_MAG // Use magnetometer if it is present
+#define MAG_ENABLED CONFIG_SENSOR_USE_MAG // Use magnetometer if it is present
 #define IGNORE_RESET CONFIG_IGNORE_RESET // If sw0 available, don't change any reset behavior
 #define WOM_USE_DCDC CONFIG_WOM_USE_DCDC // Use DCDC instead of LDO for WOM if it is more efficient
 
