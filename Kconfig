@@ -66,11 +66,9 @@ config SENSOR_GYRO_ODR
     int "Gyrometer output data rate (Hz)"
     default 800
     help
-        Requested gyrometer output data rate.
-        Actual rate will be raised to the nearest supported rate.
+        Requested gyrometer output data rate. Actual rate will be raised to the nearest supported rate.
         A higher rate will increase the time to read and process sensor data.
-        400Hz is recommended for IMUs with poor gyrometer rate noise density.
-        Ex. BMI270, LSM6DS3TR-C
+        400Hz is recommended for IMUs with poor gyrometer rate noise density. (Ex. BMI270, LSM6DS3TR-C)
 
 config USE_MAG
     bool "Magnetometer support"
