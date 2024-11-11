@@ -15,7 +15,8 @@ config USE_SLIMENRF_CONSOLE
         Use basic console for commands.
 
 choice
-	prompt "Use retention"
+	prompt "System retention"
+	depends on SOC_COMPATIBLE_NRF52X && CRC || RETAINED_MEM
 
 config APP_USE_NRF_RETENTION
 	bool "Use state retention in system off using nRF POWER"
