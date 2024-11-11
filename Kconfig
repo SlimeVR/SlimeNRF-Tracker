@@ -32,6 +32,30 @@ config APP_USE_RETAINED_MEM
 
 endchoice
 
+choice
+	prompt "Battery voltage mapping"
+    default BATTERY_NO_MAPPING
+
+config BATTERY_USE_REG_BUCK_MAPPING
+    bool "Use buck regulator mapping (3.7V battery, DCDC)"
+    help
+      Use a constant power mapping for battery voltage.
+      Preffered for systems with a buck regulator.
+      Measured at a system voltage of 3.0V.
+
+config BATTERY_USE_REG_LDO_MAPPING
+    bool "Use LDO linear regulator mapping (3.7V battery, LDO)"
+    help
+      Use a constant current mapping for battery voltage.
+      Preferred for systems with a linear regulator.
+
+config BATTERY_NO_MAPPING
+    bool "Disable battery voltage mapping"
+    help
+      Always map to 100% battery. Disables battery monitoring.
+
+endchoice
+
 config IGNORE_RESET
     bool "Ignore reset"
     default y

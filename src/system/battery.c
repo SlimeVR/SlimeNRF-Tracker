@@ -233,11 +233,23 @@ unsigned int battery_level_pptt(unsigned int batt_mV,
 }
 
 static const struct battery_level_point levels[] = {
+#if CONFIG_BATTERY_USE_REG_BUCK_MAPPING
 	{ 10000, 4150 },
 	{ 9500, 4075 },
 	{ 3000, 3775 },
 	{ 500, 3450 },
 	{ 0, 3200 },
+#elif CONFIG_BATTERY_USE_REG_LDO_MAPPING
+	{ 10000, 4150 },
+	{ 9500, 4025 },
+	{ 3000, 3650 },
+	{ 500, 3400 },
+	{ 0, 3200 },
+#else
+#warning "Battery voltage map not defined"
+	{ 10000, 0},
+	{ 0, 0},
+#endif
 };
 
 unsigned int read_batt()
