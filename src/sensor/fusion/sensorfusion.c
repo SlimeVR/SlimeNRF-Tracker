@@ -60,7 +60,7 @@ void sensorfusion_get_quat(float *q)
 {
 }
 
-const sensor_fusion_t sensor_fusion_sensorfusion = {
+const sensor_fusion_t sensor_fusion_motionsense = {
 	*sensorfusion_init,
 	*sensorfusion_load,
 	*sensorfusion_save,

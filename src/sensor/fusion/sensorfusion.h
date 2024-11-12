@@ -21,6 +21,6 @@ int sensorfusion_get_gyro_sanity(void);
 void sensorfusion_get_lin_a(float *lin_a);
 void sensorfusion_get_quat(float *q);
 
-extern const sensor_fusion_t sensor_fusion_sensorfusion;
+extern const sensor_fusion_t sensor_fusion_motionsense;
 
 #endif
