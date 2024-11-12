@@ -103,16 +103,14 @@ config SENSOR_GYRO_FS
     int "Gyrometer full scale (dps)"
     default 2000
     help
-        Requested gyrometer full scale.
-        Actual scale will be raised to the nearest supported scale.
+        Requested gyrometer full scale. Actual scale will be raised to the nearest supported scale.
         A lower scale may improve noise performance, but is more likely to saturate.
 
 config SENSOR_ACCEL_FS
     int "Accelerometer full scale (g)"
     default 16
     help
-        Requested accelerometer full scale.
-        Actual scale will be raised to the nearest supported scale.
+        Requested accelerometer full scale. Actual scale will be raised to the nearest supported scale.
         A lower scale may improve noise performance, but is more likely to saturate.
 
 config SENSOR_USE_MAG
