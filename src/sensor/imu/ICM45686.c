@@ -22,18 +22,14 @@ int icm45_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_
 	if (clock_rate > 0)
 	{
 		clock_scale = clock_rate / clock_reference;
-		// from datasheet // TODO: does this work?
-		err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_REG_MISC1, 0b1000); // Requests external clock
 		// user guide mentions this // TODO: is it needed?
 //		uint8_t ireg_buf[3];
-//		uint16_t *ireg_addr = (uint16_t *)ireg_buf;
-//		uint8_t *ireg_data = &ireg_buf[2];
-//		*ireg_addr = ICM45686_IPREG_TOP1 + ICM45686_SMC_CONTROL_0;
-//		*ireg_data = 0x70; // set ACCEL_LP_CLK_SEL to 1
+//		ireg_buf[0] = ICM45686_IPREG_TOP1;
+//		ireg_buf[1] = ICM45686_SMC_CONTROL_0;
+//		ireg_buf[2] = 0x70; // set ACCEL_LP_CLK_SEL to 1
 //		err |= i2c_burst_write_dt(dev_i2c, ICM45686_IREG_ADDR_15_8, ireg_buf, 3); // write buffer
-		// user guide describes this method
-//		err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_IOC_PAD_SCENARIO_OVRD, 0x06); // override pin 9 to CLKIN
-//		err |= i2c_reg_update_byte_dt(dev_i2c, ICM45686_RTC_CONFIG, 0x20, 0x20); // enable external CLKIN
+		err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_IOC_PAD_SCENARIO_OVRD, 0x06); // override pin 9 to CLKIN
+		err |= i2c_reg_update_byte_dt(dev_i2c, ICM45686_RTC_CONFIG, 0x20, 0x20); // enable external CLKIN
 //		err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_RTC_CONFIG, 0x23); // enable external CLKIN (0x20, default register value is 0x03)
 	}
 	last_accel_odr = 0xff; // reset last odr
@@ -241,7 +237,7 @@ uint16_t icm45_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint1
 {
 	uint8_t rawCount[2];
 	int err = i2c_burst_read_dt(dev_i2c, ICM45686_FIFO_COUNT_0, &rawCount[0], 2);
-	uint16_t packets = (uint16_t)(rawCount[0] << 8 | rawCount[1]); // Turn the 16 bits into a unsigned 16-bit value
+	uint16_t packets = (uint16_t)(rawCount[1] << 8 | rawCount[0]); // Turn the 16 bits into a unsigned 16-bit value
 	uint16_t count = packets * 8; // FIFO packet size is 8 bytes for Gyro-only
 	uint16_t limit = len / 8;
 	if (packets > limit)
@@ -272,7 +268,7 @@ int icm45_fifo_process(uint16_t index, uint8_t *data, float g[3])
 	// combine into 16 bit values
 	float raw[3];
 	for (int i = 0; i < 3; i++) // x, y, z
-		raw[i] = (int16_t)((((int16_t)data[index + (i * 2) + 1]) << 8) | data[index + (i * 2) + 2]);
+		raw[i] = (int16_t)((((int16_t)data[index + (i * 2) + 2]) << 8) | data[index + (i * 2) + 1]);
 	// data[index + 7] is temperature
 	// but it is lower precision (also it is disabled)
 	// Temperature in Degrees Centigrade = (FIFO_TEMP_DATA / 2) + 25
@@ -292,7 +288,7 @@ void icm45_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3])
 		LOG_ERR("I2C error");
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
-		a[i] = (int16_t)((((int16_t)rawAccel[i * 2]) << 8) | rawAccel[(i * 2) + 1]);
+		a[i] = (int16_t)((((int16_t)rawAccel[(i * 2) + 1]) << 8) | rawAccel[i * 2]);
 		a[i] *= accel_sensitivity;
 	}
 }
@@ -305,7 +301,7 @@ void icm45_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3])
 		LOG_ERR("I2C error");
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
-		g[i] = (int16_t)((((int16_t)rawGyro[i * 2]) << 8) | rawGyro[(i * 2) + 1]);
+		g[i] = (int16_t)((((int16_t)rawGyro[(i * 2) + 1]) << 8) | rawGyro[i * 2]);
 		g[i] *= gyro_sensitivity;
 	}
 }
@@ -317,7 +313,7 @@ float icm45_temp_read(const struct i2c_dt_spec *dev_i2c)
 	if (err)
 		LOG_ERR("I2C error");
 	// Temperature in Degrees Centigrade = (TEMP_DATA / 128) + 25
-	float temp = (int16_t)((((int16_t)rawTemp[0]) << 8) | rawTemp[1]);
+	float temp = (int16_t)((((int16_t)rawTemp[1]) << 8) | rawTemp[0]);
 	temp /= 128;
 	temp += 25;
 	return temp;
@@ -326,31 +322,26 @@ float icm45_temp_read(const struct i2c_dt_spec *dev_i2c)
 void icm45_setup_WOM(const struct i2c_dt_spec *dev_i2c) // TODO: check if working
 {
 	uint8_t interrupts;
-	uint8_t ireg_buf[3];
-	uint16_t *ireg_addr = (uint16_t *)ireg_buf;
-	uint8_t *ireg_data = &ireg_buf[2];
+	uint8_t ireg_buf[5];
 	int err = i2c_reg_read_byte_dt(dev_i2c, ICM45686_INT1_STATUS0, &interrupts); // clear reset done int flag // TODO: is this needed
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_INT1_CONFIG0, 0x00); // disable default interrupt (RESET_DONE)
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_ACCEL_CONFIG0, ACCEL_UI_FS_SEL_8G << 4 | ACCEL_ODR_200Hz); // set accel ODR and FS
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_PWR_MGMT0, ACCEL_MODE_LP); // set accel and gyro modes
-	*ireg_addr = ICM45686_IPREG_SYS2 + ICM45686_IPREG_SYS2_REG_129;
-	*ireg_data = 0x00; // set ACCEL_LP_AVG_SEL to 1x
+	ireg_buf[0] = ICM45686_IPREG_SYS2;
+	ireg_buf[1] = ICM45686_IPREG_SYS2_REG_129;
+	ireg_buf[2] = 0x00; // set ACCEL_LP_AVG_SEL to 1x
 	err |= i2c_burst_write_dt(dev_i2c, ICM45686_IREG_ADDR_15_8, ireg_buf, 3); // write buffer
-	k_busy_wait(5);
-//	*ireg_addr = ICM45686_IPREG_TOP1 + ICM45686_SMC_CONTROL_0;
-//	*ireg_data = 0x60; // set ACCEL_LP_CLK_SEL to AULP
+//	ireg_buf[0] = ICM45686_IPREG_TOP1;
+//	ireg_buf[1] = ICM45686_SMC_CONTROL_0;
+//	ireg_buf[2] = 0x60; // set ACCEL_LP_CLK_SEL to AULP
 //	err |= i2c_burst_write_dt(dev_i2c, ICM45686_IREG_ADDR_15_8, ireg_buf, 3); // write buffer
-//	k_busy_wait(5);
-	*ireg_addr = ICM45686_IPREG_TOP1 + ICM45686_ACCEL_WOM_X_THR;
-	*ireg_data = 0x08; // set wake thresholds // 8 x 3.9 mg is ~31.25 mg
-	err |= i2c_burst_write_dt(dev_i2c, ICM45686_IREG_ADDR_15_8, ireg_buf, 3); // write buffer
-	k_busy_wait(5);
-	err |= i2c_write_dt(dev_i2c, &ireg_buf[2], 1); // set wake thresholds
-	k_busy_wait(5);
-	err |= i2c_write_dt(dev_i2c, &ireg_buf[2], 1); // set wake thresholds
-	k_msleep(1); // TODO: needed?
+	ireg_buf[0] = ICM45686_IPREG_TOP1;
+	ireg_buf[1] = ICM45686_ACCEL_WOM_X_THR;
+	ireg_buf[2] = 0x08; // set wake thresholds // 8 x 3.9 mg is ~31.25 mg
+	ireg_buf[3] = 0x08; // set wake thresholds
+	ireg_buf[4] = 0x08; // set wake thresholds
+	err |= i2c_burst_write_dt(dev_i2c, ICM45686_IREG_ADDR_15_8, ireg_buf, 5); // write buffer
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_TMST_WOM_CONFIG, 0x14); // enable WOM, enable WOM interrupt
-	k_msleep(50); // TODO: does this need to be 50ms?
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_INT1_CONFIG1, 0x0E); // route WOM interrupt
 	if (err)
 		LOG_ERR("I2C error");

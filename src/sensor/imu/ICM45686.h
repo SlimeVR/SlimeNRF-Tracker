@@ -41,7 +41,7 @@
 #define ICM45686_REG_MISC2                 0x7F
 
 // User Bank IPREG_TOP1
-#define ICM45686_IPREG_TOP1              0xA200
+#define ICM45686_IPREG_TOP1                0xA2 // MSB
 
 #define ICM45686_SMC_CONTROL_0             0x58
 
@@ -50,7 +50,7 @@
 #define ICM45686_ACCEL_WOM_Z_THR           0x80
 
 // User Bank IPREG_SYS2
-#define ICM45686_IPREG_SYS2              0xA500
+#define ICM45686_IPREG_SYS2                0xA5 // MSB
 
 #define ICM45686_IPREG_SYS2_REG_129        0x81
 
