@@ -8,6 +8,7 @@
 
 #include "imu/BMI270.h"
 #include "imu/ICM42688.h"
+#include "imu/ICM45686.h"
 #include "imu/LSM6DSV.h"
 #include "imu/LSM6DSO.h"
 
@@ -49,7 +50,7 @@ const sensor_imu_t *sensor_imus[] = {
 	&sensor_imu_none, // cardinal sin
 	&sensor_imu_none,
 	&sensor_imu_icm42688,
-	&sensor_imu_none,
+	&sensor_imu_icm45686,
 	&sensor_imu_none,
 	&sensor_imu_none, // will not implement, too low quality
 	&sensor_imu_none,
