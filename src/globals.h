@@ -5,6 +5,8 @@
 
 #include "retained.h"
 
+#define FW_NAME "SlimeVR-Tracker-nRF"
+
 #define USER_SHUTDOWN_ENABLED CONFIG_USER_SHUTDOWN // Allow user to use reset or sw0 to shutdown
 #define MAG_ENABLED CONFIG_SENSOR_USE_MAG // Use magnetometer if it is present
 #define IGNORE_RESET CONFIG_IGNORE_RESET // If sw0 available, don't change any reset behavior

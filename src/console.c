@@ -11,6 +11,7 @@
 #include <zephyr/sys/reboot.h>
 
 #include <ctype.h>
+#include "app_version.h"
 
 LOG_MODULE_REGISTER(console, LOG_LEVEL_INF);
 
@@ -22,6 +23,9 @@ static struct k_thread console_thread_id;
 static K_THREAD_STACK_DEFINE(console_thread_id_stack, 512);
 
 #define DFU_EXISTS CONFIG_BUILD_OUTPUT_UF2
+
+#define TOSTRING(x) STRINGIFY(x)
+#define FW_STRING FW_NAME " " APP_VERSION_EXTENDED_STRING " (" TOSTRING(APP_BUILD_VERSION) ")"
 
 static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
