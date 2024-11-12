@@ -60,7 +60,7 @@ void lsm6dso_shutdown(const struct i2c_dt_spec *dev_i2c);
 
 int lsm6dso_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
 
-uint16_t lsm6dso_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data);
+uint16_t lsm6dso_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint16_t len);
 
 void lsm6dso_setup_WOM(const struct i2c_dt_spec *dev_i2c);
 

@@ -8,7 +8,7 @@ void imu_none_shutdown(const struct i2c_dt_spec *dev_i2c);
 
 int imu_none_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
 
-uint16_t imu_none_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data);
+uint16_t imu_none_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint16_t len);
 int imu_none_fifo_process(uint16_t index, uint8_t *data, float g[3]);
 void imu_none_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3]);
 void imu_none_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3]);

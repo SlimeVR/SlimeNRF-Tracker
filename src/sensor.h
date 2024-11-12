@@ -57,7 +57,7 @@ typedef struct sensor_imu {
 
 	int (*update_odr)(const struct i2c_dt_spec*, float, float, float*, float*); // return actual update time, return 0 if success, 1 if odr is same, -1 if general error
 
-	uint16_t (*fifo_read)(const struct i2c_dt_spec*, uint8_t*);
+	uint16_t (*fifo_read)(const struct i2c_dt_spec*, uint8_t*, uint16_t);
 	int (*fifo_process)(uint16_t, uint8_t*, float[3]); // deg/s TODO: is support accel needed?
 	void (*accel_read)(const struct i2c_dt_spec*, float[3]); // g
 	void (*gyro_read)(const struct i2c_dt_spec*, float[3]); // deg/s

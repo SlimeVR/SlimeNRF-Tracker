@@ -559,8 +559,8 @@ void main_imu_thread(void)
 			connection_update_sensor_temp(temp);
 
 			// Read gyroscope (FIFO)
-			uint8_t rawData[2080];
-			uint16_t packets = sensor_imu->fifo_read(&sensor_imu_dev, rawData); // TODO: name this better?
+			uint8_t rawData[512]; // Limit FIFO read to 512 bytes
+			uint16_t packets = sensor_imu->fifo_read(&sensor_imu_dev, rawData, 512); // TODO: name this better?
 			LOG_DBG("IMU packet count: %u", packets);
 
 			// Read accelerometer

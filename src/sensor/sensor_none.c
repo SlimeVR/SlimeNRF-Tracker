@@ -23,7 +23,7 @@ int imu_none_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, flo
 	return -1;
 }
 
-uint16_t imu_none_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data)
+uint16_t imu_none_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint16_t len)
 {
 	LOG_DBG("imu_none_fifo_read, sensor has no IMU or IMU has no FIFO");
 	return 0;

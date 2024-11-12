@@ -113,7 +113,7 @@ void icm_shutdown(const struct i2c_dt_spec *dev_i2c);
 
 int icm_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float gyro_time, float *accel_actual_time, float *gyro_actual_time);
 
-uint16_t icm_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data);
+uint16_t icm_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint16_t len);
 int icm_fifo_process(uint16_t index, uint8_t *data, float g[3]);
 void icm_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3]);
 void icm_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3]);
