@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "system.h"
+#include "build_defines.h"
 
 #define USB DT_NODELABEL(usbd)
 #if DT_NODE_HAS_STATUS(USB, okay) && CONFIG_USE_SLIMENRF_CONSOLE
@@ -49,6 +50,7 @@ static void console_thread(void)
 {
 	console_getline_init();
 	printk("*** " CONFIG_USB_DEVICE_MANUFACTURER " " CONFIG_USB_DEVICE_PRODUCT " ***\n");
+	printk(FW_STRING "\n");
 	printk("reboot                       Soft reset the device\n");
 	printk("calibrate                    Calibrate sensor ZRO\n");
 	printk("pair                         Clear pairing data\n");
