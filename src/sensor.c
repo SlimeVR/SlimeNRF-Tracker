@@ -75,10 +75,13 @@ static bool mag_enabled = false;
 
 #if CONFIG_SENSOR_USE_XIOFUSION
 static const sensor_fusion_t *sensor_fusion = &sensor_fusion_fusion; // TODO: change from server
+int fusion_id = FUSION_FUSION;
 #elif CONFIG_SENSOR_USE_NXPSENSORFUSION
 static const sensor_fusion_t *sensor_fusion = &sensor_fusion_motionsense; // TODO: change from server
+int fusion_id = FUSION_MOTIONSENSE;
 #elif CONFIG_SENSOR_USE_VQF
 static const sensor_fusion_t *sensor_fusion = &sensor_fusion_vqf; // TODO: change from server
+int fusion_id = FUSION_VQF;
 #endif
 
 static const sensor_imu_t *sensor_imu = &sensor_imu_none;
@@ -287,10 +290,8 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
 	sensor_calibration_validate();
 
-	if (retained.fusion_data_stored)
-	{
+	if (retained.fusion_id)
 		LOG_INF("Fusion data recovered");
-	}
 }
 
 // TODO: Always store quat(maybe) and just check if the fusion needs converge fast! (initialize)
@@ -301,7 +302,7 @@ void sensor_retained_write(void) // TODO: move to sys?
 		return;
 	memcpy(retained.magBias, magBias, sizeof(magBias));
 	sensor_fusion->save(retained.fusion_data);
-	retained.fusion_data_stored = true;
+	retained.fusion_id = fusion_id;
 	retained_update();
 }
 
@@ -361,7 +362,7 @@ void sensor_calibrate_imu(void)
 	}
 	else
 	{ // TODO: always clearing the fusion?
-		retained.fusion_data_stored = false; // Invalidate retained fusion data
+		retained.fusion_id = 0; // Invalidate retained fusion data
 		retained_update();
 	}
 	set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_SENSOR);
@@ -412,7 +413,7 @@ void sensor_calibration_clear(void)
 	}
 	else
 	{ // TODO: always clearing the fusion?
-		retained.fusion_data_stored = false; // Invalidate retained fusion data
+		retained.fusion_id = 0; // Invalidate retained fusion data
 		retained_update();
 	}
 }
@@ -491,10 +492,10 @@ int main_imu_init(void)
 
 	// Setup fusion
 	sensor_retained_read();
-	if (retained.fusion_data_stored)
+	if (retained.fusion_id == fusion_id) // Check if the retained fusion data is valid and matches the selected fusion
 	{ // Load state if the data is valid (fusion was initialized before)
 		sensor_fusion->load(retained.fusion_data);
-		retained.fusion_data_stored = false; // Invalidate retained fusion data
+		retained.fusion_id = 0; // Invalidate retained fusion data
 		retained_update();
 	}
 	else
@@ -506,6 +507,7 @@ int main_imu_init(void)
 	if (accelBias[0] == 0 && accelBias[1] == 0 && accelBias[2] == 0 && gyroBias[0] == 0 && gyroBias[1] == 0 && gyroBias[2] == 0) // TODO: better way to check?
 		sensor_calibrate_imu();
 
+	LOG_INF("Using %s", fusion_names[fusion_id]);
 	LOG_INF("Initialized fusion");
 	sensor_fusion_init = true;
 	return 0;
@@ -544,7 +546,7 @@ void main_imu_thread(void)
 
 			// Reading IMUs will take between 2.5ms (~7 samples, low noise) - 7ms (~33 samples, low power)
 			// Magneto sample will take ~400us
-			// Fusing data will take between 100us (~7 samples, low noise) - 500us (~33 samples, low power)
+			// Fusing data will take between 100us (~7 samples, low noise) - 500us (~33 samples, low power) for xiofusion
 			// TODO: on any errors set main_ok false and skip (make functions return nonzero)
 
 			// At high speed, use oneshot mode to have synced magnetometer data

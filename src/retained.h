@@ -21,7 +21,7 @@ struct retained_data {
 	float magBias[3];
 	float magBAinv[4][3];
 
-	bool fusion_data_stored;
+	uint8_t fusion_id; // fusion_data_stored
 	uint8_t fusion_data[512];
 
 	uint16_t imu_addr;
