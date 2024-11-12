@@ -22,12 +22,6 @@ int icm45_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_
 	if (clock_rate > 0)
 	{
 		clock_scale = clock_rate / clock_reference;
-		// user guide mentions this // TODO: is it needed?
-//		uint8_t ireg_buf[3];
-//		ireg_buf[0] = ICM45686_IPREG_TOP1;
-//		ireg_buf[1] = ICM45686_SMC_CONTROL_0;
-//		ireg_buf[2] = 0x70; // set ACCEL_LP_CLK_SEL to 1
-//		err |= i2c_burst_write_dt(dev_i2c, ICM45686_IREG_ADDR_15_8, ireg_buf, 3); // write buffer
 		err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_IOC_PAD_SCENARIO_OVRD, 0x06); // override pin 9 to CLKIN
 		err |= i2c_reg_update_byte_dt(dev_i2c, ICM45686_RTC_CONFIG, 0x20, 0x20); // enable external CLKIN
 //		err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_RTC_CONFIG, 0x23); // enable external CLKIN (0x20, default register value is 0x03)
@@ -331,6 +325,7 @@ void icm45_setup_WOM(const struct i2c_dt_spec *dev_i2c) // TODO: check if workin
 	ireg_buf[1] = ICM45686_IPREG_SYS2_REG_129;
 	ireg_buf[2] = 0x00; // set ACCEL_LP_AVG_SEL to 1x
 	err |= i2c_burst_write_dt(dev_i2c, ICM45686_IREG_ADDR_15_8, ireg_buf, 3); // write buffer
+	// should already be defaulted to AULP
 //	ireg_buf[0] = ICM45686_IPREG_TOP1;
 //	ireg_buf[1] = ICM45686_SMC_CONTROL_0;
 //	ireg_buf[2] = 0x60; // set ACCEL_LP_CLK_SEL to AULP
