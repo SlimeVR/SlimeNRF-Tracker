@@ -84,9 +84,6 @@ void set_led(enum sys_led_pattern led_pattern, int priority)
 	{
 		k_thread_resume(led_thread_id);
 	}
-#else
-	LOG_WRN("LED GPIO does not exist");
-	return;
 #endif
 }
 
