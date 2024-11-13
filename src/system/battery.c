@@ -257,14 +257,14 @@ unsigned int read_batt()
 	int rc = battery_measure_enable(true);
 
 	if (rc != 0) {
-		printk("Failed initialize battery measurement: %d\n", rc);
+		LOG_ERR("Failed initialize battery measurement: %d", rc);
 		return -1;
 	}
 
 	int batt_mV = battery_sample();
 
 	if (batt_mV < 0) {
-		printk("Failed to read battery voltage: %d\n",
+		LOG_DBG("Failed to read battery voltage: %d",
 		       batt_mV);
 	}
 
@@ -278,14 +278,14 @@ unsigned int read_batt_mV(int *out)
 	int rc = battery_measure_enable(true);
 
 	if (rc != 0) {
-		printk("Failed initialize battery measurement: %d\n", rc);
+		LOG_ERR("Failed initialize battery measurement: %d", rc);
 		return -1;
 	}
 
 	int batt_mV = battery_sample();
 
 	if (batt_mV < 0) {
-		printk("Failed to read battery voltage: %d\n",
+		LOG_DBG("Failed to read battery voltage: %d",
 		       batt_mV);
 	}
 
