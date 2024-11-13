@@ -1,6 +1,5 @@
 #include "globals.h"
 #include "system.h"
-#include "build_defines.h"
 
 #define USB DT_NODELABEL(usbd)
 #if DT_NODE_HAS_STATUS(USB, okay) && CONFIG_USE_SLIMENRF_CONSOLE
