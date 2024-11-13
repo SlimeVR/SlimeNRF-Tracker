@@ -17,6 +17,9 @@ config USE_SLIMENRF_CONSOLE
 choice
 	prompt "System retention"
 	depends on SOC_COMPATIBLE_NRF52X && CRC || RETAINED_MEM
+    help
+      Select the system retention method.
+      Flash-backed data and fusion state is stored to reduce boot time.
 
 config APP_USE_NRF_RETENTION
 	bool "Use state retention in system off using nRF POWER"
@@ -109,6 +112,8 @@ config USE_SENSOR_CLOCK
 
 choice
 	prompt "Sensor fusion"
+    help
+        Select the sensor fusion method.
 
 config SENSOR_USE_XIOFUSION
     bool "Use x-io Technologies Fusion"
