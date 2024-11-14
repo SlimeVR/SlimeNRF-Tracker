@@ -49,6 +49,7 @@ static void usb_init_thread(void)
 
 static void print_info(void)
 {
+	printk(CONFIG_USB_DEVICE_MANUFACTURER " " CONFIG_USB_DEVICE_PRODUCT "\n");
 	printk(FW_STRING);
 
 	printk("Board configuration: ");
