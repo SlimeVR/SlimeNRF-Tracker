@@ -66,6 +66,9 @@ static void print_info(void)
 	printk(CONFIG_SOC);
 	printk("\n");
 
+	printk("IMU address: 0x%02X, register: 0x%02X\n", retained.imu_addr, retained.imu_reg);
+	printk("Magnetometer address: 0x%02X, register: 0x%02X\n", retained.mag_addr, retained.mag_reg);
+
 	printk("IMU: ");
 	if (imu_id < 0)
 		printk("None");
@@ -79,6 +82,13 @@ static void print_info(void)
 	else
 		printk(dev_mag_names[mag_id]);
 	printk("\n");
+
+	printk("Accelerometer bias: %.5f %.5f %.5f\n", retained.accelBias[0], retained.accelBias[1], retained.accelBias[2]);
+	printk("Gyroscope bias: %.5f %.5f %.5f\n", retained.gyroBias[0], retained.gyroBias[1], retained.gyroBias[2]);
+	printk("Magnetometer bridge offset: %.5f %.5f %.5f\n", retained.magBias[0], retained.magBias[1], retained.magBias[2]);
+	printk("Magnetometer matrix:\n");
+	for (int i = 0; i < 3; i++)
+		printk("%.5f %.5f %.5f %.5f\n", retained.magBAinv[0][i], retained.magBAinv[1][i], retained.magBAinv[2][i], retained.magBAinv[3][i]);
 
 	printk("Fusion: ");
 	if (fusion_id < 0)
