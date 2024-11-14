@@ -3,9 +3,14 @@
 
 #include "app_version.h"
 
+#define FW_NAME "SlimeVR-Tracker-nRF"
 #define FW_VERSION_MAJOR APP_VERSION_MAJOR
 #define FW_VERSION_MINOR APP_VERSION_MINOR
 #define FW_VERSION_PATCH APP_PATCHLEVEL
+
+static uint8_t get_server_constant_imu_id(int id) __attribute__((unused));
+static uint8_t get_server_constant_mag_id(int id) __attribute__((unused));
+static uint8_t get_server_constant_tracker_status(int status) __attribute__((unused));
 
 // constants from server, should include BoardType, MCUType, IMUType, MagType (not yet)
 // https://github.com/SlimeVR/SlimeVR-Server/blob/main/server/core/src/main/java/dev/slimevr/tracking/trackers/udp/FirmwareConstants.kt
@@ -248,3 +253,9 @@ static uint8_t get_server_constant_tracker_status(int status)
 #define BUILD_HOUR  ((BUILD_TIME_IS_BAD) ? 99 :  COMPUTE_BUILD_HOUR)
 #define BUILD_MIN   ((BUILD_TIME_IS_BAD) ? 99 :  COMPUTE_BUILD_MIN)
 #define BUILD_SEC   ((BUILD_TIME_IS_BAD) ? 99 :  COMPUTE_BUILD_SEC)
+
+#define TOSTRING(x) STRINGIFY(x)
+
+#define FW_STRING FW_NAME " " APP_VERSION_EXTENDED_STRING " "\
+	"(Commit " TOSTRING(APP_BUILD_VERSION) ", Build %d-%02d-%02d %02d:%02d:%02d)\n",\
+	BUILD_YEAR, BUILD_MONTH, BUILD_DAY, BUILD_HOUR, BUILD_MIN, BUILD_SEC

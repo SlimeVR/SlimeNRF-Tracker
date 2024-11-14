@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "system.h"
+#include "build_defines.h"
 
 #define USB DT_NODELABEL(usbd)
 #if DT_NODE_HAS_STATUS(USB, okay) && CONFIG_USE_SLIMENRF_CONSOLE
@@ -10,7 +11,6 @@
 #include <zephyr/sys/reboot.h>
 
 #include <ctype.h>
-#include "app_version.h"
 
 LOG_MODULE_REGISTER(console, LOG_LEVEL_INF);
 
@@ -22,9 +22,6 @@ static struct k_thread console_thread_id;
 static K_THREAD_STACK_DEFINE(console_thread_id_stack, 512);
 
 #define DFU_EXISTS CONFIG_BUILD_OUTPUT_UF2
-
-#define TOSTRING(x) STRINGIFY(x)
-#define FW_STRING FW_NAME " " APP_VERSION_EXTENDED_STRING " (" TOSTRING(APP_BUILD_VERSION) ")"
 
 static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
@@ -53,7 +50,7 @@ static void console_thread(void)
 {
 	console_getline_init();
 	printk("*** " CONFIG_USB_DEVICE_MANUFACTURER " " CONFIG_USB_DEVICE_PRODUCT " ***\n");
-	printk(FW_STRING "\n");
+	printk(FW_STRING);
 	printk("reboot                       Soft reset the device\n");
 	printk("calibrate                    Calibrate sensor ZRO\n");
 	printk("pair                         Clear pairing data\n");
