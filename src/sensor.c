@@ -84,6 +84,8 @@ static const sensor_fusion_t *sensor_fusion = &sensor_fusion_vqf; // TODO: chang
 int fusion_id = FUSION_VQF;
 #endif
 
+static int sensor_imu_id = -1;
+static int sensor_mag_id = -1;
 static const sensor_imu_t *sensor_imu = &sensor_imu_none;
 static const sensor_mag_t *sensor_mag = &sensor_mag_none;
 static bool use_ext_fifo = false;
@@ -91,6 +93,21 @@ static bool use_ext_fifo = false;
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
 K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
+
+int sensor_get_sensor_imu_id(void)
+{
+	return sensor_imu_id;
+}
+
+int sensor_get_sensor_mag_id(void)
+{
+	return sensor_mag_id;
+}
+
+int sensor_get_sensor_fusion_id(void)
+{
+	return fusion_id;
+}
 
 int sensor_init(void)
 {
@@ -234,6 +251,8 @@ int sensor_init(void)
 
 	sensor_scan_write();
 	connection_update_sensor_ids(imu_id, mag_id);
+	sensor_imu_id = imu_id;
+	sensor_mag_id = mag_id;
 
 	sensor_sensor_init = true; // successfully initialized
 	sensor_sensor_scanning = false; // done

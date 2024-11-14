@@ -1,6 +1,10 @@
 #include "globals.h"
 #include "system.h"
+#include "sensor.h"
 #include "build_defines.h"
+
+#include "sensor/sensors.h"
+#include "sensor/fusions.h"
 
 #define USB DT_NODELABEL(usbd)
 #if DT_NODE_HAS_STATUS(USB, okay) && CONFIG_USE_SLIMENRF_CONSOLE
@@ -46,15 +50,58 @@ static void usb_init_thread(void)
 	usb_enable(status_cb);
 }
 
+static void print_info(void)
+{
+	int imu_id = sensor_get_sensor_imu_id();
+	int mag_id = sensor_get_sensor_mag_id();
+	int fusion_id = sensor_get_sensor_fusion_id();
+	int tracker_id = retained.paired_addr[1];
+
+	printk(FW_STRING);
+
+	printk("Board configuration: ");
+	printk(CONFIG_BOARD);
+	printk("\n");
+	printk("SOC: ");
+	printk(CONFIG_SOC);
+	printk("\n");
+
+	printk("IMU: ");
+	if (imu_id < 0)
+		printk("None");
+	else
+		printk(dev_imu_names[imu_id]);
+	printk("\n");
+
+	printk("Magnetometer: ");
+	if (mag_id < 0)
+		printk("None");
+	else
+		printk(dev_mag_names[mag_id]);
+	printk("\n");
+
+	printk("Fusion: ");
+	if (fusion_id < 0)
+		printk("None");
+	else
+		printk(fusion_names[fusion_id]);
+	printk("\n");
+
+	printk("Device address: %012llX\n", *(uint64_t *)NRF_FICR->DEVICEADDR & 0xFFFFFFFFFFFF);
+	printk("Receiver Address: %012llX\n", (*(uint64_t *)&retained.paired_addr[0] >> 16) & 0xFFFFFFFFFFFF);
+}
+
 static void console_thread(void)
 {
 	console_getline_init();
 	printk("*** " CONFIG_USB_DEVICE_MANUFACTURER " " CONFIG_USB_DEVICE_PRODUCT " ***\n");
 	printk(FW_STRING);
+	printk("info                         Get device information\n");
 	printk("reboot                       Soft reset the device\n");
 	printk("calibrate                    Calibrate sensor ZRO\n");
 	printk("pair                         Clear pairing data\n");
 
+	uint8_t command_info[] = "info";
 	uint8_t command_reboot[] = "reboot";
 	uint8_t command_calibrate[] = "calibrate";
 	uint8_t command_pair[] = "pair";
@@ -71,7 +118,11 @@ static void console_thread(void)
 			*p = tolower(*p);
 		}
 
-		if (memcmp(line, command_reboot, sizeof(command_reboot)) == 0)
+		if (memcmp(line, command_info, sizeof(command_info)) == 0)
+		{
+			print_info();
+		}
+		else if (memcmp(line, command_reboot, sizeof(command_reboot)) == 0)
 		{
 			sys_reboot(SYS_REBOOT_COLD);
 		}
