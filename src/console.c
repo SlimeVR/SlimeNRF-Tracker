@@ -49,8 +49,6 @@ static void usb_init_thread(void)
 
 static void print_info(void)
 {
-	int tracker_id = retained.paired_addr[1];
-
 	printk(FW_STRING);
 
 	printk("Board configuration: ");
@@ -63,19 +61,8 @@ static void print_info(void)
 	printk("IMU address: 0x%02X, register: 0x%02X\n", retained.imu_addr, retained.imu_reg);
 	printk("Magnetometer address: 0x%02X, register: 0x%02X\n", retained.mag_addr, retained.mag_reg);
 
-	printk("IMU: ");
-	if (imu_id < 0)
-		printk("None");
-	else
-		printk(sensor_get_sensor_imu_name());
-	printk("\n");
-
-	printk("Magnetometer: ");
-	if (mag_id < 0)
-		printk("None");
-	else
-		printk(sensor_get_sensor_mag_name());
-	printk("\n");
+	printk("IMU: %s\n", sensor_get_sensor_imu_name());
+	printk("Magnetometer: %s\n", sensor_get_sensor_mag_name());
 
 	printk("Accelerometer bias: %.5f %.5f %.5f\n", retained.accelBias[0], retained.accelBias[1], retained.accelBias[2]);
 	printk("Gyroscope bias: %.5f %.5f %.5f\n", retained.gyroBias[0], retained.gyroBias[1], retained.gyroBias[2]);
@@ -84,13 +71,9 @@ static void print_info(void)
 	for (int i = 0; i < 3; i++)
 		printk("%.5f %.5f %.5f %.5f\n", retained.magBAinv[0][i], retained.magBAinv[1][i], retained.magBAinv[2][i], retained.magBAinv[3][i]);
 
-	printk("Fusion: ");
-	if (fusion_id < 0)
-		printk("None");
-	else
-		printk(sensor_get_sensor_fusion_name());
-	printk("\n");
+	printk("Fusion: %s\n", sensor_get_sensor_fusion_name());
 
+	printk("Tracker ID: %u\n", retained.paired_addr[1]);
 	printk("Device address: %012llX\n", *(uint64_t *)NRF_FICR->DEVICEADDR & 0xFFFFFFFFFFFF);
 	printk("Receiver Address: %012llX\n", (*(uint64_t *)&retained.paired_addr[0] >> 16) & 0xFFFFFFFFFFFF);
 }

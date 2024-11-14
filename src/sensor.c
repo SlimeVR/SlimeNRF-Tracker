@@ -96,16 +96,22 @@ K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 
 
 const char *sensor_get_sensor_imu_name(void)
 {
+	if (sensor_imu_id < 0)
+		return "None";
 	return dev_imu_names[sensor_imu_id];
 }
 
 const char *sensor_get_sensor_mag_name(void)
 {
+	if (sensor_mag_id < 0)
+		return "None";
 	return dev_mag_names[sensor_mag_id];
 }
 
 const char *sensor_get_sensor_fusion_name(void)
 {
+	if (fusion_id < 0)
+		return "None";
 	return fusion_names[fusion_id];
 }
 
