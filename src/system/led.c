@@ -31,7 +31,6 @@ static const struct gpio_dt_spec led = {0};
 static const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET(LED0_NODE);
 #else
 #warning "PWM LED node does not exist"
-static const struct pwm_dt_spec pwm_led = {0};
 #endif
 
 static enum sys_led_pattern led_patterns[SYS_LED_PATTERN_DEPTH] = {[0 ... (SYS_LED_PATTERN_DEPTH - 1)] = SYS_LED_PATTERN_OFF};
@@ -70,7 +69,9 @@ void set_led(enum sys_led_pattern led_pattern, int priority)
 	led_pattern_state = 0;
 	if (current_led_pattern <= SYS_LED_PATTERN_OFF)
 	{
+#if PWM_LED_EXISTS
 		pwm_set_pulse_dt(&pwm_led, 0);
+#endif
 		led_gpio_init(); // reinit led
 		gpio_pin_set_dt(&led, 0);
 		k_thread_suspend(led_thread_id);
@@ -95,7 +96,9 @@ static void led_thread(void)
 #endif
 	while (1)
 	{
+#if PWM_LED_EXISTS
 		pwm_set_pulse_dt(&pwm_led, 0);
+#endif
 		led_gpio_init(); // reinit led
 		gpio_pin_set_dt(&led, 0);
 		switch (current_led_pattern)
@@ -131,7 +134,11 @@ static void led_thread(void)
 			break;
 		case SYS_LED_PATTERN_ONESHOT_POWEROFF:
 			if (led_pattern_state++ > 0)
+#if PWM_LED_EXISTS
 				pwm_set_pulse_dt(&pwm_led, pwm_led.period * (202 - led_pattern_state) / 200);
+#else
+				gpio_pin_set_dt(&led, 202 - led_pattern_state);
+#endif
 			else
 				gpio_pin_set_dt(&led, 0);
 			if (led_pattern_state == 202)
@@ -159,18 +166,30 @@ static void led_thread(void)
 			break;
 
 		case SYS_LED_PATTERN_ON_PERSIST:
+#if PWM_LED_EXISTS
 			pwm_set_pulse_dt(&pwm_led, pwm_led.period / 5); // 20% duty cycle, should look like ~50% brightness
+#else
+			gpio_pin_set_dt(&led, 1);
+#endif
 			k_thread_suspend(led_thread_id);
 			break;
 		case SYS_LED_PATTERN_LONG_PERSIST:
 			led_pattern_state = (led_pattern_state + 1) % 2;
+#if PWM_LED_EXISTS
 			pwm_set_pulse_dt(&pwm_led, led_pattern_state ? pwm_led.period / 5 : 0); // 20% duty cycle, should look like ~50% brightness
+#else
+			gpio_pin_set_dt(&led, led_pattern_state);
+#endif
 			k_msleep(500);
 			break;
 		case SYS_LED_PATTERN_PULSE_PERSIST:
 			led_pattern_state = (led_pattern_state + 1) % 1000;
 			float led_value = sinf(led_pattern_state * (M_PI / 1000));
+#if PWM_LED_EXISTS
 			pwm_set_pulse_dt(&pwm_led, pwm_led.period * led_value);
+#else
+			gpio_pin_set_dt(&led, led_value > 0.5);
+#endif
 			k_msleep(5);
 			break;
 		case SYS_LED_PATTERN_ACTIVE_PERSIST: // off duration first because the device may turn on multiple times rapidly and waste battery power
