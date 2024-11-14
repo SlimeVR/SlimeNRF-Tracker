@@ -3,9 +3,6 @@
 #include "sensor.h"
 #include "build_defines.h"
 
-#include "sensor/sensors.h"
-#include "sensor/fusions.h"
-
 #define USB DT_NODELABEL(usbd)
 #if DT_NODE_HAS_STATUS(USB, okay) && CONFIG_USE_SLIMENRF_CONSOLE
 
@@ -52,9 +49,6 @@ static void usb_init_thread(void)
 
 static void print_info(void)
 {
-	int imu_id = sensor_get_sensor_imu_id();
-	int mag_id = sensor_get_sensor_mag_id();
-	int fusion_id = sensor_get_sensor_fusion_id();
 	int tracker_id = retained.paired_addr[1];
 
 	printk(FW_STRING);
@@ -73,14 +67,14 @@ static void print_info(void)
 	if (imu_id < 0)
 		printk("None");
 	else
-		printk(dev_imu_names[imu_id]);
+		printk(sensor_get_sensor_imu_name());
 	printk("\n");
 
 	printk("Magnetometer: ");
 	if (mag_id < 0)
 		printk("None");
 	else
-		printk(dev_mag_names[mag_id]);
+		printk(sensor_get_sensor_mag_name());
 	printk("\n");
 
 	printk("Accelerometer bias: %.5f %.5f %.5f\n", retained.accelBias[0], retained.accelBias[1], retained.accelBias[2]);
@@ -94,7 +88,7 @@ static void print_info(void)
 	if (fusion_id < 0)
 		printk("None");
 	else
-		printk(fusion_names[fusion_id]);
+		printk(sensor_get_sensor_fusion_name());
 	printk("\n");
 
 	printk("Device address: %012llX\n", *(uint64_t *)NRF_FICR->DEVICEADDR & 0xFFFFFFFFFFFF);

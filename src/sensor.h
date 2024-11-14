@@ -3,9 +3,9 @@
 
 #include <zephyr/drivers/i2c.h>
 
-int sensor_get_sensor_imu_id(void);
-int sensor_get_sensor_mag_id(void);
-int sensor_get_sensor_fusion_id(void);
+const char *sensor_get_sensor_imu_name(void);
+const char *sensor_get_sensor_mag_name(void);
+const char *sensor_get_sensor_fusion_name(void);
 
 int sensor_init(void);
 

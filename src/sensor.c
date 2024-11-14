@@ -94,19 +94,19 @@ LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
 K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
 
-int sensor_get_sensor_imu_id(void)
+const char *sensor_get_sensor_imu_name(void)
 {
-	return sensor_imu_id;
+	return dev_imu_names[sensor_imu_id];
 }
 
-int sensor_get_sensor_mag_id(void)
+const char *sensor_get_sensor_mag_name(void)
 {
-	return sensor_mag_id;
+	return dev_mag_names[sensor_mag_id];
 }
 
-int sensor_get_sensor_fusion_id(void)
+const char *sensor_get_sensor_fusion_name(void)
 {
-	return fusion_id;
+	return fusion_names[fusion_id];
 }
 
 int sensor_init(void)
