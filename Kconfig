@@ -10,6 +10,7 @@ menu "SlimeNRF"
 
 config USE_SLIMENRF_CONSOLE
     bool "Use basic console"
+    default y
     depends on USB_DEVICE_STACK
     help
         Use basic console for commands.
