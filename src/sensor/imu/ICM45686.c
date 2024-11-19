@@ -321,7 +321,7 @@ void icm45_setup_WOM(const struct i2c_dt_spec *dev_i2c) // TODO: check if workin
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_INT1_CONFIG0, 0x00); // disable default interrupt (RESET_DONE)
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_ACCEL_CONFIG0, ACCEL_UI_FS_SEL_8G << 4 | ACCEL_ODR_200Hz); // set accel ODR and FS
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_PWR_MGMT0, ACCEL_MODE_LP); // set accel and gyro modes
-	ireg_buf[0] = ICM45686_IPREG_SYS2;
+	ireg_buf[0] = ICM45686_IPREG_SYS2; // address is a word, icm is big endian
 	ireg_buf[1] = ICM45686_IPREG_SYS2_REG_129;
 	ireg_buf[2] = 0x00; // set ACCEL_LP_AVG_SEL to 1x
 	err |= i2c_burst_write_dt(dev_i2c, ICM45686_IREG_ADDR_15_8, ireg_buf, 3); // write buffer

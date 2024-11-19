@@ -320,7 +320,7 @@ float bmi_temp_read(const struct i2c_dt_spec *dev_i2c)
 void bmi_setup_WOM(const struct i2c_dt_spec *dev_i2c) // TODO: seems too sensitive? try to match icm at least // TODO: half working.
 {
 	uint8_t config[4] = {0};
-	uint16_t *ptr = (uint16_t *)config;
+	uint16_t *ptr = (uint16_t *)config; // bmi is little endian
 	ptr[0] = 0x7 << 13 | 0x000; // enable all axes, set detection duration to 0
 	ptr[1] = 0x1 << 15 | 0x7 << 11 | 0x040; // enable any_motion, set out_conf to bit 6, set threshold (1LSB equals to 0.488mg, 64 * 0.488mg is ~31.25mg)
 	int err = i2c_reg_write_byte_dt(dev_i2c, BMI270_PWR_CONF, 0x00); // disable adv_power_save
