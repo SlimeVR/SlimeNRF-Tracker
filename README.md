@@ -1,7 +1,7 @@
 # Tracker firmware for SlimeNRF
 
 ## Hardware
-- https://github.com/SlimeVR/SlimeNRF-PCB
+- https://github.com/SlimeVR/SlimeVR-Tracker-nRF-PCB
 - https://oshwlab.com/sctanf/slimenrf3
 
 ## License
