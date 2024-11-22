@@ -18,13 +18,19 @@ static float last_a[3] = {0};
 static void set_params()
 {
 	init_params(&params);
-	params.biasSigmaInit = 1.0f; // naive values from https://github.com/kounocom/SlimeVR-Tracker-ESP/blob/dynamic-sfusion/src/sensors/SensorFusion.h
-	params.biasForgettingTime = 30.0f;
-	params.biasSigmaMotion = 0.1175f;
-	params.biasVerticalForgettingFactor = 0;
-	params.biasSigmaRest = 0.007f;
-	params.restThGyr = 1.0f; // 400 norm
-	params.restThAcc = 0.196f; // 100 norm
+	//The smaller the value, the faster the estimation
+	params.biasSigmaInit = 1.0f; 
+	//It determines the bias estimation speed. The smaller the value, the faster the estimation. A value between 30 and 100 is appropriate.
+	params.biasForgettingTime = 100.0f;
+	//It corrects the vertical yaw. 0.001~0.0001 is appropriate.
+	params.biasVerticalForgettingFactor = 0.0001;
+	//(MBE) The larger the value, the more stable it is, but the estimation becomes slower.
+	params.biasSigmaMotion = 0.1f;
+	//(RBE) The lower the value, the more accurate the bias estimation becomes.
+	params.biasSigmaRest = 0.01f;
+	//These are the threshold values for the gyro and accelerometer to determine a resting state.
+	params.restThGyr = 1.0f; 
+	params.restThAcc = 0.25;
 }
 
 void vqf_init(float g_time, float a_time, float m_time)
