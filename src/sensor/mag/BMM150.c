@@ -67,7 +67,7 @@ static float compensate_z(int16_t mag_data_z, uint16_t data_rhall);
 int bmm1_init(const struct i2c_dt_spec *dev_i2c, float time, float *actual_time)
 {
 	int err = i2c_reg_write_byte_dt(dev_i2c, BMM150_POWER_CTRL, 0x01);
-//	k_msleep(3); // BMM150 start-up
+	k_msleep(2); // BMM150 start-up
 	err |= read_trim_registers(dev_i2c);
 	if (err)
 		LOG_ERR("I2C error");
