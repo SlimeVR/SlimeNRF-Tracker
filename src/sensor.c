@@ -307,13 +307,17 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 	memcpy(accelBias, retained.accelBias, sizeof(accelBias));
 	memcpy(gyroBias, retained.gyroBias, sizeof(gyroBias));
 	memcpy(magBias, retained.magBias, sizeof(magBias));
-	memcpy(magBAinv, retained.magBAinv, sizeof(magBAinv));
+	memcpy(magBAinv, retained.magBAinv, sizeof(magBAinv));	
+	memcpy(AccBAinv, retained.AccBAinv, sizeof(AccBAinv));
 	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
 	LOG_INF("Magnetometer bridge offset: %.5f %.5f %.5f", magBias[0], magBias[1], magBias[2]);
 	LOG_INF("Magnetometer matrix:");
 	for (int i = 0; i < 3; i++)
 		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+	LOG_INF("Accelerometer matrix:");
+	for (int i = 0; i < 3; i++)
+		LOG_INF("%.5f %.5f %.5f %.5f", AccBAinv[0][i], AccBAinv[1][i], AccBAinv[2][i], AccBAinv[3][i]);
 	sensor_calibration_validate();
 
 	if (retained.fusion_id)
@@ -371,6 +375,7 @@ void sensor_calibrate_imu(void)
 	sensor_offsetBias(&sensor_imu_dev, accelBias, gyroBias); // This takes about 3s
 	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
+	sys_write(MAIN_ACC_6_BIAS_ID, &retained.AccBAinv, AccBAinv, sizeof(AccBAinv));
 	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
 	if (sensor_calibration_validate())
@@ -427,8 +432,10 @@ int sensor_calibration_validate(void)
 void sensor_calibration_clear(void)
 {
 	memset(accelBias, 0, sizeof(accelBias));
+	memset(AccBAinv, 0, sizeof(AccBAinv));
 	memset(gyroBias, 0, sizeof(gyroBias));
 	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
+	sys_write(MAIN_ACC_6_BIAS_ID, &retained.AccBAinv, AccBAinv, sizeof(AccBAinv));
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 
 	if (sensor_fusion_init)
@@ -592,10 +599,16 @@ void main_imu_thread(void)
 			// Read accelerometer
 			float raw_a[3];
 			sensor_imu->accel_read(&sensor_imu_dev, raw_a);
+#if SENSOR_ACCELEROMETER_6_SIDE_CLIBRATION
+			apply_BAinv(raw_a, AccBAinv);
+			float ax = raw_a[0];
+			float ay = raw_a[1];
+			float az = raw_a[2];
+#elif
 			float ax = raw_a[0] - accelBias[0];
 			float ay = raw_a[1] - accelBias[1];
 			float az = raw_a[2] - accelBias[2];
-
+#endif
 			// Read magnetometer and process magneto
 			float mx = 0, my = 0, mz = 0;
 			if (mag_available && mag_enabled && sensor_mode == SENSOR_SENSOR_MODE_LOW_NOISE)
