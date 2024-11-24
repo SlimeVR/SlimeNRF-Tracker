@@ -57,7 +57,7 @@ int sensor_scan(struct i2c_dt_spec *i2c_dev, uint8_t *i2c_dev_reg, int dev_addr_
 						if (err)
 							break;
 						LOG_DBG("Power up BMM150");
-//						k_msleep(3); // BMM150 start-up
+						k_msleep(2); // BMM150 start-up
 					}
 					int err = i2c_reg_read_byte(dev, addr, reg, &id);
 					LOG_DBG("Read value: 0x%02X", id);
