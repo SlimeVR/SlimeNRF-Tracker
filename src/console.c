@@ -6,6 +6,7 @@
 #define USB DT_NODELABEL(usbd)
 #if DT_NODE_HAS_STATUS(USB, okay) && CONFIG_USE_SLIMENRF_CONSOLE
 
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/usb/class/usb_hid.h>
 #include <zephyr/console/console.h>
@@ -13,6 +14,8 @@
 #include <zephyr/logging/log_ctrl.h>
 
 #include <ctype.h>
+
+const struct device *gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 
 LOG_MODULE_REGISTER(console, LOG_LEVEL_INF);
 
@@ -23,7 +26,9 @@ static void console_thread(void);
 static struct k_thread console_thread_id;
 static K_THREAD_STACK_DEFINE(console_thread_id_stack, 512);
 
-#define DFU_EXISTS CONFIG_BUILD_OUTPUT_UF2
+#define DFU_EXISTS CONFIG_BUILD_OUTPUT_UF2 || CONFIG_BOARD_HAS_NRF5_BOOTLOADER
+#define ADAFRUIT_BOOTLOADER CONFIG_BUILD_OUTPUT_UF2
+#define NRF5_BOOTLOADER CONFIG_BOARD_HAS_NRF5_BOOTLOADER
 
 static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
@@ -129,8 +134,13 @@ static void console_thread(void)
 #if DFU_EXISTS
 		else if (memcmp(line, command_dfu, sizeof(command_dfu)) == 0)
 		{
+#if ADAFRUIT_BOOTLOADER
 			NRF_POWER->GPREGRET = 0x57;
 			sys_reboot(SYS_REBOOT_COLD);
+#endif
+#if NRF5_BOOTLOADER
+			gpio_pin_configure(gpio_dev, 19, GPIO_OUTPUT | GPIO_OUTPUT_INIT_LOW);
+#endif
 		}
 #endif
 		else
