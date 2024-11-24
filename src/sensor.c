@@ -93,7 +93,7 @@ static bool use_ext_fifo = false;
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
-K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
+K_THREAD_DEFINE(main_imu_thread_id, 8196, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
 
 const char *sensor_get_sensor_imu_name(void)
 {
