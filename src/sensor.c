@@ -51,6 +51,7 @@ static double norm_sum;
 static double sample_count;
 
 static float magBAinv[4][3];
+static float AccBAinv[4][3];
 
 static float max_gyro_speed_square;
 static bool mag_use_oneshot;
@@ -824,6 +825,26 @@ void main_imu_wakeup(void)
 		k_wakeup(main_imu_thread_id);
 }
 
+#if SENSOR_ACCELEROMETER_6_SIDE_CLIBRATION 
+int isAccRest(float* acc, float* pre_acc,float threshold, int* t, int restdelta) {
+	
+    float delta_x = acc[0] - pre_acc[0];
+    float delta_y = acc[1] - pre_acc[1];
+    float delta_z = acc[2] - pre_acc[2];
+
+    float norm_diff = sqrt(delta_x * delta_x + delta_y * delta_y + delta_z * delta_z);
+    
+	if (norm_diff <= threshold)	{
+		*t += restdelta;
+	}
+	else {
+		*t = 0;
+	}
+    
+	if(*t>2000) return 1;
+	return 0;
+}
+#endif
 // TODO: move to a calibration file
 // TODO: setup 6 sided calibration (bias and scale, and maybe gyro ZRO?), setup temp calibration (particulary for gyro ZRO)
 void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *dest2)
@@ -831,28 +852,119 @@ void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *d
 	float rawData[3];
 	for (int i = 0; i < 500; i++)
 	{
+#if SENSOR_ACCELEROMETER_6_SIDE_CLIBRATION==false 
 		sensor_imu->accel_read(dev_i2c, &rawData[0]);
 		dest1[0] += rawData[0];
 		dest1[1] += rawData[1];
 		dest1[2] += rawData[2];
+#endif
 		sensor_imu->gyro_read(dev_i2c, &rawData[0]);
 		dest2[0] += rawData[0];
 		dest2[1] += rawData[1];
 		dest2[2] += rawData[2];
 		k_msleep(5);
 	}
-
+#if SENSOR_ACCELEROMETER_6_SIDE_CLIBRATION==false 
+	// need better accel calibration
 	dest1[0] /= 500.0f;
 	dest1[1] /= 500.0f;
 	dest1[2] /= 500.0f;
-	dest2[0] /= 500.0f;
-	dest2[1] /= 500.0f;
-	dest2[2] /= 500.0f;
-// need better accel calibration
 	if(dest1[0] > 0.9f) {dest1[0] -= 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
 	if(dest1[0] < -0.9f) {dest1[0] += 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
 	if(dest1[1] > 0.9f) {dest1[1] -= 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
 	if(dest1[1] < -0.9f) {dest1[1] += 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
 	if(dest1[2] > 0.9f) {dest1[2] -= 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
 	if(dest1[2] < -0.9f) {dest1[2] += 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
+#endif
+	dest2[0] /= 500.0f;
+	dest2[1] /= 500.0f;
+	dest2[2] /= 500.0f;
+
+#if SENSOR_ACCELEROMETER_6_SIDE_CLIBRATION 
+	// Acc 6 side calibrate
+	float pre_acc[3]={0,0,0};
+	const float THRESHOLD_ACC = 0.05f;
+	int resttime = 0;
+	
+	float accel_samples[6][3] = {0};
+	int c = 0;
+	printk("Starting accelerometer calibration.\n");
+	while(1){
+		printk("Waiting for a resting state...\n");
+		while (1)
+		{
+			sensor_imu->accel_read(dev_i2c, &rawData[0]);
+			int rest = isAccRest(rawData,pre_acc,THRESHOLD_ACC,&resttime, 100);	
+			pre_acc[0] = rawData[0];
+			pre_acc[1] = rawData[1];
+			pre_acc[2] = rawData[2];
+
+			if(rest==1){
+				printk("Rest detected, starting recording. Please do not move. %d\n",c);
+				k_msleep(1000);
+
+				float r[3] = {0};
+				for(int i=0; i<20;i++){
+					sensor_imu->accel_read(dev_i2c, &rawData[0]);
+					r[0] += rawData[0];
+					r[1] += rawData[1];
+					r[2] += rawData[2];
+					k_msleep(10);
+				}			
+				r[0] /= 20.0f;
+				r[1] /= 20.0f;
+				r[2] /= 20.0f;
+				printk("Recorded values %f %f %f \n",r[0],r[1],r[2]);
+				accel_samples[c][0] = r[0];
+				accel_samples[c][1] = r[1];
+				accel_samples[c][2] = r[2];
+				printk("%d side done \n",c);
+				c ++;
+				k_msleep(1000);
+				break;
+			}	
+			k_msleep(100);
+		}		
+		if(c>=6) break;
+		printk("Waiting for the next side... %d \n", c);
+		while (1)
+		{
+			k_msleep(100);
+			sensor_imu->accel_read(dev_i2c, &rawData[0]);
+			int rest = isAccRest(rawData,pre_acc,THRESHOLD_ACC,&resttime, 100);		
+			pre_acc[0] = rawData[0];
+			pre_acc[1] = rawData[1];
+			pre_acc[2] = rawData[2];
+
+			if(rest == 0) 
+			{
+				resttime = 0;
+				break;
+			}
+			
+		}	
+		k_msleep(5);
+	}
+	
+	memset(ata, 0, sizeof(ata)); 
+	norm_sum = 0.0;
+	sample_count = 0.0;
+	printk("Calculating the data....\n");
+	//calc acc data
+	for (int i = 0; i < 6; i++) {
+        magneto_sample( accel_samples[i][0], accel_samples[i][1], accel_samples[i][2], ata, &norm_sum, &sample_count);
+		printk("%f, %f, %f\n",accel_samples[i][0],accel_samples[i][1],accel_samples[i][2]);
+    }
+	// printk("norm, sample  %f, %f\n",norm_sum,sample_count);
+	k_msleep(500);
+	magneto_current_calibration(AccBAinv,ata,norm_sum,sample_count);
+	printk("Accel Matrix\n");
+	for (int i = 0; i<4; i++){
+		printk("%f, %f, %f\n",AccBAinv[i][0],AccBAinv[i][1],AccBAinv[i][2]);
+	}
+
+	printk("Calibration is complete.\n");
+
+#endif
+
 }
