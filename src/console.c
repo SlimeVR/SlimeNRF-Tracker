@@ -15,8 +15,6 @@
 
 #include <ctype.h>
 
-static const struct device *gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
-
 LOG_MODULE_REGISTER(console, LOG_LEVEL_INF);
 
 static void usb_init_thread(void);
@@ -29,6 +27,10 @@ static K_THREAD_STACK_DEFINE(console_thread_id_stack, 512);
 #define DFU_EXISTS CONFIG_BUILD_OUTPUT_UF2 || CONFIG_BOARD_HAS_NRF5_BOOTLOADER
 #define ADAFRUIT_BOOTLOADER CONFIG_BUILD_OUTPUT_UF2
 #define NRF5_BOOTLOADER CONFIG_BOARD_HAS_NRF5_BOOTLOADER
+
+#if NRF5_BOOTLOADER
+static const struct device *gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
+#endif
 
 static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
