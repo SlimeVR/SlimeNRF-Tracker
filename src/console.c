@@ -117,6 +117,9 @@ static void console_thread(void)
 		else if (memcmp(line, command_calibrate, sizeof(command_calibrate)) == 0)
 		{
 			reboot_counter_write(101);
+			float accelBias[3] = {0}, gyroBias[3] = {0};
+			sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
+			sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 			k_msleep(1);
 			sys_reboot(SYS_REBOOT_WARM);
 		}

@@ -4,3 +4,5 @@
 
 # build
 /build*/
+prj.conf
+src/console.c

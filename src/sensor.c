@@ -93,7 +93,7 @@ static bool use_ext_fifo = false;
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_INF);
 
-K_THREAD_DEFINE(main_imu_thread_id, 8196, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
+K_THREAD_DEFINE(main_imu_thread_id, 4096, main_imu_thread, NULL, NULL, NULL, 7, 0, 0);
 
 const char *sensor_get_sensor_imu_name(void)
 {
@@ -898,8 +898,9 @@ void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *d
 	float pre_acc[3]={0,0,0};
 	const float THRESHOLD_ACC = 0.05f;
 	int resttime = 0;
-	
-	float accel_samples[6][3] = {0};
+	memset(ata, 0, sizeof(ata)); 
+	norm_sum = 0.0;
+	sample_count = 0.0;
 	int c = 0;
 	printk("Starting accelerometer calibration.\n");
 	while(1){
@@ -917,20 +918,13 @@ void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *d
 				k_msleep(1000);
 
 				float r[3] = {0};
-				for(int i=0; i<20;i++){
+				for(int i=0; i<100;i++){
 					sensor_imu->accel_read(dev_i2c, &rawData[0]);
-					r[0] += rawData[0];
-					r[1] += rawData[1];
-					r[2] += rawData[2];
+					magneto_sample( rawData[0], rawData[1], rawData[2], ata, &norm_sum, &sample_count);
+					if(i%10==0)printk("#");
 					k_msleep(10);
-				}			
-				r[0] /= 20.0f;
-				r[1] /= 20.0f;
-				r[2] /= 20.0f;
-				printk("Recorded values %f %f %f \n",r[0],r[1],r[2]);
-				accel_samples[c][0] = r[0];
-				accel_samples[c][1] = r[1];
-				accel_samples[c][2] = r[2];
+				}		
+				printk("Recorded values!\n");
 				printk("%d side done \n",c);
 				c ++;
 				k_msleep(1000);
@@ -959,16 +953,8 @@ void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *d
 		k_msleep(5);
 	}
 	
-	memset(ata, 0, sizeof(ata)); 
-	norm_sum = 0.0;
-	sample_count = 0.0;
+
 	printk("Calculating the data....\n");
-	//calc acc data
-	for (int i = 0; i < 6; i++) {
-        magneto_sample( accel_samples[i][0], accel_samples[i][1], accel_samples[i][2], ata, &norm_sum, &sample_count);
-		printk("%f, %f, %f\n",accel_samples[i][0],accel_samples[i][1],accel_samples[i][2]);
-    }
-	// printk("norm, sample  %f, %f\n",norm_sum,sample_count);
 	k_msleep(500);
 	magneto_current_calibration(AccBAinv,ata,norm_sum,sample_count);
 	printk("Accel Matrix\n");
