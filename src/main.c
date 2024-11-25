@@ -12,13 +12,17 @@
 
 uint32_t* dbl_reset_mem = ((uint32_t*) DFU_DBL_RESET_MEM);
 
+const struct device *gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
+
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 #if DT_NODE_HAS_PROP(DT_ALIAS(sw0), gpios)
 #define BUTTON_EXISTS true
 #endif
 
-#define DFU_EXISTS CONFIG_BUILD_OUTPUT_UF2
+#define DFU_EXISTS CONFIG_BUILD_OUTPUT_UF2 || CONFIG_BOARD_HAS_NRF5_BOOTLOADER
+#define ADAFRUIT_BOOTLOADER CONFIG_BUILD_OUTPUT_UF2
+#define NRF5_BOOTLOADER CONFIG_BOARD_HAS_NRF5_BOOTLOADER
 
 int main(void)
 {
@@ -32,7 +36,7 @@ int main(void)
 //	start_time = k_uptime_get(); // Need to get start time for imu startup delay
 	set_led(SYS_LED_PATTERN_ON, SYS_LED_PRIORITY_BOOT); // Boot LED
 
-#if DFU_EXISTS && !(IGNORE_RESET && BUTTON_EXISTS) // Using Adafruit bootloader
+#if ADAFRUIT_BOOTLOADER && !(IGNORE_RESET && BUTTON_EXISTS) // Using Adafruit bootloader
 	(*dbl_reset_mem) = DFU_DBL_RESET_APP; // Skip DFU
 	ram_range_retain(dbl_reset_mem, sizeof(dbl_reset_mem), true);
 #endif
@@ -101,12 +105,17 @@ int main(void)
 		LOG_INF("Pairing reset requested");
 		esb_reset_pair();
 		break;
-#if DFU_EXISTS // Using Adafruit bootloader
+#if DFU_EXISTS // Using DFU bootloader
 	case 3:
-	case 4: // DFU_MAGIC_UF2_RESET, Reset mode DFU
+	case 4: // Reset mode DFU
 		LOG_INF("DFU requested");
-		NRF_POWER->GPREGRET = 0x57;
+#if ADAFRUIT_BOOTLOADER
+		NRF_POWER->GPREGRET = 0x57; // DFU_MAGIC_UF2_RESET
 		sys_reboot(SYS_REBOOT_COLD);
+#endif
+#if NRF5_BOOTLOADER
+		gpio_pin_configure(gpio_dev, 19, GPIO_OUTPUT | GPIO_OUTPUT_INIT_LOW);
+#endif
 #endif
 	default:
 		break;
