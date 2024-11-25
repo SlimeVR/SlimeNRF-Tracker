@@ -32,6 +32,32 @@ static K_THREAD_STACK_DEFINE(console_thread_id_stack, 512);
 static const struct device *gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 #endif
 
+static const char *meows[] = {
+	"Meow",
+	"Meow meow",
+	"Mrrrp",
+	"Mrrf",
+	"Mrrrow",
+	"Mrrr",
+	"Purr",
+	"meow",
+	"meow meow",
+	"mrrrp",
+	"mrrf",
+	"mrrrow",
+	"mrrr",
+	"purr",
+};
+
+static const char *meow_punctuations[] = {
+	".",
+	"?",
+	"!",
+	"-",
+	"~",
+	""
+};
+
 static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
 	switch (status)
@@ -107,6 +133,10 @@ static void console_thread(void)
 	uint8_t command_dfu[] = "dfu";
 #endif
 
+	printk("meow                         Meow!\n");
+
+	uint8_t command_meow[] = "meow";
+
 	while (1) {
 		uint8_t *line = console_getline();
 		for (uint8_t *p = line; *p; ++p) {
@@ -145,6 +175,12 @@ static void console_thread(void)
 #endif
 		}
 #endif
+		else if (memcmp(line, command_meow, sizeof(command_meow)) == 0) 
+		{
+			uint32_t cycles = k_cycle_get_32();
+			cycles %= ARRAY_SIZE(meows) * ARRAY_SIZE(meow_punctuations); // silly number generator
+			printk("%s%s\n", meows[cycles % ARRAY_SIZE(meows)], meow_punctuations[cycles / ARRAY_SIZE(meows)]);
+		}
 		else
 		{
 			printk("Unknown command\n");
