@@ -15,7 +15,7 @@
 
 #include <ctype.h>
 
-const struct device *gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
+static const struct device *gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 
 LOG_MODULE_REGISTER(console, LOG_LEVEL_INF);
 
