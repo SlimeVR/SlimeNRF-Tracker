@@ -132,7 +132,7 @@ int sensor_init(void)
 	LOG_ERR("IMU node does not exist");
 	int imu_id = -1;
 #endif
-	if (imu_id >= ARRAY_SIZE(dev_imu_names))
+	if (imu_id >= (int)ARRAY_SIZE(dev_imu_names))
 		LOG_WRN("Found unknown device");
 	else if (imu_id < 0)
 		LOG_ERR("No IMU detected");
@@ -140,7 +140,7 @@ int sensor_init(void)
 		LOG_INF("Found %s", dev_imu_names[imu_id]);
 	if (imu_id >= 0)
 	{
-		if (imu_id >= ARRAY_SIZE(sensor_imus) || sensor_imus[imu_id] == NULL || sensor_imus[imu_id] == &sensor_imu_none)
+		if (imu_id >= (int)ARRAY_SIZE(sensor_imus) || sensor_imus[imu_id] == NULL || sensor_imus[imu_id] == &sensor_imu_none)
 		{
 			sensor_imu = &sensor_imu_none;
 			sensor_sensor_scanning = false; // done
@@ -205,7 +205,7 @@ int sensor_init(void)
 	LOG_WRN("Magnetometer node does not exist");
 	int mag_id = -1;
 #endif
-	if (mag_id >= ARRAY_SIZE(dev_mag_names))
+	if (mag_id >= (int)ARRAY_SIZE(dev_mag_names))
 		LOG_WRN("Found unknown device");
 	else if (mag_id < 0)
 		LOG_WRN("No magnetometer detected");
@@ -213,7 +213,7 @@ int sensor_init(void)
 		LOG_INF("Found %s", dev_mag_names[mag_id]);
 	if (mag_id >= 0) // if there is no magnetometer we do not care as much
 	{
-		if (mag_id >= ARRAY_SIZE(sensor_mags) || sensor_mags[mag_id] == NULL || sensor_mags[mag_id] == &sensor_mag_none)
+		if (mag_id >= (int)ARRAY_SIZE(sensor_mags) || sensor_mags[mag_id] == NULL || sensor_mags[mag_id] == &sensor_mag_none)
 		{
 			sensor_mag = &sensor_mag_none; 
 			mag_available = false;
