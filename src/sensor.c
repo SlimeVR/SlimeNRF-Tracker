@@ -378,6 +378,9 @@ void sensor_calibrate_imu(void)
 	sys_write(MAIN_ACC_6_BIAS_ID, &retained.AccBAinv, AccBAinv, sizeof(AccBAinv));
 	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
 	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+
+
+
 	if (sensor_calibration_validate())
 	{
 		set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
@@ -397,6 +400,14 @@ void sensor_calibrate_imu(void)
 		retained_update();
 	}
 	set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_SENSOR);
+}
+
+void sensor_calibrate_6side(void)
+{
+	LOG_INF("Calibrating main accelerometer 6side offset");
+	LOG_INF("Rest the device on a stable surface");
+	sensor_6SideBias(&sensor_imu_dev);
+	LOG_INF("Finished calibration");
 }
 
 void sensor_calibrate_mag(void)
@@ -536,9 +547,18 @@ int main_imu_init(void)
 		sensor_fusion->init(gyro_actual_time, accel_initial_time, accel_initial_time); // TODO: using initial time since accel and mag are not polled at the actual rate
 	}
 
+
 	// Calibrate IMU
 	if (accelBias[0] == 0 && accelBias[1] == 0 && accelBias[2] == 0 && gyroBias[0] == 0 && gyroBias[1] == 0 && gyroBias[2] == 0) // TODO: better way to check?
 		sensor_calibrate_imu();
+
+	// Calibrate 6Side Caliberate
+#if SENSOR_ACCELEROMETER_6_SIDE_CLIBRATION 
+	if (AccBAinv[0][0] == 0 && AccBAinv[0][1] == 0 && AccBAinv[0][2] == 0){
+		sensor_calibrate_6side();
+	}
+#endif
+
 
 	LOG_INF("Using %s", fusion_names[fusion_id]);
 	LOG_INF("Initialized fusion");
@@ -838,26 +858,7 @@ void main_imu_wakeup(void)
 		k_wakeup(main_imu_thread_id);
 }
 
-#if SENSOR_ACCELEROMETER_6_SIDE_CLIBRATION 
-int isAccRest(float* acc, float* pre_acc,float threshold, int* t, int restdelta) {
-	
-    float delta_x = acc[0] - pre_acc[0];
-    float delta_y = acc[1] - pre_acc[1];
-    float delta_z = acc[2] - pre_acc[2];
 
-    float norm_diff = sqrt(delta_x * delta_x + delta_y * delta_y + delta_z * delta_z);
-    
-	if (norm_diff <= threshold)	{
-		*t += restdelta;
-	}
-	else {
-		*t = 0;
-	}
-    
-	if(*t>2000) return 1;
-	return 0;
-}
-#endif
 // TODO: move to a calibration file
 // TODO: setup 6 sided calibration (bias and scale, and maybe gyro ZRO?), setup temp calibration (particulary for gyro ZRO)
 void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *dest2)
@@ -892,12 +893,38 @@ void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *d
 	dest2[0] /= 500.0f;
 	dest2[1] /= 500.0f;
 	dest2[2] /= 500.0f;
+}
+
 
 #if SENSOR_ACCELEROMETER_6_SIDE_CLIBRATION 
+int isAccRest(float* acc, float* pre_acc,float threshold, int* t, int restdelta) {
+	
+    float delta_x = acc[0] - pre_acc[0];
+    float delta_y = acc[1] - pre_acc[1];
+    float delta_z = acc[2] - pre_acc[2];
+
+    float norm_diff = sqrt(delta_x * delta_x + delta_y * delta_y + delta_z * delta_z);
+    
+	if (norm_diff <= threshold)	{
+		*t += restdelta;
+	}
+	else {
+		*t = 0;
+	}
+    
+	if(*t>2000) return 1;
+	return 0;
+}
+#endif
+void sensor_6SideBias(const struct i2c_dt_spec *dev_i2c){
+#if SENSOR_ACCELEROMETER_6_SIDE_CLIBRATION 
 	// Acc 6 side calibrate
+	float rawData[3];
 	float pre_acc[3]={0,0,0};
+
 	const float THRESHOLD_ACC = 0.05f;
 	int resttime = 0;
+
 	memset(ata, 0, sizeof(ata)); 
 	norm_sum = 0.0;
 	sample_count = 0.0;
@@ -965,5 +992,4 @@ void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *d
 	printk("Calibration is complete.\n");
 
 #endif
-
 }

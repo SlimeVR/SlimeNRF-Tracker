@@ -120,12 +120,14 @@ static void console_thread(void)
 	printk("info                         Get device information\n");
 	printk("reboot                       Soft reset the device\n");
 	printk("calibrate                    Calibrate sensor ZRO\n");
+	printk("6-side                       calibrate 6-side Accelerometer\n");
 	printk("pair                         Clear pairing data\n");
 
 	uint8_t command_info[] = "info";
 	uint8_t command_reboot[] = "reboot";
 	uint8_t command_calibrate[] = "calibrate";
 	uint8_t command_pair[] = "pair";
+	uint8_t command_6_side[] = "6-side";
 
 #if DFU_EXISTS
 	printk("dfu                          Enter DFU bootloader\n");
@@ -151,18 +153,26 @@ static void console_thread(void)
 		{
 			sys_reboot(SYS_REBOOT_COLD);
 		}
-		else if (memcmp(line, command_calibrate, sizeof(command_calibrate)) == 0)
+		else if (memcmp(line, command_6_side, sizeof(command_6_side)) == 0)
 		{
 			reboot_counter_write(101);
-			float accelBias[3] = {0}, gyroBias[3] = {0};
-			sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
-			sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
+			float AccBAinv[4][3] = {0};
+			sys_write(MAIN_ACC_6_BIAS_ID, &retained.AccBAinv, AccBAinv, sizeof(AccBAinv));
 			k_msleep(1);
 			sys_reboot(SYS_REBOOT_WARM);
 		}
 		else if (memcmp(line, command_pair, sizeof(command_pair)) == 0) 
 		{
 			reboot_counter_write(102);
+			k_msleep(1);
+			sys_reboot(SYS_REBOOT_WARM);
+		}
+		else if (memcmp(line, command_calibrate, sizeof(command_calibrate)) == 0)
+		{
+			reboot_counter_write(101);
+			float accelBias[3] = {0}, gyroBias[3] = {0};
+			sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
+			sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 			k_msleep(1);
 			sys_reboot(SYS_REBOOT_WARM);
 		}
