@@ -155,7 +155,6 @@ static void console_thread(void)
 		}
 		else if (memcmp(line, command_6_side, sizeof(command_6_side)) == 0)
 		{
-			reboot_counter_write(101);
 			float AccBAinv[4][3] = {0};
 			sys_write(MAIN_ACC_6_BIAS_ID, &retained.AccBAinv, AccBAinv, sizeof(AccBAinv));
 			k_msleep(1);
