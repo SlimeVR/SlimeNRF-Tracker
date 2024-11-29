@@ -51,6 +51,7 @@ static double norm_sum;
 static double sample_count;
 
 static float magBAinv[4][3];
+static float accBAinv[4][3];
 
 static float max_gyro_speed_square;
 static bool mag_use_oneshot;
@@ -307,12 +308,22 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 	memcpy(gyroBias, retained.gyroBias, sizeof(gyroBias));
 	memcpy(magBias, retained.magBias, sizeof(magBias));
 	memcpy(magBAinv, retained.magBAinv, sizeof(magBAinv));
-	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
-	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
-	LOG_INF("Magnetometer bridge offset: %.5f %.5f %.5f", magBias[0], magBias[1], magBias[2]);
-	LOG_INF("Magnetometer matrix:");
+	memcpy(accBAinv, retained.accBAinv, sizeof(accBAinv));
+#if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
+	LOG_INF("Accelerometer matrix:");
 	for (int i = 0; i < 3; i++)
-		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+		LOG_INF("%.5f %.5f %.5f %.5f", accBAinv[0][i], accBAinv[1][i], accBAinv[2][i], accBAinv[3][i]);
+#else
+	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
+#endif
+	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	if (mag_available && mag_enabled)
+	{
+		LOG_INF("Magnetometer bridge offset: %.5f %.5f %.5f", magBias[0], magBias[1], magBias[2]);
+		LOG_INF("Magnetometer matrix:");
+		for (int i = 0; i < 3; i++)
+			LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+	}
 	sensor_calibration_validate();
 
 	if (retained.fusion_id)
@@ -370,7 +381,9 @@ void sensor_calibrate_imu(void)
 	sensor_offsetBias(&sensor_imu_dev, accelBias, gyroBias); // This takes about 3s
 	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
+#if !CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
 	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
+#endif
 	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
 	if (sensor_calibration_validate())
 	{
@@ -392,6 +405,22 @@ void sensor_calibrate_imu(void)
 	}
 	set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_SENSOR);
 }
+
+#if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
+void sensor_calibrate_6_side(void)
+{
+	LOG_INF("Calibrating main accelerometer 6-side offset");
+	LOG_INF("Rest the device on a stable surface");
+	sensor_6_sideBias(&sensor_imu_dev);
+
+	sys_write(MAIN_ACC_6_BIAS_ID, &retained.accBAinv, accBAinv, sizeof(accBAinv));
+	LOG_INF("Accelerometer matrix:");
+	for (int i = 0; i < 3; i++)
+		LOG_INF("%.5f %.5f %.5f %.5f", accBAinv[0][i], accBAinv[1][i], accBAinv[2][i], accBAinv[3][i]);
+
+	LOG_INF("Finished calibration");
+}
+#endif
 
 void sensor_calibrate_mag(void)
 {
@@ -426,8 +455,10 @@ int sensor_calibration_validate(void)
 void sensor_calibration_clear(void)
 {
 	memset(accelBias, 0, sizeof(accelBias));
+	memset(accBAinv, 0, sizeof(accBAinv));
 	memset(gyroBias, 0, sizeof(gyroBias));
 	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
+	sys_write(MAIN_ACC_6_BIAS_ID, &retained.accBAinv, accBAinv, sizeof(accBAinv));
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 
 	if (sensor_fusion_init)
@@ -532,6 +563,13 @@ int main_imu_init(void)
 	if (accelBias[0] == 0 && accelBias[1] == 0 && accelBias[2] == 0 && gyroBias[0] == 0 && gyroBias[1] == 0 && gyroBias[2] == 0) // TODO: better way to check?
 		sensor_calibrate_imu();
 
+#if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION 
+	// Calibrate 6-Side
+	if (accBAinv[0][0] == 0 && accBAinv[0][1] == 0 && accBAinv[0][2] == 0){
+		sensor_calibrate_6_side();
+	}
+#endif
+
 	LOG_INF("Using %s", fusion_names[fusion_id]);
 	LOG_INF("Initialized fusion");
 	sensor_fusion_init = true;
@@ -591,9 +629,16 @@ void main_imu_thread(void)
 			// Read accelerometer
 			float raw_a[3];
 			sensor_imu->accel_read(&sensor_imu_dev, raw_a);
+#if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
+			apply_BAinv(raw_a, accBAinv);
+			float ax = raw_a[0];
+			float ay = raw_a[1];
+			float az = raw_a[2];
+#else
 			float ax = raw_a[0] - accelBias[0];
 			float ay = raw_a[1] - accelBias[1];
 			float az = raw_a[2] - accelBias[2];
+#endif
 
 			// Read magnetometer and process magneto
 			float mx = 0, my = 0, mz = 0;
@@ -831,28 +876,126 @@ void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *d
 	float rawData[3];
 	for (int i = 0; i < 500; i++)
 	{
+#if !CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
 		sensor_imu->accel_read(dev_i2c, &rawData[0]);
 		dest1[0] += rawData[0];
 		dest1[1] += rawData[1];
 		dest1[2] += rawData[2];
+#endif
 		sensor_imu->gyro_read(dev_i2c, &rawData[0]);
 		dest2[0] += rawData[0];
 		dest2[1] += rawData[1];
 		dest2[2] += rawData[2];
 		k_msleep(5);
 	}
-
+#if !CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
 	dest1[0] /= 500.0f;
 	dest1[1] /= 500.0f;
 	dest1[2] /= 500.0f;
-	dest2[0] /= 500.0f;
-	dest2[1] /= 500.0f;
-	dest2[2] /= 500.0f;
-// need better accel calibration
 	if(dest1[0] > 0.9f) {dest1[0] -= 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
 	if(dest1[0] < -0.9f) {dest1[0] += 1.0f;} // Remove gravity from the x-axis accelerometer bias calculation
 	if(dest1[1] > 0.9f) {dest1[1] -= 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
 	if(dest1[1] < -0.9f) {dest1[1] += 1.0f;} // Remove gravity from the y-axis accelerometer bias calculation
 	if(dest1[2] > 0.9f) {dest1[2] -= 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
 	if(dest1[2] < -0.9f) {dest1[2] += 1.0f;} // Remove gravity from the z-axis accelerometer bias calculation
+#endif
+	dest2[0] /= 500.0f;
+	dest2[1] /= 500.0f;
+	dest2[2] /= 500.0f;
 }
+
+#if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
+int isAccRest(float *acc, float *pre_acc, float threshold, int *t, int restdelta)
+{
+	float delta_x = acc[0] - pre_acc[0];
+	float delta_y = acc[1] - pre_acc[1];
+	float delta_z = acc[2] - pre_acc[2];
+
+	float norm_diff = sqrt(delta_x * delta_x + delta_y * delta_y + delta_z * delta_z);
+
+	if (norm_diff <= threshold)
+		*t += restdelta;
+	else
+		*t = 0;
+
+	if (*t > 2000)
+		return 1;
+	return 0;
+}
+
+void sensor_6_sideBias(const struct i2c_dt_spec *dev_i2c)
+{
+	// Acc 6 side calibrate
+	float rawData[3];
+	float pre_acc[3] = {0};
+
+	const float THRESHOLD_ACC = 0.05f;
+	int resttime = 0;
+
+	memset(ata, 0, sizeof(ata));
+	norm_sum = 0.0;
+	sample_count = 0.0;
+	int c = 0;
+	printk("Starting accelerometer calibration.\n");
+	while (1)
+	{
+		printk("Waiting for a resting state...\n");
+		while (1)
+		{
+			sensor_imu->accel_read(dev_i2c, &rawData[0]);
+			int rest = isAccRest(rawData, pre_acc, THRESHOLD_ACC, &resttime, 100);
+			pre_acc[0] = rawData[0];
+			pre_acc[1] = rawData[1];
+			pre_acc[2] = rawData[2];
+
+			if (rest == 1)
+			{
+				printk("Rest detected, starting recording. Please do not move. %d\n", c);
+				k_msleep(1000);
+
+				float r[3] = {0};
+				for (int i = 0; i < 100; i++)
+				{
+					sensor_imu->accel_read(dev_i2c, &rawData[0]);
+					magneto_sample(rawData[0], rawData[1], rawData[2], ata, &norm_sum, &sample_count);
+					if (i % 10 == 0)
+						printk("#");
+					k_msleep(10);
+				}
+				printk("Recorded values!\n");
+				printk("%d side done \n", c);
+				c++;
+				k_msleep(1000);
+				break;
+			}
+			k_msleep(100);
+		}
+		if(c >= 6) break;
+		printk("Waiting for the next side... %d \n", c);
+		while (1)
+		{
+			k_msleep(100);
+			sensor_imu->accel_read(dev_i2c, &rawData[0]);
+			int rest = isAccRest(rawData,pre_acc,THRESHOLD_ACC,&resttime, 100);
+			pre_acc[0] = rawData[0];
+			pre_acc[1] = rawData[1];
+			pre_acc[2] = rawData[2];
+
+			if (rest == 0)
+			{
+				resttime = 0;
+				break;
+			}
+
+		}
+		k_msleep(5);
+	}
+	
+
+	printk("Calculating the data....\n");
+	k_msleep(500);
+	magneto_current_calibration(accBAinv, ata, norm_sum, sample_count);
+
+	printk("Calibration is complete.\n");
+}
+#endif

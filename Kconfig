@@ -131,6 +131,14 @@ config SENSOR_USE_VQF
 
 endchoice
 
+config SENSOR_USE_6_SIDE_CALIBRATION
+    bool "Use 6-side calibration"
+    default y
+    depends on USE_SLIMENRF_CONSOLE
+    help
+        Use 6-side calibration for accelerometer.
+        Calibration can be completed through the basic console.
+
 config RADIO_TX_POWER
     int "Radio output power (dBm)"
     default 8
