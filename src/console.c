@@ -126,7 +126,7 @@ static void console_thread(void)
 	uint8_t command_calibrate[] = "calibrate";
 
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
-	printk("6-side                       Calibrate 6-side Accelerometer\n");
+	printk("6-side                       Calibrate 6-side accelerometer\n");
 
 	uint8_t command_6_side[] = "6-side";
 #endif
