@@ -307,7 +307,7 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 	memcpy(accelBias, retained.accelBias, sizeof(accelBias));
 	memcpy(gyroBias, retained.gyroBias, sizeof(gyroBias));
 	memcpy(magBias, retained.magBias, sizeof(magBias));
-	memcpy(magBAinv, retained.magBAinv, sizeof(magBAinv));	
+	memcpy(magBAinv, retained.magBAinv, sizeof(magBAinv));
 	memcpy(accBAinv, retained.accBAinv, sizeof(accBAinv));
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
 	LOG_INF("Accelerometer matrix:");
@@ -905,92 +905,96 @@ void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *d
 }
 
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
-int isAccRest(float* acc, float* pre_acc,float threshold, int* t, int restdelta) {
+int isAccRest(float *acc, float *pre_acc, float threshold, int *t, int restdelta) {
 	
-    float delta_x = acc[0] - pre_acc[0];
-    float delta_y = acc[1] - pre_acc[1];
-    float delta_z = acc[2] - pre_acc[2];
+	float delta_x = acc[0] - pre_acc[0];
+	float delta_y = acc[1] - pre_acc[1];
+	float delta_z = acc[2] - pre_acc[2];
 
-    float norm_diff = sqrt(delta_x * delta_x + delta_y * delta_y + delta_z * delta_z);
-    
-	if (norm_diff <= threshold)	{
+	float norm_diff = sqrt(delta_x * delta_x + delta_y * delta_y + delta_z * delta_z);
+
+	if (norm_diff <= threshold)
 		*t += restdelta;
-	}
-	else {
+	else
 		*t = 0;
-	}
-    
-	if(*t>2000) return 1;
+
+	if (*t > 2000)
+		return 1;
 	return 0;
 }
 
-void sensor_6_sideBias(const struct i2c_dt_spec *dev_i2c){
+void sensor_6_sideBias(const struct i2c_dt_spec *dev_i2c)
+{
 	// Acc 6 side calibrate
 	float rawData[3];
-	float pre_acc[3]={0,0,0};
+	float pre_acc[3] = {0};
 
 	const float THRESHOLD_ACC = 0.05f;
 	int resttime = 0;
 
-	memset(ata, 0, sizeof(ata)); 
+	memset(ata, 0, sizeof(ata));
 	norm_sum = 0.0;
 	sample_count = 0.0;
 	int c = 0;
 	printk("Starting accelerometer calibration.\n");
-	while(1){
+	while (1)
+	{
 		printk("Waiting for a resting state...\n");
 		while (1)
 		{
 			sensor_imu->accel_read(dev_i2c, &rawData[0]);
-			int rest = isAccRest(rawData,pre_acc,THRESHOLD_ACC,&resttime, 100);	
+			int rest = isAccRest(rawData, pre_acc, THRESHOLD_ACC, &resttime, 100);
 			pre_acc[0] = rawData[0];
 			pre_acc[1] = rawData[1];
 			pre_acc[2] = rawData[2];
 
-			if(rest==1){
-				printk("Rest detected, starting recording. Please do not move. %d\n",c);
+			if (rest == 1)
+			{
+				printk("Rest detected, starting recording. Please do not move. %d\n", c);
 				k_msleep(1000);
 
 				float r[3] = {0};
-				for(int i=0; i<100;i++){
+				for (int i = 0; i < 100; i++)
+				{
 					sensor_imu->accel_read(dev_i2c, &rawData[0]);
-					magneto_sample( rawData[0], rawData[1], rawData[2], ata, &norm_sum, &sample_count);
-					if(i%10==0)printk("#");
+					magneto_sample(rawData[0], rawData[1], rawData[2], ata, &norm_sum, &sample_count);
+					if (i % 10 == 0)
+						printk("#");
 					k_msleep(10);
-				}		
+				}
 				printk("Recorded values!\n");
-				printk("%d side done \n",c);
-				c ++;
+				printk("%d side done \n", c);
+				c++;
 				k_msleep(1000);
 				break;
-			}	
+			}
 			k_msleep(100);
-		}		
-		if(c>=6) break;
+		}
+		if(c >= 6) break;
 		printk("Waiting for the next side... %d \n", c);
 		while (1)
 		{
 			k_msleep(100);
 			sensor_imu->accel_read(dev_i2c, &rawData[0]);
-			int rest = isAccRest(rawData,pre_acc,THRESHOLD_ACC,&resttime, 100);		
+			int rest = isAccRest(rawData,pre_acc,THRESHOLD_ACC,&resttime, 100);
 			pre_acc[0] = rawData[0];
 			pre_acc[1] = rawData[1];
 			pre_acc[2] = rawData[2];
 
-			if(rest == 0) 
+			if (rest == 0)
 			{
 				resttime = 0;
 				break;
 			}
-			
-		}	
+
+		}
 		k_msleep(5);
 	}
 	
 
 	printk("Calculating the data....\n");
 	k_msleep(500);
-	magneto_current_calibration(AccBAinv,ata,norm_sum,sample_count);
+	magneto_current_calibration(AccBAinv, ata, norm_sum, sample_count);
 
 	printk("Calibration is complete.\n");
 }
