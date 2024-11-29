@@ -994,7 +994,7 @@ void sensor_6_sideBias(const struct i2c_dt_spec *dev_i2c)
 
 	printk("Calculating the data....\n");
 	k_msleep(500);
-	magneto_current_calibration(AccBAinv, ata, norm_sum, sample_count);
+	magneto_current_calibration(accBAinv, ata, norm_sum, sample_count);
 
 	printk("Calibration is complete.\n");
 }
