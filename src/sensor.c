@@ -905,8 +905,8 @@ void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *d
 }
 
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
-int isAccRest(float *acc, float *pre_acc, float threshold, int *t, int restdelta) {
-	
+int isAccRest(float *acc, float *pre_acc, float threshold, int *t, int restdelta)
+{
 	float delta_x = acc[0] - pre_acc[0];
 	float delta_y = acc[1] - pre_acc[1];
 	float delta_z = acc[2] - pre_acc[2];
