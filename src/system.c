@@ -119,7 +119,7 @@ static int sys_retained_init(void)
 	// All contents of NVS was stored in RAM to not need initializing NVS often
 	if (!ram_retention)
 	{ 
-		LOG_INF("Invalidated RAM");
+		LOG_WRN("Invalidated RAM");
 		sys_nvs_init();
 		// read from nvs to retained
 		nvs_read(&fs, PAIRED_ID, &retained.paired_addr, sizeof(retained.paired_addr));
