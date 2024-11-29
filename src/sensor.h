@@ -21,7 +21,7 @@ void sensor_setup_WOM(void);
 
 void sensor_calibrate_imu(void);
 void sensor_calibrate_mag(void);
-void sensor_calibrate_6side(void);
+void sensor_calibrate_6_side(void);
 
 int sensor_calibration_validate(void);
 void sensor_calibration_clear(void);
@@ -35,8 +35,7 @@ void main_imu_suspend(void);
 void main_imu_wakeup(void);
 
 void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *dest2);
-
-void sensor_6SideBias(const struct i2c_dt_spec *dev_i2c);
+void sensor_6_sideBias(const struct i2c_dt_spec *dev_i2c);
 
 typedef struct sensor_fusion {
 	void (*init)(float, float, float); // gyro_time, accel_time, mag_time

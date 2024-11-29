@@ -20,7 +20,7 @@ struct retained_data {
 	float gyroBias[3];
 	float magBias[3];
 	float magBAinv[4][3];
-	float AccBAinv[4][3];
+	float accBAinv[4][3];
 
 	uint8_t fusion_id; // fusion_data_stored
 	uint8_t fusion_data[512];

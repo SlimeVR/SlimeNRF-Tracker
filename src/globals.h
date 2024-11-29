@@ -15,6 +15,4 @@
 #define SENSOR_MAGNETOMETER_AXES_ALIGNMENT my, mz, -mx // mag axes alignment to sensor body
 #define SENSOR_QUATERNION_CORRECTION 0.5f, -0.5f, -0.5f, -0.5f // correction quat for sensor to mounting orientation
 
-#define SENSOR_ACCELEROMETER_6_SIDE_CLIBRATION 1
-
 #endif
