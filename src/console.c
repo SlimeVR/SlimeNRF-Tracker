@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "system.h"
 #include "sensor.h"
+#include "esb.h"
 #include "build_defines.h"
 
 #define USB DT_NODELABEL(usbd)
@@ -181,7 +182,8 @@ static void console_thread(void)
 #endif
 		else if (memcmp(line, command_pair, sizeof(command_pair)) == 0) 
 		{
-			reboot_counter_write(102);
+//			reboot_counter_write(102);
+			esb_reset_pair();
 			k_msleep(1);
 			sys_reboot(SYS_REBOOT_WARM);
 		}
