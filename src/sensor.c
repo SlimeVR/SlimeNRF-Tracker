@@ -442,7 +442,7 @@ void sensor_calibrate_mag(void)
 int sensor_calibration_validate(void)
 {
 	float zero[3] = {0};
-	if (!v_epsilon(accelBias, zero, 1.0) || !v_epsilon(gyroBias, zero, 100.0)) // TODO: this is using v_epsilon to compare zero. Check accel is <1G and gyro <100dps
+	if (!v_epsilon(accelBias, zero, 0.5) || !v_epsilon(gyroBias, zero, 50.0)) // TODO: this is using v_epsilon to compare zero. Check accel is <0.5G and gyro <50dps
 	{
 		sensor_calibration_clear();
 		LOG_WRN("Invalidated calibration");
