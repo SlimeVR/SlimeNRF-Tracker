@@ -191,6 +191,12 @@ int esb_initialize(bool tx)
 	return 0;
 }
 
+void esb_deinitialize(void)
+{
+	esb_disable();
+	esb_initialized = false;
+}
+
 inline void esb_set_addr_discovery(void)
 {
 	memcpy(base_addr_0, discovery_base_addr_0, sizeof(base_addr_0));
@@ -273,6 +279,8 @@ void esb_pair(void)
 
 void esb_reset_pair(void)
 {
+	esb_deinitialize(); // make sure esb is off
+	esb_paired = false;
 	uint8_t empty_addr[8] = {0};
 	sys_write(PAIRED_ID, &retained.paired_addr, empty_addr, sizeof(paired_addr)); // write zeroes
 	LOG_INF("Pairing data reset");
