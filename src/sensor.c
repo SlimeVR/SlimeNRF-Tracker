@@ -953,7 +953,6 @@ void sensor_6_sideBias(const struct i2c_dt_spec *dev_i2c)
 				printk("Rest detected, starting recording. Please do not move. %d\n", c);
 				k_msleep(1000);
 
-				float r[3] = {0};
 				for (int i = 0; i < 100; i++)
 				{
 					sensor_imu->accel_read(dev_i2c, &rawData[0]);
