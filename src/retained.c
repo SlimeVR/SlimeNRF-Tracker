@@ -149,7 +149,7 @@ int ram_range_retain(const void *ptr,
  * It is not necesarry when retained_mem driver is utilized
  * as in this case retained data is stored in an area not initialized in runtime.
  */
-__noinit struct retained_data retained;
+__noinit __aligned(128) struct retained_data retained;
 
 #define RETAINED_CRC_OFFSET offsetof(struct retained_data, crc)
 #define RETAINED_CHECKED_SIZE (RETAINED_CRC_OFFSET + sizeof(retained.crc))
