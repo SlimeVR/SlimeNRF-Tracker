@@ -359,7 +359,7 @@ void sensor_setup_WOM(void)
 	if (!err)
 		sensor_imu->setup_WOM(&sensor_imu_dev);
 	else
-		LOG_ERR("Failed to setup wake on motion");
+		LOG_ERR("Failed to configure IMU wake up");
 }
 
 void sensor_calibrate_imu(void)
