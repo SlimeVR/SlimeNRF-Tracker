@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "sensor.h"
 #include "connection.h"
+#include "esb.h"
 
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pwm.h>
@@ -60,6 +61,14 @@ static const struct pwm_dt_spec clk_out = PWM_DT_SPEC_GET(CLKOUT_NODE);
 #else
 #pragma message "Clock enable GPIO or clock PWM out does not exist"
 static const struct pwm_dt_spec clk_out = {0};
+#endif
+
+#define DFU_EXISTS CONFIG_BUILD_OUTPUT_UF2 || CONFIG_BOARD_HAS_NRF5_BOOTLOADER
+#define ADAFRUIT_BOOTLOADER CONFIG_BUILD_OUTPUT_UF2
+#define NRF5_BOOTLOADER CONFIG_BOARD_HAS_NRF5_BOOTLOADER
+
+#if NRF5_BOOTLOADER
+static const struct device *gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 #endif
 
 void configure_sense_pins(void)
@@ -290,4 +299,52 @@ bool stby_read(void)
 #else
 	return false;
 #endif
+}
+
+#if USER_SHUTDOWN_ENABLED
+void sys_user_shutdown(void)
+{
+	LOG_INF("User shutdown requested");
+	reboot_counter_write(0);
+	set_led(SYS_LED_PATTERN_ONESHOT_POWEROFF, SYS_LED_PRIORITY_BOOT);
+	k_msleep(1500);
+	if (button_read()) // If alternate button is available and still pressed, wait for the user to stop pressing the button
+	{
+		set_led(SYS_LED_PATTERN_LONG, SYS_LED_PRIORITY_BOOT);
+		while (button_read())
+			k_msleep(1);
+		set_led(SYS_LED_PATTERN_OFF_FORCE, SYS_LED_PRIORITY_BOOT);
+	}
+	sys_request_system_off();
+}
+#endif
+
+void sys_reset_mode(uint8_t mode)
+{
+	switch (mode)
+	{
+	case 1:
+		LOG_INF("IMU calibration requested");
+		sensor_calibration_clear();
+		sys_reboot(SYS_REBOOT_COLD); // TODO: this should not be needed
+		break;
+	case 2: // Reset mode pairing reset
+		LOG_INF("Pairing reset requested");
+		esb_reset_pair();
+		break;
+#if DFU_EXISTS // Using DFU bootloader
+	case 3:
+	case 4: // Reset mode DFU
+		LOG_INF("DFU requested");
+#if ADAFRUIT_BOOTLOADER
+		NRF_POWER->GPREGRET = 0x57; // DFU_MAGIC_UF2_RESET
+		sys_reboot(SYS_REBOOT_COLD);
+#endif
+#if NRF5_BOOTLOADER
+		gpio_pin_configure(gpio_dev, 19, GPIO_OUTPUT | GPIO_OUTPUT_INIT_LOW);
+#endif
+#endif
+	default:
+		break;
+	}
 }

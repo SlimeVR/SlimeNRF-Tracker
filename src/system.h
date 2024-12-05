@@ -27,4 +27,7 @@ bool dock_read(void);
 bool chg_read(void);
 bool stby_read(void);
 
+void sys_user_shutdown(void);
+void sys_reset_mode(uint8_t mode);
+
 #endif
