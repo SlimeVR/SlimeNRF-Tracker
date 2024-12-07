@@ -126,7 +126,7 @@ float lis2_temp_read(const struct i2c_dt_spec *dev_i2c, float bias[3])
 	// The output value is expressed as a signed 16-bit byte in two’s complement.
 	// The four most significant bits contain a copy of the sign bit.
 	// The nominal sensitivity is 8 LSB/°C
-	float temp = (int16_t)((((int16_t)rawTemp[1]) << 8) | rawTemp[0]);
+	float temp = (int16_t)((((uint16_t)rawTemp[1]) << 8) | rawTemp[0]);
 	temp /= 8;
 	// No value offset?
 	if (err)
@@ -138,7 +138,7 @@ void lis2_mag_process(uint8_t *raw_m, float m[3])
 {
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
-		m[i] = (int16_t)((((int16_t)raw_m[(i * 2) + 1]) << 8) | raw_m[i * 2]);
+		m[i] = (int16_t)((((uint16_t)raw_m[(i * 2) + 1]) << 8) | raw_m[i * 2]);
 		m[i] *= sensitivity;
 		m[i] /= 1000; // mGauss to gauss
 	}

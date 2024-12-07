@@ -261,7 +261,7 @@ int lsm_fifo_process(uint16_t index, uint8_t *data, float g[3])
 		return 1; // Ignore all packets except Gyroscope NC (Gyroscope uncompressed data)
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
-		g[i] = (int16_t)((((int16_t)data[index + (i * 2) + 2]) << 8) | data[index + (i * 2) + 1]);
+		g[i] = (int16_t)((((uint16_t)data[index + (i * 2) + 2]) << 8) | data[index + (i * 2) + 1]);
 		g[i] *= gyro_sensitivity;
 	}
 	// TODO: need to skip invalid data
@@ -276,7 +276,7 @@ void lsm_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3])
 		LOG_ERR("I2C error");
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
-		a[i] = (int16_t)((((int16_t)rawAccel[(i * 2) + 1]) << 8) | rawAccel[i * 2]);
+		a[i] = (int16_t)((((uint16_t)rawAccel[(i * 2) + 1]) << 8) | rawAccel[i * 2]);
 		a[i] *= accel_sensitivity;
 	}
 	// TODO: for ISM330BX, the accelerometer data is in ZYX order
@@ -290,7 +290,7 @@ void lsm_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3])
 		LOG_ERR("I2C error");
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
-		g[i] = (int16_t)((((int16_t)rawGyro[(i * 2) + 1]) << 8) | rawGyro[i * 2]);
+		g[i] = (int16_t)((((uint16_t)rawGyro[(i * 2) + 1]) << 8) | rawGyro[i * 2]);
 		g[i] *= gyro_sensitivity;
 	}
 }
@@ -303,7 +303,7 @@ float lsm_temp_read(const struct i2c_dt_spec *dev_i2c)
 		LOG_ERR("I2C error");
 	// TSen Temperature sensitivity 256 LSB/°C
 	// The output of the temperature sensor is 0 LSB (typ.) at 25°C
-	float temp = (int16_t)((((int16_t)rawTemp[1]) << 8) | rawTemp[0]);
+	float temp = (int16_t)((((uint16_t)rawTemp[1]) << 8) | rawTemp[0]);
 	temp /= 256;
 	temp += 25;
 	return temp;
@@ -365,7 +365,7 @@ int lsm_fifo_process_ext(uint16_t index, uint8_t *data, float g[3], float a[3], 
 	{
 		for (int i = 0; i < 3; i++) // x, y, z
 		{
-			a[i] = (int16_t)((((int16_t)data[index + (i * 2) + 2]) << 8) | data[index + (i * 2) + 1]);
+			a[i] = (int16_t)((((uint16_t)data[index + (i * 2) + 2]) << 8) | data[index + (i * 2) + 1]);
 			a[i] *= accel_sensitivity;
 		}
 		return 0;

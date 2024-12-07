@@ -204,7 +204,7 @@ void bmm1_mag_process(uint8_t *raw_m, float m[3])
 {
 	int16_t mag[3] = {0};
 	for (int i = 0; i < 3; i++) // x, y, z
-		mag[i] = (int16_t)((((int16_t)raw_m[(i * 2) + 1]) << 8) | (raw_m[i * 2] & 0xFE)) / (i < 2 ? 8 : 2);
+		mag[i] = (int16_t)((((uint16_t)raw_m[(i * 2) + 1]) << 8) | (raw_m[i * 2] & 0xFE)) / (i < 2 ? 8 : 2);
 	uint16_t rhall = (uint16_t)((((uint16_t)raw_m[7]) << 6) | (raw_m[6] >> 2));
 	m[0] = compensate_x(mag[0], rhall) / 100; // uT to gauss
 	m[1] = compensate_y(mag[1], rhall) / 100;

@@ -254,7 +254,7 @@ int bmi_fifo_process(uint16_t index, uint8_t *data, float g[3])
 	float g_bmi[3];
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
-		g_bmi[i] = (int16_t)((((int16_t)data[index + (i * 2) + 1]) << 8) | data[index + (i * 2)]);
+		g_bmi[i] = (int16_t)((((uint16_t)data[index + (i * 2) + 1]) << 8) | data[index + (i * 2)]);
 		g_bmi[i] *= gyro_sensitivity;
 	}
 	// Ratex = DATA_15<<8+DATA_14 - GYR_CAS.factor_zx * (DATA_19<<8+DATA_18) / 2^9
@@ -274,7 +274,7 @@ void bmi_accel_read(const struct i2c_dt_spec *dev_i2c, float a[3])
 	float a_bmi[3];
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
-		a_bmi[i] = (int16_t)((((int16_t)rawAccel[(i * 2) + 1]) << 8) | rawAccel[i * 2]);
+		a_bmi[i] = (int16_t)((((uint16_t)rawAccel[(i * 2) + 1]) << 8) | rawAccel[i * 2]);
 		a_bmi[i] *= accel_sensitivity;
 	}
 	a[0] = -a_bmi[1];
@@ -291,7 +291,7 @@ void bmi_gyro_read(const struct i2c_dt_spec *dev_i2c, float g[3])
 	float g_bmi[3];
 	for (int i = 0; i < 3; i++) // x, y, z
 	{
-		g_bmi[i] = (int16_t)((((int16_t)rawGyro[(i * 2) + 1]) << 8) | rawGyro[i * 2]);
+		g_bmi[i] = (int16_t)((((uint16_t)rawGyro[(i * 2) + 1]) << 8) | rawGyro[i * 2]);
 		g_bmi[i] *= gyro_sensitivity;
 	}
 	// Ratex = DATA_15<<8+DATA_14 - GYR_CAS.factor_zx * (DATA_19<<8+DATA_18) / 2^9
@@ -311,7 +311,7 @@ float bmi_temp_read(const struct i2c_dt_spec *dev_i2c)
 		return 23; // TODO: invalid temperature, what to return?
 	// 0x0000 -> 23°C
 	// The resolution is 1/2^9 K/LSB
-	float temp = (int16_t)((((int16_t)rawTemp[1]) << 8) | rawTemp[0]);
+	float temp = (int16_t)((((uint16_t)rawTemp[1]) << 8) | rawTemp[0]);
 	temp /= 512;
 	temp += 23;
 	return temp;
