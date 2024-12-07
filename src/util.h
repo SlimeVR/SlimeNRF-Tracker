@@ -6,7 +6,7 @@
 #endif
 
 #ifndef EPS
-#define EPS 1e-6
+#define EPS 1e-6f
 #endif
 
 // Saturate int to 16 bits
@@ -25,7 +25,7 @@
 #define FIXED_10_TO_DOUBLE(x) (((double)(x)) / (1 << 10))
 #define FIXED_7_TO_DOUBLE(x) (((double)(x)) / (1 << 7))
 
-#define CONST_EARTH_GRAVITY 9.80665
+#define CONST_EARTH_GRAVITY 9.80665f
 
 void q_normalize(const float *q, float *out);
 void q_multiply(const float *x, const float *y, float *out);

@@ -347,7 +347,7 @@ float icm_temp_read(const struct i2c_dt_spec *dev_i2c)
 		LOG_ERR("I2C error");
 	// Temperature in Degrees Centigrade = (TEMP_DATA / 132.48) + 25
 	float temp = (int16_t)((((int16_t)rawTemp[0]) << 8) | rawTemp[1]);
-	temp /= 132.48;
+	temp /= 132.48f;
 	temp += 25;
 	return temp;
 }

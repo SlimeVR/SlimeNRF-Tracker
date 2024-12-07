@@ -34,12 +34,12 @@ void connection_update_sensor_data(float *q, float *a)
 void connection_update_sensor_temp(float temp)
 {
 	// sensor_temp == zero means no data
-	if (temp < -38.5)
+	if (temp < -38.5f)
 		sensor_temp = 1;
-	else if (temp > 88.5)
+	else if (temp > 88.5f)
 		sensor_temp = 255;
 	else
-		sensor_temp = ((temp - 25) * 2 + 128.5); // -38.5 - +88.5 -> 1-255
+		sensor_temp = ((temp - 25) * 2 + 128.5f); // -38.5 - +88.5 -> 1-255
 }
 
 void connection_update_battery(bool battery_available, bool plugged, uint32_t battery_pptt, int battery_mV) // format for packet send

@@ -98,12 +98,12 @@ static void print_info(void)
 	printk("IMU: %s\n", sensor_get_sensor_imu_name());
 	printk("Magnetometer: %s\n", sensor_get_sensor_mag_name());
 
-	printk("Accelerometer bias: %.5f %.5f %.5f\n", retained.accelBias[0], retained.accelBias[1], retained.accelBias[2]);
-	printk("Gyroscope bias: %.5f %.5f %.5f\n", retained.gyroBias[0], retained.gyroBias[1], retained.gyroBias[2]);
-	printk("Magnetometer bridge offset: %.5f %.5f %.5f\n", retained.magBias[0], retained.magBias[1], retained.magBias[2]);
+	printk("Accelerometer bias: %.5f %.5f %.5f\n", (double)retained.accelBias[0], (double)retained.accelBias[1], (double)retained.accelBias[2]);
+	printk("Gyroscope bias: %.5f %.5f %.5f\n", (double)retained.gyroBias[0], (double)retained.gyroBias[1], (double)retained.gyroBias[2]);
+	printk("Magnetometer bridge offset: %.5f %.5f %.5f\n", (double)retained.magBias[0], (double)retained.magBias[1], (double)retained.magBias[2]);
 	printk("Magnetometer matrix:\n");
 	for (int i = 0; i < 3; i++)
-		printk("%.5f %.5f %.5f %.5f\n", retained.magBAinv[0][i], retained.magBAinv[1][i], retained.magBAinv[2][i], retained.magBAinv[3][i]);
+		printk("%.5f %.5f %.5f %.5f\n", (double)retained.magBAinv[0][i], (double)retained.magBAinv[1][i], (double)retained.magBAinv[2][i], (double)retained.magBAinv[3][i]);
 
 	printk("Fusion: %s\n", sensor_get_sensor_fusion_name());
 

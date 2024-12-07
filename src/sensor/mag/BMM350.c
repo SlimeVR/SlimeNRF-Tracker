@@ -45,7 +45,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define bz_sens 9.0f
 #define temp_sens 0.00204f
 #define ina_xy_gain_trgt 19.46f
-#define ina_z_gain_trgt 31.0
+#define ina_z_gain_trgt 31.0f
 #define adc_gain (1 / 1.5f)
 #define lut_gain 0.714607238769531f
 #define power (float)(1000000.0 / 1048576.0)
@@ -207,10 +207,10 @@ float bmm3_temp_read(const struct i2c_dt_spec *dev_i2c, float bias[3])
 	float temp = (int32_t)((((int32_t)rawTemp[2]) << 24) | (((int32_t)rawTemp[1]) << 16) | (((int32_t)rawTemp[0]) << 8)) / 256;
 	temp *= sensitivity_temp;
 	// taken from boschsensortec BMM350_SensorAPI, why is this needed?
-	if (temp > 0.0)
-		temp -= 25.49;
-	else if (temp < 0.0)
-		temp += 25.49;
+	if (temp > 0)
+		temp -= 25.49f;
+	else if (temp < 0)
+		temp += 25.49f;
 	return temp;
 }
 

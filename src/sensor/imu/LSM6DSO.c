@@ -72,42 +72,42 @@ int lsm6dso_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, floa
 		accel_time = 0; // off
 		ODR_XL = DSO_ODR_OFF;
 	}
-	else if (accel_time < 0.3 / 1000) // in this case it seems better to compare accel_time
+	else if (accel_time < 0.3f / 1000) // in this case it seems better to compare accel_time
 	{
 		ODR_XL = DSO_ODR_6_66kHz; // TODO: this is absolutely awful
 		accel_time = 0.15 / 1000;
 	}
-	else if (accel_time < 0.6 / 1000)
+	else if (accel_time < 0.6f / 1000)
 	{
 		ODR_XL = DSO_ODR_3_33kHz;
 		accel_time = 0.3 / 1000;
 	}
-	else if (accel_time < 1.2 / 1000)
+	else if (accel_time < 1.2f / 1000)
 	{
 		ODR_XL = DSO_ODR_1_66kHz;
 		accel_time = 0.6 / 1000;
 	}
-	else if (accel_time < 2.4 / 1000)
+	else if (accel_time < 2.4f / 1000)
 	{
 		ODR_XL = DSO_ODR_833Hz;
 		accel_time = 1.2 / 1000;
 	}
-	else if (accel_time < 4.8 / 1000)
+	else if (accel_time < 4.8f / 1000)
 	{
 		ODR_XL = DSO_ODR_416Hz;
 		accel_time = 2.4 / 1000;
 	}
-	else if (accel_time < 9.6 / 1000)
+	else if (accel_time < 9.6f / 1000)
 	{
 		ODR_XL = DSO_ODR_208Hz;
 		accel_time = 4.8 / 1000;
 	}
-	else if (accel_time < 19.2 / 1000)
+	else if (accel_time < 19.2f / 1000)
 	{
 		ODR_XL = DSO_ODR_104Hz;
 		accel_time = 9.6 / 1000;
 	}
-	else if (accel_time < 38.4 / 1000)
+	else if (accel_time < 38.4f / 1000)
 	{
 		ODR_XL = DSO_ODR_52Hz;
 		accel_time = 19.2 / 1000;
@@ -149,42 +149,42 @@ int lsm6dso_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, floa
 		gyro_time = 0; // off
 		ODR_G = DSO_ODR_OFF;
 	}
-	else if (gyro_time < 0.3 / 1000) // in this case it seems better to compare gyro_time
+	else if (gyro_time < 0.3f / 1000) // in this case it seems better to compare gyro_time
 	{
 		ODR_G = DSO_ODR_6_66kHz; // TODO: this is absolutely awful
 		gyro_time = 1.0 / 6660;
 	}
-	else if (gyro_time < 0.6 / 1000)
+	else if (gyro_time < 0.6f / 1000)
 	{
 		ODR_G = DSO_ODR_3_33kHz;
 		gyro_time = 0.3 / 1000;
 	}
-	else if (gyro_time < 1.2 / 1000)
+	else if (gyro_time < 1.2f / 1000)
 	{
 		ODR_G = DSO_ODR_1_66kHz;
 		gyro_time = 0.6 / 1000;
 	}
-	else if (gyro_time < 2.4 / 1000)
+	else if (gyro_time < 2.4f / 1000)
 	{
 		ODR_G = DSO_ODR_833Hz;
 		gyro_time = 1.2 / 1000;
 	}
-	else if (gyro_time < 4.8 / 1000)
+	else if (gyro_time < 4.8f / 1000)
 	{
 		ODR_G = DSO_ODR_416Hz;
 		gyro_time = 2.4 / 1000;
 	}
-	else if (gyro_time < 9.6 / 1000)
+	else if (gyro_time < 9.6f / 1000)
 	{
 		ODR_G = DSO_ODR_208Hz;
 		gyro_time = 4.8 / 1000;
 	}
-	else if (gyro_time < 19.2 / 1000)
+	else if (gyro_time < 19.2f / 1000)
 	{
 		ODR_G = DSO_ODR_104Hz;
 		gyro_time = 9.6 / 1000;
 	}
-	else if (gyro_time < 38.4 / 1000)
+	else if (gyro_time < 38.4f / 1000)
 	{
 		ODR_G = DSO_ODR_52Hz;
 		gyro_time = 19.2 / 1000;
@@ -263,7 +263,7 @@ void lsm6dso_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 		accel_reference[i] /= 2; // FS_XL_8G to FS_XL_16G
 		// dont invert, for some reason
 		accel_reference[i] *= 64; // offset is 2^-6 g/LSB
-		accel_reference[i] += accel_reference[i] < 0 ? -0.5 : 0.5; // round
+		accel_reference[i] += accel_reference[i] < 0 ? -0.5f : 0.5f; // round
 		offset[i] = CLAMP(accel_reference[i], -127, 127); // value must be in the range -127 to 127
 	}
 	err |= i2c_burst_write_dt(dev_i2c, LSM6DSO_X_OFS_USR, offset, 3); // set offset correction

@@ -312,17 +312,17 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
 	LOG_INF("Accelerometer matrix:");
 	for (int i = 0; i < 3; i++)
-		LOG_INF("%.5f %.5f %.5f %.5f", accBAinv[0][i], accBAinv[1][i], accBAinv[2][i], accBAinv[3][i]);
+		LOG_INF("%.5f %.5f %.5f %.5f", (double)accBAinv[0][i], (double)accBAinv[1][i], (double)accBAinv[2][i], (double)accBAinv[3][i]);
 #else
-	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
+	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", (double)accelBias[0], (double)accelBias[1], (double)accelBias[2]);
 #endif
-	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", (double)gyroBias[0], (double)gyroBias[1], (double)gyroBias[2]);
 	if (mag_available && mag_enabled)
 	{
-		LOG_INF("Magnetometer bridge offset: %.5f %.5f %.5f", magBias[0], magBias[1], magBias[2]);
+		LOG_INF("Magnetometer bridge offset: %.5f %.5f %.5f", (double)magBias[0], (double)magBias[1], (double)magBias[2]);
 		LOG_INF("Magnetometer matrix:");
 		for (int i = 0; i < 3; i++)
-			LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+			LOG_INF("%.5f %.5f %.5f %.5f", (double)magBAinv[0][i], (double)magBAinv[1][i], (double)magBAinv[2][i], (double)magBAinv[3][i]);
 	}
 	sensor_calibration_validate();
 
@@ -383,9 +383,9 @@ void sensor_calibrate_imu(void)
 	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
 #if !CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
-	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", accelBias[0], accelBias[1], accelBias[2]);
+	LOG_INF("Accelerometer bias: %.5f %.5f %.5f", (double)accelBias[0], (double)accelBias[1], (double)accelBias[2]);
 #endif
-	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", gyroBias[0], gyroBias[1], gyroBias[2]);
+	LOG_INF("Gyroscope bias: %.5f %.5f %.5f", (double)gyroBias[0], (double)gyroBias[1], (double)gyroBias[2]);
 	if (sensor_calibration_validate())
 	{
 		set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_SENSOR);
@@ -419,7 +419,7 @@ void sensor_calibrate_6_side(void)
 	sys_write(MAIN_ACC_6_BIAS_ID, &retained.accBAinv, accBAinv, sizeof(accBAinv));
 	LOG_INF("Accelerometer matrix:");
 	for (int i = 0; i < 3; i++)
-		LOG_INF("%.5f %.5f %.5f %.5f", accBAinv[0][i], accBAinv[1][i], accBAinv[2][i], accBAinv[3][i]);
+		LOG_INF("%.5f %.5f %.5f %.5f", (double)accBAinv[0][i], (double)accBAinv[1][i], (double)accBAinv[2][i], (double)accBAinv[3][i]);
 
 	LOG_INF("Finished calibration");
 }
@@ -432,7 +432,7 @@ void sensor_calibrate_mag(void)
 	sys_write(MAIN_MAG_BIAS_ID, &retained.magBAinv, magBAinv, sizeof(magBAinv));
 	LOG_INF("Magnetometer matrix:");
 	for (int i = 0; i < 3; i++)
-		LOG_INF("%.5f %.5f %.5f %.5f", magBAinv[0][i], magBAinv[1][i], magBAinv[2][i], magBAinv[3][i]);
+		LOG_INF("%.5f %.5f %.5f %.5f", (double)magBAinv[0][i], (double)magBAinv[1][i],(double)magBAinv[2][i], (double)magBAinv[3][i]);
 	LOG_INF("Finished calibration");
 	//mag_progress |= 1 << 7;
 	mag_progress = 0;
@@ -509,7 +509,7 @@ bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples
 	sensor_imu->accel_read(dev_i2c, last_a);
 	for (int i = 0; i < samples + counts; i++)
 	{
-		LOG_INF("Accelerometer: %.5f %.5f %.5f", a[0], a[1], a[2]);
+		LOG_INF("Accelerometer: %.5f %.5f %.5f", (double)a[0], (double)a[1], (double)a[2]);
 		k_msleep(500);
 		sensor_imu->accel_read(dev_i2c, a);
 		if (v_epsilon(a, last_a, 0.1) != motion)
@@ -553,21 +553,21 @@ int main_imu_init(void)
 	set_sensor_clock(true, 32768, &clock_actual_rate); // enable the clock source for IMU if present
 #endif
 	if (clock_actual_rate != 0)
-		LOG_INF("Sensor clock rate: %.2fHz", clock_actual_rate);
+		LOG_INF("Sensor clock rate: %.2fHz", (double)clock_actual_rate);
 
 	k_usleep(250); // wait for sensor register reset // TODO: is this needed?
 	float accel_initial_time = sensor_update_time_ms / 1000.0; // configure with ~200Hz ODR
 	float gyro_initial_time = 1.0 / CONFIG_SENSOR_GYRO_ODR; // configure with ~1000Hz ODR
 	err = sensor_imu->init(&sensor_imu_dev, clock_actual_rate, accel_initial_time, gyro_initial_time, &accel_actual_time, &gyro_actual_time);
-	LOG_INF("Accelerometer initial rate: %.2fHz", 1.0 / accel_actual_time);
-	LOG_INF("Gyrometer initial rate: %.2fHz", 1.0 / gyro_actual_time);
+	LOG_INF("Accelerometer initial rate: %.2fHz", 1.0 / (double)accel_actual_time);
+	LOG_INF("Gyrometer initial rate: %.2fHz", 1.0 / (double)gyro_actual_time);
 	if (err < 0)
 		return err;
 // 55-66ms to wait, get chip ids, and setup icm (50ms spent waiting for accel and gyro to start)
 	if (mag_available && mag_enabled)
 	{
 		err = sensor_mag->init(&sensor_mag_dev, sensor_update_time_ms / 1000.0, &mag_actual_time); // configure with ~200Hz ODR
-		LOG_INF("Magnetometer initial rate: %.2fHz", 1.0 / mag_actual_time);
+		LOG_INF("Magnetometer initial rate: %.2fHz", 1.0 / (double)mag_actual_time);
 		if (err < 0)
 			return err;
 // 0-1ms to setup mmc
@@ -681,9 +681,9 @@ void main_imu_thread(void)
 				my = m[1];
 				mz = m[2];
 				int new_mag_progress = mag_progress;
-				new_mag_progress |= (-1.2 < ax && ax < -0.8 ? 1 << 0 : 0) | (1.2 > ax && ax > 0.8 ? 1 << 1 : 0) | // dumb check if all accel axes were reached for calibration, assume the user is intentionally doing this
-					(-1.2 < ay && ay < -0.8 ? 1 << 2 : 0) | (1.2 > ay && ay > 0.8 ? 1 << 3 : 0) |
-					(-1.2 < az && az < -0.8 ? 1 << 4 : 0) | (1.2 > az && az > 0.8 ? 1 << 5 : 0);
+				new_mag_progress |= (-1.2f < ax && ax < -0.8f ? 1 << 0 : 0) | (1.2f > ax && ax > 0.8f ? 1 << 1 : 0) | // dumb check if all accel axes were reached for calibration, assume the user is intentionally doing this
+					(-1.2f < ay && ay < -0.8f ? 1 << 2 : 0) | (1.2f > ay && ay > 0.8f ? 1 << 3 : 0) |
+					(-1.2f < az && az < -0.8f ? 1 << 4 : 0) | (1.2f > az && az > 0.8f ? 1 << 5 : 0);
 				if (new_mag_progress > mag_progress && new_mag_progress == last_mag_progress)
 				{
 					if (k_uptime_get() > mag_progress_time)
@@ -795,8 +795,8 @@ void main_imu_thread(void)
 			if (mag_available && mag_enabled && sensor_mode == SENSOR_SENSOR_MODE_LOW_NOISE)
 			{
 				float gyro_speed = sqrtf(max_gyro_speed_square);
-				float mag_target_time = 1.0 / (4 * gyro_speed); // target mag ODR for ~0.25 deg error
-				if (mag_target_time < 0.005) // cap at 0.005 (200hz), above this the sensor will use oneshot mode instead
+				float mag_target_time = 1.0f / (4 * gyro_speed); // target mag ODR for ~0.25 deg error
+				if (mag_target_time < 0.005f) // cap at 0.005 (200hz), above this the sensor will use oneshot mode instead
 				{
 					mag_target_time = 0.005;
 					int err = sensor_mag->update_odr(&sensor_mag_dev, INFINITY, &mag_actual_time);
@@ -804,11 +804,11 @@ void main_imu_thread(void)
 						LOG_DBG("Switching magnetometer to oneshot");
 					mag_use_oneshot = true;
 				}
-				if (mag_target_time >= 0.005 || mag_actual_time != INFINITY) // under 200Hz or magnetometer did not have a oneshot mode
+				if (mag_target_time >= 0.005f || mag_actual_time != INFINITY) // under 200Hz or magnetometer did not have a oneshot mode
 				{
 					int err = sensor_mag->update_odr(&sensor_mag_dev, mag_target_time, &mag_actual_time);
 					if (!err)
-						LOG_DBG("Switching magnetometer ODR to %.2fHz", 1.0 / mag_actual_time);
+						LOG_DBG("Switching magnetometer ODR to %.2fHz", 1.0 / (double)mag_actual_time);
 					mag_use_oneshot = false;
 				}
 			}

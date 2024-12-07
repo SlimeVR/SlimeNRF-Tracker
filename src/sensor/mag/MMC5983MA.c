@@ -169,11 +169,11 @@ float mmc_temp_read(const struct i2c_dt_spec *dev_i2c, float bias[3])
 	int err = i2c_reg_read_byte_dt(dev_i2c, MMC5983MA_TOUT, &rawTemp);
 	// Temperature output, unsigned format. The range is -75~125°C, about 0.8°C/LSB, 00000000 stands for -75°C
 	float temp = rawTemp;
-	temp *= 0.8;
+	temp *= 0.8f;
 	temp -= 75;
 
 	// USING SET AND RESET TO REMOVE BRIDGE OFFSET in datasheet
-	if (last_rawTemp != rawTemp && last_time > 1.0 / 50) // calculate offset at low motion only
+	if (last_rawTemp != rawTemp && last_time > 1.0f / 50) // calculate offset at low motion only
 	{ // TODO: does the temp register have hysteresis?
 		float mPos[3], mNeg[3];
 		float actual_time;

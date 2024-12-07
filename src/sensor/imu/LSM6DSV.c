@@ -329,7 +329,7 @@ void lsm_setup_WOM(const struct i2c_dt_spec *dev_i2c)
 		accel_reference[i] /= 2; // FS_XL_8G to FS_XL_16G
 		accel_reference[i] *= -1; // negate
 		accel_reference[i] *= 64; // offset is 2^-6 g/LSB
-		accel_reference[i] += accel_reference[i] < 0 ? -0.5 : 0.5; // round
+		accel_reference[i] += accel_reference[i] < 0 ? -0.5f : 0.5f; // round
 		offset[i] = CLAMP(accel_reference[i], -127, 127); // value must be in the range -127 to 127
 	}
 	err |= i2c_burst_write_dt(dev_i2c, LSM6DSV_X_OFS_USR, offset, 3); // set offset correction
