@@ -199,17 +199,20 @@ int set_sensor_clock(bool enable, float rate, float *actual_rate)
 #if BUTTON_EXISTS // Alternate button if available to use as "reset key"
 static const struct gpio_dt_spec button0 = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
 static int64_t press_time;
+static int64_t last_press_time;
+static uint8_t press_count;
 
 static void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	if (button_read())
 	{
 		press_time = k_uptime_get();
+		last_press_time = press_time;
 	}
 	else
 	{
 		if (press_time != 0 && k_uptime_get() - press_time > 50) // Debounce
-			sys_reboot(SYS_REBOOT_COLD); // treat like pin reset but without pin reset reason
+			press_count++;
 		press_time = 0;
 	}
 }
@@ -243,8 +246,20 @@ static void button_thread(void)
 	while (1)
 	{
 		k_msleep(10);
-		if (press_time != 0 && k_uptime_get() - press_time > 50 && button_read()) // Button is being pressed
-			sys_reboot(SYS_REBOOT_COLD);
+		if (press_time)
+			set_led(SYS_LED_PATTERN_ON, SYS_LED_PRIORITY_BOOT);
+		if (press_time && k_uptime_get() - press_time > 1000 && button_read()) // Button is being held
+			sys_user_shutdown();
+		if (last_press_time && k_uptime_get() - last_press_time > 1000) // Reset button press count after 1s
+		{
+			// TODO: this does not reset the device if the button is only tapped once
+			set_led(SYS_LED_PATTERN_OFF, SYS_LED_PRIORITY_BOOT);
+
+			sys_reset_mode(press_count - 1);
+
+			press_count = 0;
+			last_press_time = 0;
+		}
 	}
 }
 #endif
