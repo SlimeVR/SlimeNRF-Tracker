@@ -165,17 +165,14 @@ static void console_thread(void)
 		else if (memcmp(line, command_calibrate, sizeof(command_calibrate)) == 0)
 		{
 //			reboot_counter_write(101);
-			float accelBias[3] = {0}, gyroBias[3] = {0}; // TODO: should be cleared in sensor.c
-			sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
-			sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
+			sensor_request_calibration();
 			k_msleep(1);
 			sys_reboot(SYS_REBOOT_WARM);
 		}
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
 		else if (memcmp(line, command_6_side, sizeof(command_6_side)) == 0)
 		{
-			float accBAinv[4][3] = {0}; // TODO: should be cleared in sensor.c
-			sys_write(MAIN_ACC_6_BIAS_ID, &retained.accBAinv, accBAinv, sizeof(accBAinv));
+			sensor_request_calibration_6_side();
 			k_msleep(1);
 			sys_reboot(SYS_REBOOT_WARM);
 		}

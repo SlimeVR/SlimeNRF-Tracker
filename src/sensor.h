@@ -24,7 +24,11 @@ void sensor_calibrate_mag(void);
 void sensor_calibrate_6_side(void);
 
 int sensor_calibration_validate(void);
+void sensor_calibration_fusion_invalidate(void);
 void sensor_calibration_clear(void);
+void sensor_request_calibration(void);
+void sensor_calibration_clear_6_side(void);
+void sensor_request_calibration_6_side(void);
 
 bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples);
 

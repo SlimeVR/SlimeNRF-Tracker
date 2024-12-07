@@ -325,7 +325,10 @@ void sys_reset_mode(uint8_t mode)
 	{
 	case 1:
 		LOG_INF("IMU calibration requested");
-		sensor_calibration_clear();
+		sensor_request_calibration();
+#if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
+		sensor_request_calibration_6_side();
+#endif
 		sys_reboot(SYS_REBOOT_COLD); // TODO: this should not be needed
 		break;
 	case 2: // Reset mode pairing reset

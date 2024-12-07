@@ -378,6 +378,7 @@ void sensor_calibrate_imu(void)
 	k_msleep(500); // Delay before beginning acquisition
 
 	LOG_INF("Reading data");
+	sensor_calibration_clear();
 	sensor_offsetBias(&sensor_imu_dev, accelBias, gyroBias); // This takes about 3s
 	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
 	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
@@ -411,6 +412,8 @@ void sensor_calibrate_6_side(void)
 {
 	LOG_INF("Calibrating main accelerometer 6-side offset");
 	LOG_INF("Rest the device on a stable surface");
+
+	sensor_calibration_clear_6_side();
 	sensor_6_sideBias(&sensor_imu_dev);
 
 	sys_write(MAIN_ACC_6_BIAS_ID, &retained.accBAinv, accBAinv, sizeof(accBAinv));
@@ -452,15 +455,8 @@ int sensor_calibration_validate(void)
 	return 0;
 }
 
-void sensor_calibration_clear(void)
+void sensor_calibration_fusion_invalidate(void)
 {
-	memset(accelBias, 0, sizeof(accelBias));
-	memset(accBAinv, 0, sizeof(accBAinv));
-	memset(gyroBias, 0, sizeof(gyroBias));
-	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
-	sys_write(MAIN_ACC_6_BIAS_ID, &retained.accBAinv, accBAinv, sizeof(accBAinv));
-	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
-
 	if (sensor_fusion_init)
 	{ // clear fusion gyro offset
 		float g_off[3] = {0};
@@ -473,6 +469,38 @@ void sensor_calibration_clear(void)
 		retained_update();
 	}
 }
+
+void sensor_calibration_clear(void)
+{
+	memset(accelBias, 0, sizeof(accelBias));
+	memset(gyroBias, 0, sizeof(gyroBias));
+	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
+	sys_write(MAIN_GYRO_BIAS_ID, &retained.gyroBias, gyroBias, sizeof(gyroBias));
+
+	sensor_calibration_fusion_invalidate();
+}
+
+void sensor_request_calibration(void)
+{
+	accelBias[0] = NAN;
+	sys_write(MAIN_ACCEL_BIAS_ID, &retained.accelBias, accelBias, sizeof(accelBias));
+
+	sensor_calibration_fusion_invalidate();
+}
+
+#if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
+void sensor_calibration_clear_6_side(void)
+{
+	memset(accBAinv, 0, sizeof(accBAinv));
+	sys_write(MAIN_ACC_6_BIAS_ID, &retained.accBAinv, accBAinv, sizeof(accBAinv));
+}
+
+void sensor_request_calibration_6_side(void)
+{
+	accBAinv[0][0] = NAN;
+	sys_write(MAIN_ACC_6_BIAS_ID, &retained.accBAinv, accBAinv, sizeof(accBAinv));
+}
+#endif
 
 bool wait_for_motion(const struct i2c_dt_spec *dev_i2c, bool motion, int samples)
 {
@@ -560,14 +588,13 @@ int main_imu_init(void)
 	}
 
 	// Calibrate IMU
-	if (accelBias[0] == 0 && accelBias[1] == 0 && accelBias[2] == 0 && gyroBias[0] == 0 && gyroBias[1] == 0 && gyroBias[2] == 0) // TODO: better way to check?
+	if (isnan(accelBias[0]))
 		sensor_calibrate_imu();
 
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION 
-	// Calibrate 6-Side
-	if (accBAinv[0][0] == 0 && accBAinv[0][1] == 0 && accBAinv[0][2] == 0){
+	// Calibrate 6-side
+	if (isnan(accBAinv[0][0]))
 		sensor_calibrate_6_side();
-	}
 #endif
 
 	LOG_INF("Using %s", fusion_names[fusion_id]);
