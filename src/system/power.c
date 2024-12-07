@@ -97,7 +97,9 @@ static void set_regulator(enum sys_regulator regulator)
 #endif
 }
 
+#if IMU_INT_EXISTS && CONFIG_DELAY_SLEEP_ON_STATUS
 static int64_t system_off_timeout = 0;
+#endif
 
 void sys_request_WOM() // TODO: if IMU interrupt does not exist what does the system do?
 {
