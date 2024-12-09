@@ -398,17 +398,7 @@ void sensor_calibrate_imu(void)
 	}
 
 	LOG_INF("Finished calibration");
-	if (sensor_fusion_init)
-	{ // clear fusion gyro offset
-		float g_off[3] = {0};
-		sensor_fusion->set_gyro_bias(g_off);
-		sensor_retained_write();
-	}
-	else
-	{ // TODO: always clearing the fusion?
-		retained.fusion_id = 0; // Invalidate retained fusion data
-		retained_update();
-	}
+	sensor_calibration_fusion_invalidate();
 	set_led(SYS_LED_PATTERN_ONESHOT_COMPLETE, SYS_LED_PRIORITY_SENSOR);
 }
 
