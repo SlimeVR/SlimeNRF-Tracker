@@ -1,5 +1,5 @@
-#include "..\globals.h"
-#include "..\util.h"
+#include "../globals.h"
+#include "../util.h"
 
 #include <math.h>
 #include <zephyr/drivers/gpio.h>
