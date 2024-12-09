@@ -38,7 +38,7 @@ void wait_for_threads(void);
 void main_imu_suspend(void);
 void main_imu_wakeup(void);
 
-void sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *dest2);
+int sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *dest2);
 void sensor_6_sideBias(const struct i2c_dt_spec *dev_i2c);
 
 typedef struct sensor_fusion {
