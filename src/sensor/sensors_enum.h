@@ -49,6 +49,7 @@ QST Corporation
 AshaiKASEI
 -AK8963:0C/0D/0E/0F,00,48 // there is a device information register, datasheet does not specify the value. check AK09916 first
 -AK09916:0C,01,09
+*AK09940:0C/0D/0E/0F,01,A3
 Bosch Sensortec
 *BMM150:10/11/12/13,40,32
 *BMM350:14/15/16/17,00,33
@@ -67,7 +68,7 @@ memsic
 0B,0C/0D/0E/0F,0C,10/11/12/13,14/15/16/17,1C,1E,30
 0A (48:HMC5883L)
 00 (48:AK8963)
-01 (09:AK09916)
+01 (09:AK09916;A3:AK09940)
 0D (FF:QMC5883L)
 40 (32:BMM150)
 00 (33:BMM350)
@@ -101,6 +102,7 @@ enum dev_mag {
 	MAG_QMC5883L,
 	MAG_AK8963,
 	MAG_AK09916,
+	MAG_AK09940,
 	MAG_BMM150,
 	MAG_BMM350,
 	MAG_LIS2MDL, // IIS2MDC/LIS2MDL

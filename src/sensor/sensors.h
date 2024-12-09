@@ -12,6 +12,7 @@
 #include "imu/LSM6DSV.h"
 #include "imu/LSM6DSO.h"
 
+#include "mag/AK09940.h"
 #include "mag/BMM150.h"
 #include "mag/BMM350.h"
 #include "mag/LIS2MDL.h"
@@ -89,6 +90,7 @@ const char *dev_mag_names[] = {
 	"QMC5883L",
 	"AK8963",
 	"AK09916",
+	"AK09940",
 	"BMM150",
 	"BMM350",
 	"IIS2MDC/LIS2MDL",
@@ -104,6 +106,7 @@ const sensor_mag_t *sensor_mags[] = {
 	&sensor_mag_none, // not implemented
 	&sensor_mag_none,
 	&sensor_mag_none,
+	&sensor_mag_ak09940,
 	&sensor_mag_bmm150,
 	&sensor_mag_bmm350,
 	&sensor_mag_lis2mdl,
@@ -127,9 +130,10 @@ const uint8_t i2c_dev_mag_addr[] = {
 };
 const uint8_t i2c_dev_mag_reg[] = {
 	1,	0x0D,
-	2,	0x01, // AK09916 first
+	2,	0x01, // AK09916/AK09940 first
 		0x00,
-	1,	0x00,
+	2,	0x01, // AK09940 first
+		0x00,
 	1,	0x40,
 	1,	0x00,
 	1,	0x0F,
@@ -142,8 +146,9 @@ const uint8_t i2c_dev_mag_reg[] = {
 };
 const uint8_t i2c_dev_mag_id[] = {
 	1,	0xFF, // reg 0x0D
-	1,	0x09, // reg 0x01
+	2,	0x09,0xA3, // reg 0x01
 	1,	0x48, // reg 0x00
+	1,	0xA3, // reg 0x01
 	1,	0x48, // reg 0x00
 	1,	0x32, // reg 0x40
 	1,	0x33, // reg 0x00
@@ -157,8 +162,9 @@ const uint8_t i2c_dev_mag_id[] = {
 };
 const int i2c_dev_mag[] = {
 	MAG_QMC5883L,
-	MAG_AK09916,
+	MAG_AK09916, MAG_AK09940,
 	MAG_AK8963,
+	MAG_AK09940,
 	MAG_AK8963,
 	MAG_BMM150,
 	MAG_BMM350,
