@@ -42,6 +42,7 @@ void set_status(enum sys_status status, bool set)
 	else
 	{
 		status_state &= ~status;
+		LOG_INF("Cleared status: %d", status);
 	}
 	connection_update_status(status_state);
 	LOG_INF("Status: %d", status_state);
