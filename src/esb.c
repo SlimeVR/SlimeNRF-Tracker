@@ -39,7 +39,6 @@ void event_handler(struct esb_evt const *event)
 	case ESB_EVENT_TX_FAILED:
 		if (++tx_errors == 100) // consecutive failure to transmit
 			set_status(SYS_STATUS_CONNECTION_ERROR, true);
-//		LOG_INF("TX FAILED");
 		LOG_DBG("TX FAILED");
 		break;
 	case ESB_EVENT_RX_RECEIVED:
