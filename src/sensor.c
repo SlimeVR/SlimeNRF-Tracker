@@ -324,8 +324,6 @@ void sensor_retained_read(void) // TODO: move some of this to sys?
 		for (int i = 0; i < 3; i++)
 			LOG_INF("%.5f %.5f %.5f %.5f", (double)magBAinv[0][i], (double)magBAinv[1][i], (double)magBAinv[2][i], (double)magBAinv[3][i]);
 	}
-	sensor_calibration_validate();
-
 	if (retained.fusion_id)
 		LOG_INF("Fusion data recovered");
 }
@@ -590,6 +588,8 @@ int main_imu_init(void)
 	// Calibrate IMU
 	if (isnan(accelBias[0]))
 		sensor_calibrate_imu();
+	else
+		sensor_calibration_validate();
 
 #if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION 
 	// Calibrate 6-side
