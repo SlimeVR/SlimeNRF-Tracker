@@ -902,7 +902,7 @@ int sensor_offsetBias(const struct i2c_dt_spec *dev_i2c, float *dest1, float *de
 	for (int i = 0; i < 500; i++)
 	{
 		sensor_imu->accel_read(dev_i2c, rawData);
-		if (v_epsilon(rawData, last_a, 0.1))
+		if (!v_epsilon(rawData, last_a, 0.1))
 			return -1;
 #if !CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
 		dest1[0] += rawData[0];
