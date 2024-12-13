@@ -89,25 +89,31 @@ static void print_info(void)
 	printk(CONFIG_USB_DEVICE_MANUFACTURER " " CONFIG_USB_DEVICE_PRODUCT "\n");
 	printk(FW_STRING);
 
-	printk("Board configuration: " CONFIG_BOARD "\n");
+	printk("\nBoard configuration: " CONFIG_BOARD "\n");
 	printk("SOC: " CONFIG_SOC "\n");
 
-	printk("IMU address: 0x%02X, register: 0x%02X\n", retained.imu_addr, retained.imu_reg);
+	printk("\nIMU address: 0x%02X, register: 0x%02X\n", retained.imu_addr, retained.imu_reg);
 	printk("Magnetometer address: 0x%02X, register: 0x%02X\n", retained.mag_addr, retained.mag_reg);
 
-	printk("IMU: %s\n", sensor_get_sensor_imu_name());
+	printk("\nIMU: %s\n", sensor_get_sensor_imu_name());
 	printk("Magnetometer: %s\n", sensor_get_sensor_mag_name());
 
-	printk("Accelerometer bias: %.5f %.5f %.5f\n", (double)retained.accelBias[0], (double)retained.accelBias[1], (double)retained.accelBias[2]);
+#if CONFIG_SENSOR_USE_6_SIDE_CALIBRATION
+	printk("\nAccelerometer matrix:\n");
+	for (int i = 0; i < 3; i++)
+		printk("%.5f %.5f %.5f %.5f\n", (double)retained.accBAinv[0][i], (double)retained.accBAinv[1][i], (double)retained.accBAinv[2][i], (double)retained.accBAinv[3][i]);
+#else
+	printk("\nAccelerometer bias: %.5f %.5f %.5f\n", (double)retained.accelBias[0], (double)retained.accelBias[1], (double)retained.accelBias[2]);
+#endif
 	printk("Gyroscope bias: %.5f %.5f %.5f\n", (double)retained.gyroBias[0], (double)retained.gyroBias[1], (double)retained.gyroBias[2]);
 	printk("Magnetometer bridge offset: %.5f %.5f %.5f\n", (double)retained.magBias[0], (double)retained.magBias[1], (double)retained.magBias[2]);
 	printk("Magnetometer matrix:\n");
 	for (int i = 0; i < 3; i++)
 		printk("%.5f %.5f %.5f %.5f\n", (double)retained.magBAinv[0][i], (double)retained.magBAinv[1][i], (double)retained.magBAinv[2][i], (double)retained.magBAinv[3][i]);
 
-	printk("Fusion: %s\n", sensor_get_sensor_fusion_name());
+	printk("\nFusion: %s\n", sensor_get_sensor_fusion_name());
 
-	printk("Tracker ID: %u\n", retained.paired_addr[1]);
+	printk("\nTracker ID: %u\n", retained.paired_addr[1]);
 	printk("Device address: %012llX\n", *(uint64_t *)NRF_FICR->DEVICEADDR & 0xFFFFFFFFFFFF);
 	printk("Receiver Address: %012llX\n", (*(uint64_t *)&retained.paired_addr[0] >> 16) & 0xFFFFFFFFFFFF);
 }
