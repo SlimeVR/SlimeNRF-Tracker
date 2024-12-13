@@ -24,7 +24,7 @@ static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, led_gp
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
 #else
 #warning "LED GPIO does not exist"
-static const struct gpio_dt_spec led = {0};
+//static const struct gpio_dt_spec led = {0};
 #endif
 #if DT_NODE_EXISTS(LED0_NODE)
 #define PWM_LED_EXISTS true
@@ -33,6 +33,7 @@ static const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET(LED0_NODE);
 #warning "PWM LED node does not exist"
 #endif
 
+#if LED_EXISTS
 static enum sys_led_pattern led_patterns[SYS_LED_PATTERN_DEPTH] = {[0 ... (SYS_LED_PATTERN_DEPTH - 1)] = SYS_LED_PATTERN_OFF};
 static enum sys_led_pattern current_led_pattern;
 static int current_priority;
@@ -40,13 +41,12 @@ static int led_pattern_state;
 
 static int led_gpio_init(void)
 {
-#if LED_EXISTS
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT);
-#endif
 	return 0;
 }
 
 SYS_INIT(led_gpio_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+#endif
 
 void set_led(enum sys_led_pattern led_pattern, int priority)
 {
@@ -93,7 +93,7 @@ static void led_thread(void)
 #if !LED_EXISTS
 	LOG_WRN("LED GPIO does not exist");
 	return;
-#endif
+#else
 	while (1)
 	{
 #if PWM_LED_EXISTS
@@ -188,7 +188,7 @@ static void led_thread(void)
 #if PWM_LED_EXISTS
 			pwm_set_pulse_dt(&pwm_led, pwm_led.period * led_value);
 #else
-			gpio_pin_set_dt(&led, led_value > 0.5);
+			gpio_pin_set_dt(&led, led_value > 0.5f);
 #endif
 			k_msleep(5);
 			break;
@@ -218,4 +218,5 @@ static void led_thread(void)
 			k_thread_suspend(led_thread_id);
 		}
 	}
+#endif
 }
