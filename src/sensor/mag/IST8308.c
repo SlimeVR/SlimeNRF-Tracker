@@ -10,7 +10,6 @@
 static const float sensitivity = 0.075; // uT/LSB
 
 static uint8_t last_odr = 0xff;
-static float last_time = 0;
 static int64_t oneshot_trigger_time = 0;
 
 LOG_MODULE_REGISTER(IST8308, LOG_LEVEL_DBG);
@@ -39,7 +38,6 @@ int ist8308_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *act
 	uint8_t NSF;
 	uint8_t MODE;
 	uint8_t OSR;
-	last_time = time;
 
 	if (time <= 0 || time == INFINITY) // standby mode or single measurement mode
 	{

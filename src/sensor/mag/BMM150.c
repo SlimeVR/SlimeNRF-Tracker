@@ -55,7 +55,6 @@ static int8_t dig_xy2;
 static uint16_t dig_xyz1;
 
 static uint8_t last_odr = 0xff;
-static float last_time = 0;
 
 LOG_MODULE_REGISTER(BMM150, LOG_LEVEL_DBG);
 
@@ -92,7 +91,6 @@ int bmm1_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual
 	uint8_t OPMODE;
 	uint8_t REP_XY; // 1+2(REP_XY)
 	uint8_t REP_Z; // 1+REP_Z
-	last_time = time;
 
 	if (time <= 0 || time == INFINITY) // sleep and forced mode both use sleep mode
 	{

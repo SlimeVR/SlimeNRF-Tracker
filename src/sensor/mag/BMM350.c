@@ -55,7 +55,6 @@ static const float sensitivity_z = (power / (bz_sens * ina_z_gain_trgt * adc_gai
 static const float sensitivity_temp = 1 / (temp_sens * adc_gain * lut_gain * 1048576); // C/LSB
 
 static uint8_t last_odr = 0xff;
-static float last_time = 0;
 
 LOG_MODULE_REGISTER(BMM350, LOG_LEVEL_DBG);
 
@@ -83,7 +82,6 @@ int bmm3_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual
 	uint8_t AGGR;
 	uint8_t AGGR_AVG;
 	uint8_t PMU_CMD;
-	last_time = time;
 
 	if (time <= 0 || time == INFINITY) // suspend and forced mode both use suspend mode
 	{

@@ -8,7 +8,6 @@
 static const float sensitivity = 1.0 / 3421; // Always 8G (FS = ±8 gauss: 3421 LSB/Gauss)
 
 static uint8_t last_odr = 0xff;
-static float last_time = 0;
 
 LOG_MODULE_REGISTER(LIS3MDL, LOG_LEVEL_DBG);
 
@@ -38,7 +37,6 @@ int lis3_update_odr(const struct i2c_dt_spec *dev_i2c, float time, float *actual
 	uint8_t DO;
 	uint8_t FAST_ODR;
 	uint8_t MD;
-	last_time = time;
 
 	if (time <= 0) // off
 	{
