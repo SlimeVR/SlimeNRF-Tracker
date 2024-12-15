@@ -159,7 +159,6 @@ void sys_request_system_off(void)
 void sys_request_system_reboot(void)
 {
 	LOG_INF("System reboot requested");
-	main_imu_suspend(); // TODO: should be a common shutdown step
 	configure_system_off(); // Common subsystem shutdown and prepare sense pins
 	// Set system reboot
 	LOG_INF("Rebooting nRF");
