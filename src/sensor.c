@@ -613,6 +613,8 @@ static bool main_running = false;
 static bool main_ok = false;
 static bool send_info = false;
 
+static int packet_errors = 0;
+
 void main_imu_thread(void)
 {
 	main_running = true;
@@ -723,6 +725,7 @@ void main_imu_thread(void)
 			float m[] = {SENSOR_MAGNETOMETER_AXES_ALIGNMENT};
 			float z[3] = {0};
 			max_gyro_speed_square = 0;
+			int processed_packets = 0;
 			for (uint16_t i = 0; i < packets; i++) // TODO: fifo_process_ext is available, need to implement it
 			{
 				float raw_g[3];
@@ -752,8 +755,29 @@ void main_imu_thread(void)
 					if (gyro_speed_square > max_gyro_speed_square)
 						max_gyro_speed_square = gyro_speed_square;
 				}
+				processed_packets++;
 			}
 			sensor_fusion->update(z, a, m, sensor_update_time_ms / 1000.0); // TODO: use actual time?
+
+			// Check packet processing
+			if (processed_packets == 0)
+			{
+				LOG_ERR("No packets processed");
+				if (++packet_errors > 10)
+				{
+					LOG_ERR("Packet error threshold exceeded");
+					set_status(SYS_STATUS_SENSOR_ERROR, true); // kind of redundant
+					sys_request_system_reboot(); // TODO: obviously the root issue with icm456 should be resolved, but this should keep the device working
+				}
+			}
+			else if (processed_packets < packets)
+			{
+				LOG_WRN("Only %u/%u packets processed", processed_packets, packets);
+			}
+			else
+			{
+				packet_errors = 0;
+			}
 
 			// Update fusion gyro sanity?
 			sensor_fusion->update_gyro_sanity(g, m);

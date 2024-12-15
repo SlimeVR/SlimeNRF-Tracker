@@ -156,6 +156,16 @@ void sys_request_system_off(void)
 	sys_poweroff();
 }
 
+void sys_request_system_reboot(void)
+{
+	LOG_INF("System reboot requested");
+	main_imu_suspend(); // TODO: should be a common shutdown step
+	configure_system_off(); // Common subsystem shutdown and prepare sense pins
+	// Set system reboot
+	LOG_INF("Rebooting nRF");
+	sys_reboot(SYS_REBOOT_COLD);
+}
+
 bool vin_read(void) // blocking
 {
 	while (!power_init)
