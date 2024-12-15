@@ -258,6 +258,8 @@ uint16_t icm45_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint1
 int icm45_fifo_process(uint16_t index, uint8_t *data, float g[3])
 {
 	index *= 8; // Packet size 8 bytes
+	if (data[index] != 0x20) // GYRO_EN
+		return 1; // Skip invalid header
 	// TODO: No way to tell if packet is empty?
 	// combine into 16 bit values
 	float raw[3];
