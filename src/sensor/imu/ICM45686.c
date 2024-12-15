@@ -259,7 +259,10 @@ int icm45_fifo_process(uint16_t index, uint8_t *data, float g[3])
 {
 	index *= 8; // Packet size 8 bytes
 	if (data[index] != 0x20) // GYRO_EN
+	{
+		LOG_ERR("Invalid header: %016llX", (*(uint64_t *)&data[index])); // will print backwards
 		return 1; // Skip invalid header
+	}
 	// TODO: No way to tell if packet is empty?
 	// combine into 16 bit values
 	float raw[3];
