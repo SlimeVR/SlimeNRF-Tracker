@@ -700,7 +700,7 @@ void main_imu_thread(void)
 					set_led(SYS_LED_PATTERN_FLASH, SYS_LED_PRIORITY_SENSOR); // Magnetometer calibration is ready to apply
 			}
 
-			if (mag_available && mag_enabled && reconfig) // TODO: get rid of reconfig?
+			if (reconfig) // TODO: get rid of reconfig?
 			{
 				switch (sensor_mode)
 				{
@@ -711,7 +711,8 @@ void main_imu_thread(void)
 				case SENSOR_SENSOR_MODE_LOW_POWER:
 					set_update_time_ms(33);
 					LOG_INF("Switching sensors to low power");
-					sensor_mag->update_odr(&sensor_mag_dev, INFINITY, &mag_actual_time); // standby/oneshot
+					if (mag_available && mag_enabled)
+						sensor_mag->update_odr(&sensor_mag_dev, INFINITY, &mag_actual_time); // standby/oneshot
 					break;
 				};
 			}
