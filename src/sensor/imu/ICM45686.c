@@ -273,8 +273,6 @@ int icm45_fifo_process(uint16_t index, uint8_t *data, float g[3])
 	for (int i = 0; i < 3; i++) // x, y, z
 		raw[i] *= gyro_sensitivity;
 	memcpy(g, raw, sizeof(raw));
-	if (fabsf(g[0]) > 300 || fabsf(g[1]) > 300 || fabsf(g[2]) > 300) // record suspicious data
-		LOG_ERR("%02X %02X %02X %02X %02X %02X %02X %02X, %.2f, %.2f, %.2f", data[index], data[index + 1], data[index + 2], data[index + 3], data[index + 4], data[index + 5], data[index + 6], data[index + 7], g[0], g[1], g[2]);
 	return 0;
 }
 
