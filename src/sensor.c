@@ -763,7 +763,7 @@ void main_imu_thread(void)
 			if (processed_packets == 0)
 			{
 				LOG_ERR("No packets processed");
-				if (++packet_errors > 10)
+				if (++packet_errors == 10)
 				{
 					LOG_ERR("Packet error threshold exceeded");
 					set_status(SYS_STATUS_SENSOR_ERROR, true); // kind of redundant
@@ -894,13 +894,13 @@ void main_imu_thread(void)
 	}
 }
 
-void wait_for_threads(void)
+void wait_for_threads(void) // TODO: add timeout
 {
 	while (main_running)
 		k_usleep(1); // bane of my existence. don't use k_yield()!!!!!!
 }
 
-void main_imu_suspend(void)
+void main_imu_suspend(void) // TODO: add timeout
 {
 	main_suspended = true;
 	while (sensor_sensor_scanning)

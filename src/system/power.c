@@ -141,7 +141,7 @@ void sys_request_WOM() // TODO: if IMU interrupt does not exist what does the sy
 #endif
 }
 
-void sys_request_system_off(void)
+void sys_request_system_off(void) // TODO: add timeout
 {
 	LOG_INF("System off requested");
 	main_imu_suspend(); // TODO: should be a common shutdown step
@@ -156,7 +156,7 @@ void sys_request_system_off(void)
 	sys_poweroff();
 }
 
-void sys_request_system_reboot(void)
+void sys_request_system_reboot(void) // TODO: add timeout
 {
 	LOG_INF("System reboot requested");
 	configure_system_off(); // Common subsystem shutdown and prepare sense pins
