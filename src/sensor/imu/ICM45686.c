@@ -263,7 +263,7 @@ int icm45_fifo_process(uint16_t index, uint8_t *data, float g[3])
 		LOG_ERR("Invalid header: %016llX", (*(uint64_t *)&data[index])); // will print backwards
 		return 1; // Skip invalid header
 	}
-	// TODO: No way to tell if packet is empty?
+	// Empty packet is 7F filled
 	// combine into 16 bit values
 	float raw[3];
 	for (int i = 0; i < 3; i++) // x, y, z
