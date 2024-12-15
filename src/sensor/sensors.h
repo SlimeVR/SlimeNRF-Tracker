@@ -15,6 +15,8 @@
 #include "mag/AK09940.h"
 #include "mag/BMM150.h"
 #include "mag/BMM350.h"
+#include "mag/IST8306.h"
+#include "mag/IST8308.h"
 #include "mag/LIS2MDL.h"
 #include "mag/LIS3MDL.h"
 #include "mag/MMC5983MA.h"
@@ -93,6 +95,10 @@ const char *dev_mag_names[] = {
 	"AK09940",
 	"BMM150",
 	"BMM350",
+	"IST8306",
+	"IST8308",
+	"IST8320",
+	"IST8321",
 	"IIS2MDC/LIS2MDL",
 	"LIS3MDL",
 	"MMC34160PJ",
@@ -109,6 +115,10 @@ const sensor_mag_t *sensor_mags[] = {
 	&sensor_mag_ak09940,
 	&sensor_mag_bmm150,
 	&sensor_mag_bmm350,
+	&sensor_mag_ist8306,
+	&sensor_mag_ist8308,
+	&sensor_mag_none,
+	&sensor_mag_none,
 	&sensor_mag_lis2mdl,
 	&sensor_mag_lis3mdl,
 	&sensor_mag_none,
@@ -117,13 +127,14 @@ const sensor_mag_t *sensor_mags[] = {
 	&sensor_mag_none,
 	&sensor_mag_mmc5983ma
 };
-const int i2c_dev_mag_addr_count = 8;
+const int i2c_dev_mag_addr_count = 9;
 const uint8_t i2c_dev_mag_addr[] = {
 	1,	0x0B,
 	1,	0x0C,
 	3,	0x0D,0x0E,0x0F,
 	4,	0x10,0x11,0x12,0x13, // why bosch
 	4,	0x14,0x15,0x16,0x17,
+	1,	0x19,
 	1,	0x1C,
 	1,	0x1E,
 	1,	0x30
@@ -136,6 +147,7 @@ const uint8_t i2c_dev_mag_reg[] = {
 		0x00,
 	1,	0x40,
 	1,	0x00,
+	1,	0x00,
 	1,	0x0F,
 	3,	0x0F,
 		0x4F,
@@ -147,11 +159,12 @@ const uint8_t i2c_dev_mag_reg[] = {
 const uint8_t i2c_dev_mag_id[] = {
 	1,	0xFF, // reg 0x0D
 	2,	0x09,0xA3, // reg 0x01
-	1,	0x48, // reg 0x00
+	2,	0x08,0x48, // reg 0x00
 	1,	0xA3, // reg 0x01
-	1,	0x48, // reg 0x00
+	2,	0x08,0x48, // reg 0x00
 	1,	0x32, // reg 0x40
 	1,	0x33, // reg 0x00
+	1,	0x06, // reg 0x00
 	1,	0x3D, // reg 0x0F
 	1,	0x3D, // reg 0x0F
 	1,	0x40, // reg 0x4F
@@ -163,11 +176,12 @@ const uint8_t i2c_dev_mag_id[] = {
 const int i2c_dev_mag[] = {
 	MAG_QMC5883L,
 	MAG_AK09916, MAG_AK09940,
-	MAG_AK8963,
+	MAG_IST8308, MAG_AK8963,
 	MAG_AK09940,
-	MAG_AK8963,
+	MAG_IST8308, MAG_AK8963,
 	MAG_BMM150,
 	MAG_BMM350,
+	MAG_IST8306,
 	MAG_LIS3MDL,
 	MAG_LIS3MDL,
 	MAG_LIS2MDL,
