@@ -752,6 +752,11 @@ void main_imu_thread(void)
 					if (gyro_speed_square > max_gyro_speed_square)
 						max_gyro_speed_square = gyro_speed_square;
 				}
+
+				float g_off[3] = {}; // log suspicious gyro bias
+				sensor_fusion->get_gyro_bias(g_off);
+				if (!v_epsilon(g_off, z, 300)) // record suspicious data
+					LOG_ERR("%.2f, %.2f, %.2f", g[0], g[1], g[2]);
 			}
 			sensor_fusion->update(z, a, m, sensor_update_time_ms / 1000.0); // TODO: use actual time?
 
