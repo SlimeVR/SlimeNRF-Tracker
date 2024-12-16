@@ -227,8 +227,40 @@ int icm45_update_odr(const struct i2c_dt_spec *dev_i2c, float accel_time, float 
 	return 0;
 }
 
+// TODO:
+static int64_t last_debug_time = -1000;
+//static int64_t last_debug_dump_time = -1001;
+//
+
 uint16_t icm45_fifo_read(const struct i2c_dt_spec *dev_i2c, uint8_t *data, uint16_t len) // TODO: check if working
 {
+// TODO:
+	if (-1000 != last_debug_time)
+	{
+//		last_debug_dump_time = last_debug_time;
+		// try to dump registers
+		uint8_t reg[32] = {0};
+		i2c_burst_read_dt(dev_i2c, ICM45686_ACCEL_DATA_X1_UI, &reg[0], 6);
+		i2c_burst_read_dt(dev_i2c, ICM45686_GYRO_DATA_X1_UI, &reg[6], 6);
+		i2c_burst_read_dt(dev_i2c, ICM45686_TEMP_DATA1_UI, &reg[12], 2);
+		i2c_burst_read_dt(dev_i2c, ICM45686_FIFO_COUNT_0, &reg[14], 2);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_PWR_MGMT0, &reg[16]);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_INT1_CONFIG0, &reg[17]);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_INT1_CONFIG1, &reg[18]);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_INT1_STATUS0, &reg[19]); // i3
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_ACCEL_CONFIG0, &reg[20]);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_GYRO_CONFIG0, &reg[21]);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_FIFO_CONFIG0, &reg[22]);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_FIFO_CONFIG3, &reg[23]);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_TMST_WOM_CONFIG, &reg[24]);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_RTC_CONFIG, &reg[25]);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_IOC_PAD_SCENARIO_OVRD, &reg[26]);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_REG_MISC1, &reg[27]);
+		i2c_reg_read_byte_dt(dev_i2c, ICM45686_REG_MISC2, &reg[28]);
+		LOG_ERR("m2m1o_r_t_f3f0g0a0i3i1i0p0 bbbb tttt gggggggggggg aaaaaaaaaaaa");
+		LOG_ERR("%010llX%016llX %04llX %04llX %012llX %012llX", (*(uint64_t *)&reg[24]), (*(uint64_t *)&reg[16]), (*(uint64_t *)&reg[14])&0xFFFF, (*(uint64_t *)&reg[12])&0xFFFF, (*(uint64_t *)&reg[6])&0xFFFFFFFFFFFF, (*(uint64_t *)&reg[0])&0xFFFFFFFFFFFF); // will print backwards
+	}
+//
 	uint8_t rawCount[2];
 	int err = i2c_burst_read_dt(dev_i2c, ICM45686_FIFO_COUNT_0, &rawCount[0], 2);
 	uint16_t packets = (uint16_t)(rawCount[1] << 8 | rawCount[0]); // Turn the 16 bits into a unsigned 16-bit value
@@ -260,7 +292,13 @@ int icm45_fifo_process(uint16_t index, uint8_t *data, float g[3])
 	index *= 8; // Packet size 8 bytes
 	if (data[index] != 0x20) // GYRO_EN
 	{
-		LOG_ERR("Invalid header: %016llX", (*(uint64_t *)&data[index])); // will print backwards
+// TODO:
+		if (k_uptime_get() - last_debug_time > 1000)
+		{
+			last_debug_time = k_uptime_get();
+			LOG_ERR("Invalid header: %016llX", (*(uint64_t *)&data[index])); // will print backwards
+		}
+//
 		return 1; // Skip invalid header
 	}
 	// Empty packet is 7F filled
