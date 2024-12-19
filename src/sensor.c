@@ -767,7 +767,7 @@ void main_imu_thread(void)
 				{
 					LOG_ERR("Packet error threshold exceeded");
 					set_status(SYS_STATUS_SENSOR_ERROR, true); // kind of redundant
-					sys_request_system_reboot(); // TODO: obviously the root issue with icm456 should be resolved, but this should keep the device working
+//					sys_request_system_reboot(); // TODO: obviously the root issue with icm456 should be resolved, but this should keep the device working
 				}
 			}
 			else if (processed_packets < packets)
