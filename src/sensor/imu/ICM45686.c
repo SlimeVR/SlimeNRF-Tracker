@@ -31,7 +31,7 @@ int icm45_init(const struct i2c_dt_spec *dev_i2c, float clock_rate, float accel_
 	err |= icm45_update_odr(dev_i2c, accel_time, gyro_time, accel_actual_time, gyro_actual_time);
 //	k_msleep(50); // 10ms Accel, 30ms Gyro startup
 	k_msleep(1); // fuck i dont wanna wait that long
-	err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_FIFO_CONFIG0, 0x40 | 0b000111); // set FIFO Stream mode, set FIFO depth to 2K bytes
+	err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_FIFO_CONFIG0, 0x40 | 0b011111); // set FIFO Stream mode, set FIFO depth to 8K bytes
 	err |= i2c_reg_write_byte_dt(dev_i2c, ICM45686_FIFO_CONFIG3, 0x05); // begin FIFO stream (FIFO gyro only)
 	if (err)
 		LOG_ERR("I2C error");
